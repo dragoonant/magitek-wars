@@ -1,0 +1,24 @@
+{
+  "name": "magitek-wars",
+  "version": "0.1.0",
+  "description": "Magitek Wars: an original 16-bit-style game of steam and gloam for the browser",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "gate": "tsc --noEmit && vitest run && vite build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dragoonant/magitek-wars.git"
+  },
+  "author": "evilgouki",
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}

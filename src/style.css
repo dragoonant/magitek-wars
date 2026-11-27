@@ -1,0 +1,36 @@
+/* Base stylesheet. No text selection, callouts or tap flashes on long press (KB rule 24). */
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #080810;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+main {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+#screen {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
