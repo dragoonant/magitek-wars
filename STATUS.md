@@ -24,7 +24,7 @@ campaign run, a deck builder and the card gallery, with music and sound.
   depot, boss) with one growing deck and a Boiler that carries its damage; a won battle repairs it by 3. Eight events
   (R-R11), a briefing before each battle with the foe's deck (R-R12), boss intros with the boss's portrait. Balance
   R-2: 7 of 18 stand-in runs get past act 1 and 2 win.
-- **Phone:** the canvas scales to fit; a tap acts on release and a 400 ms hold inspects a card. Checked at 390 x 844.
+- **Screen (D21):** the frame fills the window at any size, sharp at in-between scales. **Phone:** a tap acts on release and a 400 ms hold inspects a card. Checked at 390 x 844.
 - **Art (D3, D14, D15, D20):** style LoRAs `mkw16_v1`-`v3` (v3 is the house LoRA, `lora/RUNS.md`); card art for all
   332 faces, 48 hero portraits (base and ascended), six emblems, seven battlefields; picks in `tools/art/picks.md`.
 - **Sound (D20):** seven music tracks (title, calm, battle, tense, victory, defeat, ascend) and twelve effects

@@ -13,14 +13,19 @@ import { RunScreen } from './run/screen';
 import { DeckBuilder } from './deckbuilder/screen';
 import { installAudioUnlock, isMuted, loadSamples, setMusic, setMuted, type MusicMood } from './audio/audio';
 
-// One canvas at the SNES hi-res size (512 x 448). The title and the gallery are drawn at 256 x 224 into an offscreen
-// canvas and doubled; the battle screens draw at full size (PLAN D17).
+// The game draws into one offscreen canvas at the SNES hi-res size (512 x 448). The title and the gallery are drawn at
+// 256 x 224 into another and doubled; the battle screens draw at full size (PLAN D17). The page's #screen canvas only
+// shows that frame, scaled to fill the window (PLAN D21).
 
-const canvas = document.getElementById('screen');
-if (!(canvas instanceof HTMLCanvasElement)) throw new Error('main: no #screen canvas');
-canvas.width = HW;
-canvas.height = HH;
-const ctx = canvas.getContext('2d');
+const screenEl = document.getElementById('screen');
+if (!(screenEl instanceof HTMLCanvasElement)) throw new Error('main: no #screen canvas');
+const canvas: HTMLCanvasElement = screenEl;
+const shown = canvas.getContext('2d');
+if (!shown) throw new Error('main: no 2d context');
+const game = document.createElement('canvas');
+game.width = HW;
+game.height = HH;
+const ctx = game.getContext('2d');
 if (!ctx) throw new Error('main: no 2d context');
 ctx.imageSmoothingEnabled = false;
 const hi = new Gfx(ctx);
@@ -71,15 +76,44 @@ Promise.all([scene.load(), title.load(), gallery.load()]).catch((e: unknown) => 
   console.error(e);
 });
 
-/** Integer scale (ART-STYLE section 1); a screen smaller than 512 x 448 (a phone) shrinks the canvas to fit. */
+/**
+ * The frame fills the window, keeping its 8:7 shape (PLAN D21). The shown canvas has one backing pixel per device
+ * pixel. A whole-number scale is drawn with hard pixel edges; any other scale is drawn with hard edges at the next
+ * whole number up, then smoothly reduced to fit ("sharp bilinear"), so pixel columns stay even and edges stay crisp.
+ */
+const up = document.createElement('canvas');
+const upCtx = up.getContext('2d');
+if (!upCtx) throw new Error('main: no 2d context');
+let devScale = 1;
 function fit(): void {
-  const fitS = Math.min(window.innerWidth / HW, window.innerHeight / HH);
-  const s = fitS >= 1 ? Math.floor(fitS) : fitS;
-  canvas!.style.width = `${HW * s}px`;
-  canvas!.style.height = `${HH * s}px`;
+  const dpr = window.devicePixelRatio || 1;
+  const s = Math.min(window.innerWidth / HW, window.innerHeight / HH);
+  const w = Math.max(1, Math.floor(HW * s));
+  const h = Math.max(1, Math.floor(HH * s));
+  canvas!.style.width = `${w}px`;
+  canvas!.style.height = `${h}px`;
+  canvas!.width = Math.max(1, Math.round(w * dpr));
+  canvas!.height = Math.max(1, Math.round(h * dpr));
+  devScale = canvas!.width / HW;
+  const k = Math.max(1, Math.ceil(devScale - 0.001));
+  up.width = HW * k;
+  up.height = HH * k;
 }
 window.addEventListener('resize', fit);
 fit();
+function present(): void {
+  const c = canvas!;
+  if (Math.abs(devScale - Math.round(devScale)) < 0.01 || devScale < 1) {
+    shown!.imageSmoothingEnabled = devScale < 1;
+    shown!.drawImage(game, 0, 0, c.width, c.height);
+    return;
+  }
+  upCtx!.imageSmoothingEnabled = false;
+  upCtx!.drawImage(game, 0, 0, up.width, up.height);
+  shown!.imageSmoothingEnabled = true;
+  shown!.imageSmoothingQuality = 'high';
+  shown!.drawImage(up, 0, 0, c.width, c.height);
+}
 
 const isLo = (): boolean => screen === 'title' || screen === 'gallery';
 
@@ -250,6 +284,7 @@ function frame(now: number): void {
     ctx!.fillRect(0, HH - 12, HW, 12);
     drawText(hi, `ERROR: ${crash}`.toUpperCase().replace(/[^A-Z0-9 .,:'()/+|-]/g, ' ').slice(0, 84), 2, HH - 10, { color: 'emberGlow' });
   }
+  present();
   requestAnimationFrame(frame);
 }
 let crash = '';

@@ -10,7 +10,7 @@ Presentation concept (D5): **field dispatches from a war of steam and gloam, on 
 | Item | Rule |
 |---|---|
 | Logical resolution | **256 x 224** pixels. Every screen is composed at this size. |
-| Display | Integer scale only (x2, x3, x4 ...), nearest-neighbour (`image-rendering: pixelated`). Square pixels; we do not emulate the 8:7 stretch. Letterbox the rest in ink (`#080810`). |
+| Display | The frame fills the window at its own shape (PLAN D21). A whole-number scale is drawn nearest-neighbour; any other scale is drawn nearest-neighbour at the next whole number up and smoothly reduced to fit (sharp bilinear), at one backing pixel per device pixel, so pixel columns stay even. Square pixels; we do not emulate the 8:7 stretch. Letterbox the rest in ink (`#080810`). |
 | Tile | **8 x 8**. Backgrounds and UI snap to the 8 px grid. Metatiles are 16 x 16. |
 | Positions | Whole pixels only. No sub-pixel sprite movement, no rotation or scaling of sprites at run time (rotation is drawn as frames). |
 | Frame | 60 logical frames per second. Animation frames are held 6-12 frames; palette cycles step every 4-12 frames. |
