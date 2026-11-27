@@ -1,14 +1,16 @@
 import { drawText, drawTextCentred, textWidth } from './font';
 import { Gfx, H, W, drawSprite } from './gfx';
-import { drawGear } from './scene';
 import { CURSOR, CURSOR_LEGEND } from './sprites';
 import {
   CREDIT, DIALOGS, DIALOG_CLOSE, MENU, PRESS_START, SUBTITLE, TITLE_BOTTOM, TITLE_TOP, VERSION, type MenuId,
 } from './strings';
+import { buildWordmark } from './wordmark';
 
 export type Mode = { kind: 'press' } | { kind: 'menu' } | { kind: 'dialog'; id: MenuId };
 
-const MENU_BOX = { x: 76, y: 152, w: 104, h: 52 };
+const MENU_BOX = { x: 76, y: 157, w: 104, h: 52 };
+const WORDMARK_CAP = 18;
+const WORDMARK_Y = 43;
 const ITEM_X = MENU_BOX.x + 24;
 const ITEM_Y0 = MENU_BOX.y + 10;
 const ITEM_STEP = 12;
@@ -39,25 +41,12 @@ export function drawWindow(g: Gfx, x: number, y: number, w: number, h: number): 
 export class Title {
   mode: Mode = { kind: 'press' };
   cursor = 0;
-  private readonly wordmark: HTMLCanvasElement;
+  private wordmark: HTMLCanvasElement | null = null;
 
-  constructor(private readonly hasSave: boolean) {
-    this.wordmark = document.createElement('canvas');
-    this.wordmark.width = W;
-    this.wordmark.height = 90;
-    const ctx = this.wordmark.getContext('2d');
-    if (!ctx) throw new Error('title: no 2d context');
-    const g = new Gfx(ctx);
-    const style = {
-      color: 'brass' as const,
-      scale: 3,
-      outline: 'ink' as const,
-      shadow: 'emberNight' as const,
-      rowColor: (r: number) => (r <= 1 ? 'brassGlint' : r <= 3 ? 'brassLight' : r === 4 ? 'brass' : 'brassDark') as 'brass',
-    };
-    drawTextCentred(g, TITLE_TOP, W / 2, 22, style);
-    drawTextCentred(g, TITLE_BOTTOM, W / 2, 48, style);
-    drawTextCentred(g, SUBTITLE, W / 2, 77, { color: 'emberGlow', outline: 'ink' });
+  constructor(private readonly hasSave: boolean) {}
+
+  async load(): Promise<void> {
+    this.wordmark = await buildWordmark(`${TITLE_TOP} ${TITLE_BOTTOM}`, WORDMARK_CAP);
   }
 
   enabled(id: MenuId): boolean {
@@ -110,14 +99,13 @@ export class Title {
     this.confirm();
   }
 
-  draw(g: Gfx, t: number): void {
-    g.ctx.drawImage(this.wordmark, 0, 0);
-    const warsW = textWidth(TITLE_BOTTOM, 3);
-    drawGear(g, W / 2 - warsW / 2 - 16, 58, t * 0.012);
-    drawGear(g, W / 2 + warsW / 2 + 15, 58, -t * 0.012 + 0.2);
+  draw(g: Gfx, t: number, emblem: HTMLImageElement | null): void {
+    if (emblem) g.ctx.drawImage(emblem, Math.round(W / 2 - emblem.width / 2), 3);
+    if (this.wordmark) g.ctx.drawImage(this.wordmark, Math.round(W / 2 - this.wordmark.width / 2), WORDMARK_Y);
+    drawTextCentred(g, SUBTITLE, W / 2, WORDMARK_Y + WORDMARK_CAP + 10, { color: 'emberGlow', outline: 'ink' });
 
     if (this.mode.kind === 'press') {
-      if ((t >> 5) % 2 === 0) drawTextCentred(g, PRESS_START, W / 2, 182, { color: 'brassGlint', outline: 'ink' });
+      if ((t >> 5) % 2 === 0) drawTextCentred(g, PRESS_START, W / 2, 186, { color: 'brassGlint', outline: 'ink' });
     } else {
       drawWindow(g, MENU_BOX.x, MENU_BOX.y, MENU_BOX.w, MENU_BOX.h);
       MENU.forEach((item, i) => {

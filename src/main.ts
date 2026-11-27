@@ -1,4 +1,5 @@
 import './style.css';
+import { drawText } from './font';
 import { Gfx, H, W } from './gfx';
 import { Scene } from './scene';
 import { Title } from './title';
@@ -20,6 +21,11 @@ ctx.imageSmoothingEnabled = false;
 const g = new Gfx(ctx);
 const scene = new Scene();
 const title = new Title(hasSave());
+let failed = '';
+Promise.all([scene.load(), title.load()]).catch((e: unknown) => {
+  failed = e instanceof Error ? e.message : String(e);
+  console.error(e);
+});
 
 /** Integer scale only (ART-STYLE section 1). */
 function fit(): void {
@@ -56,15 +62,14 @@ function frame(now: number): void {
   last = now;
   while (acc >= STEP) {
     t++;
-    scene.step(t);
     acc -= STEP;
   }
-  ctx!.drawImage(scene.bg, 0, 0);
   scene.draw(g, t);
-  title.draw(g, t);
+  title.draw(g, t, scene.emblem);
+  if (failed) drawText(g, 'ART FAILED TO LOAD', 4, 4, { color: 'emberGlow', outline: 'ink' });
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Read-only hook for end-to-end checks.
-(window as unknown as { __mkw: object }).__mkw = { mode: () => title.mode.kind, cursor: () => title.cursor };
+(window as unknown as { __mkw: object }).__mkw = { mode: () => title.mode.kind, cursor: () => title.cursor, ready: () => scene.ready, failed: () => failed };

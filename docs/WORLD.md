@@ -47,6 +47,7 @@ Tone: serious and grounded. Soot, rivets, frost on brass, hard choices on every 
 | **Speaker Ulla of the Ninth Root** | Sedgekin | Speaks for the marsh clans. Can hear a root dying a hundred miles away. |
 | **Captain Dasha Quill** | Gale Exchange | Broker-captain of the airship *Halcyon Debt*. Sells maps to both armies and keeps the best one. |
 | **Cantor Ebbe** | Ashen Choir | A soft-spoken preacher whose followers walk into fire singing. |
+| **Mother Agna Vell** | Blackwick | Holds the undercity's debts. Her green lantern hung at a door means the house owes; nobody takes it down. |
 | **Lieutenant Senna Kale** | Dominion | A caster officer, cold to the touch, utterly loyal; the Free Gauge's most feared opponent. |
 
 ## Story spine (draft)

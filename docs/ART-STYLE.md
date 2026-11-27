@@ -19,7 +19,7 @@ Presentation concept (D5): **field dispatches from a war of steam and gloam, on 
 | Item | Rule |
 |---|---|
 | Colour depth | 15-bit: each channel is a multiple of 8 (0-248). `tests/palette.test.ts` checks it. |
-| House palette | 31 colours plus transparent, in `src/palette.ts` (table below). New colours need a PLAN decision. |
+| House palette | 31 colours plus transparent, in `src/palette.ts` (table below), for everything drawn in code. New colours need a PLAN decision. Rendered art keeps its own reduced palette (section 9, PLAN D14). |
 | Per sprite | At most **15 colours plus transparent** (one 4-bit sub-palette). |
 | Per background tile | At most 15 colours plus transparent; aim for no more than 128 colours on screen at once. |
 | Large art (bosses, key portraits) | Up to two sub-palettes (30 colours). |
@@ -104,11 +104,15 @@ characters, costumes or creatures are reproduced, and the sheet is not used as L
 - **The figures on the owner's reference sheet** (section 4a): we take its drawing style, not its characters. In
   particular no winged white cat-creature with a pom-pom antenna, no horned blue dragoon armour, no white horned yeti.
 
-## 9. Generated art
-Flux renders are not pixel art until they are cleaned:
-1. Render at 1024 px with a plain-measurement prompt (owner's banned-word list applies, PLAN D7). No lettering.
-2. Downscale to the target size with a box filter, then quantize to the house palette (or a 15-colour subset), no
-   dithering.
-3. Fix by hand: outlines (section 3), stray pixels, faces.
-4. Check: colour count per sprite (section 2), every pixel on the house palette, no text or logos.
-5. The owner approves contact sheets before anything ships or enters the LoRA dataset (`docs/LORA.md`).
+## 9. Generated art (PLAN D14)
+Scene and character art is rendered with the house style LoRA and fixed to the grid in code; interface pieces
+(windows, cursor, type) are drawn in code on the house palette.
+1. Render on EVILAEGIS with `tools/art/render.mjs` (distilled FLUX.2 klein, `mkw16_v2` at 1.0, 4 steps), a
+   plain-measurement prompt (owner's banned-word list, PLAN D7) and several seeds. No lettering.
+2. Pick on a labelled contact sheet: no lettering or logos, no doubled props or extra limbs, the subject as asked.
+3. Snap with `tools/art/snap.mjs`: a scene becomes exactly its logical size (most common colour per cell, at most 96
+   colours); a figure is cut from its flat ground and reduced to its logical height (at most 32 colours, hard 1-bit
+   transparency).
+4. Record the render id and seed of every shipped piece in `tools/art/picks.md`.
+5. The owner sees every shipped piece in the game and the candidates on contact sheets; anything the owner rejects
+   is re-rendered or removed.

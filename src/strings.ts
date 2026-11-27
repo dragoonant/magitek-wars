@@ -17,7 +17,7 @@ export const MENU: readonly { id: MenuId; label: string }[] = [
 export const DIALOGS: Record<MenuId, readonly string[]> = {
   new: ['THE FRONT IS NOT OPEN YET.', 'THIS TITLE SCREEN IS THE', 'FIRST DISPATCH. BATTLES', 'COME NEXT.'],
   continue: ['NO SAVED GAME YET.', 'CONTINUE OPENS WHEN A', 'GAME IS IN PROGRESS.'],
-  credits: ['MAGITEK WARS', 'DESIGN AND CODE: EVILGOUKI', 'ALL ART DRAWN IN CODE.', 'AN ORIGINAL GAME.'],
+  credits: ['MAGITEK WARS, AN ORIGINAL GAME', 'DESIGN AND CODE: EVILGOUKI', 'ART: FLUX.2 KLEIN WITH OUR', 'OWN STYLE LORA, FIXED IN CODE', 'TITLE TYPE: CINZEL (OFL)'],
 };
 
 export const DIALOG_CLOSE = 'PRESS ANY KEY';
