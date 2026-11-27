@@ -1,40 +1,46 @@
-# Status (2026-11-27)
+# Status (2026-11-27, morning)
 
 **Live:** https://dragoonant.github.io/magitek-wars/ is playable: battles against the AI with every deck, a
-campaign run, and the card gallery.
+campaign run, a deck builder and the card gallery, with music and sound.
 
 ## What exists
 - Public repo `dragoonant/magitek-wars`; push to `main` runs typecheck, tests and build, then deploys to Pages.
+  Licence: all rights reserved (PLAN D19).
 - **Engine (PLAN D4):** Annals of Scrivenearth's engine, AI and card data (300 cards, 24 heroes, 6 factions), copied at
-  8b4ebac, plus one setup field for runs (`startSpire`, R-X3). `npm run gate` passes: 472 tests, the card audit (332
+  8b4ebac, plus one setup field for runs (`startSpire`, R-X3). `npm run gate` passes: 495 tests, the card audit (332
   faces), the mutation pass, the AI bench and the build.
 - **Re-skin (D12, D16):** every card and hero has its Magitek Wars name and text; the Spire is printed as the Boiler
-  and a glyph as a tactic (`docs/RESKIN.md`, audit-checked). Faction names, the 24 premade decks and the AI levels
-  (Recruit, Veteran, Marshal) use this world's words. Card ids and the rules spec's internal words are unchanged.
-- **Title (D13):** Vaskor at dusk with the six faction leads, rendered with the `mkw16_v2` style LoRA; menu CAMPAIGN,
-  QUICK BATTLE, CONTINUE, CARD GALLERY, CREDITS.
-- **Quick battle (D17):** deck select (24 premade decks plus one single-faction deck per faction, a chosen or random
-  foe deck, three AI levels), then the battle screen at 512 x 448: both Lines, Boilers, Charge and Reserve, hero
-  progress, the stack, the log, the hand, hover to inspect any card, every choice drawn from the engine's legal
-  actions. Autosaves after every move; CONTINUE reopens it. `?auto` lets the AI play both seats; all 30 decks played a
-  full battle through the screen this way with no error (13-17 by seat).
-- **Campaign (D18, spec 20):** pick a faction, then three acts of seven floors (skirmish, elite, rest, supply depot,
-  boss) with one growing deck, a Boiler that carries its damage, card rewards and scrip. Saves after every node and
-  move in its own slot. Balance R-1: an AI stand-in wins every first battle; 4 of 18 runs get past act 1, none won yet.
-- **Art (D3, D14, D15):** style LoRAs `mkw16_v1` and `mkw16_v2`; card art for 330 of 332 faces, six emblems, seven
-  battlefields; picks in `tools/art/picks.md`.
+  and a glyph as a tactic (`docs/RESKIN.md`, audit-checked). Card ids and the spec's internal words are unchanged.
+- **Title (D13):** Vaskor at dusk with the six faction leads; menu CAMPAIGN, QUICK BATTLE, CONTINUE, DECK BUILDER,
+  CARD GALLERY, CREDITS.
+- **Quick battle (D17):** 24 premade decks, six single-faction decks and any saved legal deck, against a chosen or
+  random foe deck at three AI levels. The 512 x 448 battle screen draws attack and block lines, floating damage and
+  repair numbers, a log viewer (LOG or L) and a Scrap viewer (click a Scrap count). Autosaves after every move;
+  CONTINUE reopens it. `?auto&fast` lets the AI play both seats: all 30 decks played a full battle this way with no
+  error.
+- **Deck builder (D19):** build and save decks from the 300 cards with the engine's deck rules; legal decks show up in
+  QUICK BATTLE.
+- **Campaign (D18, spec 20):** pick a faction, then three acts of seven floors (skirmish, elite, event, rest, supply
+  depot, boss) with one growing deck and a Boiler that carries its damage; a won battle repairs it by 3. Eight events
+  (R-R11), a briefing before each battle with the foe's deck (R-R12), boss intros with the boss's portrait. Balance
+  R-2: 7 of 18 stand-in runs get past act 1 and 2 win.
+- **Phone:** the canvas scales to fit; a tap acts on release and a 400 ms hold inspects a card. Checked at 390 x 844.
+- **Art (D3, D14, D15, D20):** style LoRAs `mkw16_v1`-`v3` (v3 is the house LoRA, `lora/RUNS.md`); card art for all
+  332 faces, 48 hero portraits (base and ascended), six emblems, seven battlefields; picks in `tools/art/picks.md`.
+- **Sound (D20):** seven music tracks (title, calm, battle, tense, victory, defeat, ascend) and twelve effects
+  rendered on the local Audio Studio, levelled to one loudness (`tools/audio/`, `public/audio/`); M mutes. Kinds
+  without a sample keep their synthesized voice. Measured and decoded in the browser, **not yet heard by anyone**.
+- **Elsewhere:** KB entry `magitek-wars.md` in `dragoonant/tabletop-kb`. Flux Studio LoRA support on branch
+  `feat/flux-studio-lora` of `dragoonant/local-ai-studio` (not merged).
 
 ## Waiting on the owner
-- Play-test: the battles (every deck), the campaign's difficulty (R-1), and the card art and names.
-- Q2 interface concept, Q4 licence, Q5 re-skin map (`PLAN.md`).
+- Listen to the music and effects; play-test the battles, the campaign's difficulty (R-2) and the deck builder.
+- Q2 interface concept and Q5 re-skin map (`PLAN.md`), kept as built for now.
+- ElevenLabs: its CLI sign-in needs the owner's approval in the browser before it can replace the local sound.
+- Flux Studio: merge `feat/flux-studio-lora` (fast-forward) and restart the studio.
+- Verdict on LoRA v3 (`lora/runs/v3-compare.webp`).
 
 ## Next
-1. Campaign: events, a deck view before each battle, boss intros, and a second balance pass once the owner has played
-   a few runs.
-2. Battle screen: attack and block arrows, strike animations, a full log viewer, the Scrap viewer.
-3. Art: hero portraits; re-render the two cards without art (`ember-meltdowngolem`, `storm-steepdive`); a prompt pass
-   for cards that drifted to modern-war looks.
-4. KB: a `magitek-wars.md` entry in `dragoonant/tabletop-kb` (rule 19).
-
-Not verified: the screens have been checked in headless Chromium at 1024 x 896 only, not on a phone (the battle screen
-needs at least 512 x 448 CSS pixels).
+1. Campaign balance: act 1 elites (24 cards, Veteran) are the main wall; Gale Exchange runs do worst (R-2).
+2. Art: a prompt pass for cards that drifted to modern-war looks, now with v3.
+3. Sound: hero voice lines (the manifest's voice list is empty), once the owner picks ElevenLabs or local voices.

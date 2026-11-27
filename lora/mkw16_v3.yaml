@@ -1,0 +1,88 @@
+job: extension
+config:
+  name: "mkw16_v3"
+  process:
+    - type: "sd_trainer"
+      training_folder: "C:/Claude Code Projects/lora-trainer/output"
+      device: cuda:0
+      trigger_word: "mkw16"
+      network:
+        type: "lora"
+        linear: 16
+        linear_alpha: 16
+      save:
+        dtype: float16
+        save_every: 500
+        max_step_saves_to_keep: 12
+        push_to_hub: false
+      datasets:
+        - folder_path: "C:/Claude Code Projects/lora-trainer/dataset/train"
+          caption_ext: "txt"
+          caption_dropout_rate: 0.05
+          shuffle_tokens: false
+          cache_latents_to_disk: true
+          flip_x: true
+          num_repeats: 3
+          resolution: [512, 768]
+        - folder_path: "C:/Claude Code Projects/lora-trainer/dataset/v2-gen"
+          caption_ext: "txt"
+          caption_dropout_rate: 0.05
+          shuffle_tokens: false
+          cache_latents_to_disk: true
+          flip_x: true
+          num_repeats: 1
+          resolution: [512, 768]
+        - folder_path: "C:/Claude Code Projects/lora-trainer/dataset/v3-cards"
+          caption_ext: "txt"
+          caption_dropout_rate: 0.05
+          shuffle_tokens: false
+          cache_latents_to_disk: true
+          flip_x: true
+          num_repeats: 1
+          resolution: [512, 768]
+      train:
+        batch_size: 1
+        steps: 3500
+        gradient_accumulation_steps: 1
+        train_unet: true
+        train_text_encoder: false
+        gradient_checkpointing: true
+        noise_scheduler: "flowmatch"
+        timestep_type: "weighted"
+        optimizer: "adamw8bit"
+        lr: 1e-4
+        unload_text_encoder: false
+        ema_config:
+          use_ema: true
+          ema_decay: 0.99
+        dtype: bf16
+      model:
+        arch: "flux2_klein_4b"
+        name_or_path: "black-forest-labs/FLUX.2-klein-base-4B"
+        quantize: true
+        quantize_te: true
+        qtype: "qfloat8"
+        low_vram: true
+        model_kwargs:
+          match_target_res: false
+      sample:
+        sampler: "flowmatch"
+        sample_every: 500
+        sample_start_step: 0
+        width: 768
+        height: 768
+        prompts:
+          - "mkw16 pixel art, a 16-bit game character sprite, standing, three-quarter view, plain navy background, a soldier in red-lacquered iron plate armour with a brass helmet, holding a long rifle."
+          - "mkw16 pixel art, a 16-bit game character sprite, side view, plain navy background, a courier in a brown leather coat running with a satchel."
+          - "mkw16 pixel art, a 16-bit game background scene, wide view, no characters, a frozen lake below a ruined iron tower at dusk, purple sky."
+          - "mkw16 pixel art, a 16-bit game creature sprite, three-quarter view, plain navy background, a brass clockwork owl perched on a lamp post."
+          - "mkw16 pixel art, a 16-bit game machine sprite, three-quarter view, plain navy background, a walking steam boiler machine on two jointed iron legs with an enclosed cab and a round teal porthole."
+          - "mkw16 pixel art, a 16-bit game item icon, centred, plain navy background, a brass compass with a glowing teal needle."
+        neg: ""
+        seed: 42
+        walk_seed: true
+        guidance_scale: 4
+        sample_steps: 28
+meta:
+  name: "mkw16_v3"
+  version: "3.0"

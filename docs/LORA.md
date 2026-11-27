@@ -46,6 +46,15 @@ published series (ART-STYLE section 8).
   background scene, wide view, no characters`, `... item icon, centred ...`, `... creature sprite ...`).
 - Test: `test-v2.mjs` renders v1's 12 prompts plus 6 held-out subjects that are not people, for each LoRA, same seeds.
 
+## 2d. v3 run (2026-11-27)
+- Why: v2's pixels were no crisper than v1's, and props were still doubled when a hand was free.
+- New data: 200 of our own picked card arts, already snapped to a true grid (128 x 96), enlarged x6 with nearest
+  neighbour to 768 x 576 so the model sees exact pixel blocks, each captioned with its card subject
+  (`tools/lora/assemble-v3.mjs`). Training: the owner sprites x3, v2's renders once, the card arts once, 3500 steps,
+  otherwise v2's settings (`lora/mkw16_v3.yaml`).
+- Result (`lora/RUNS.md`): slightly crisper edges and fewer doubled props than v2; scenes and items unchanged. v3 is
+  the house LoRA from 2026-11-27 (hero portraits were rendered with it).
+
 ## 3. Dataset
 **Allowed sources only:**
 0. **The owner's own Gemini generations** (PLAN D3, amended 2026-11-26): sprite sheets of 18 figures on a flat navy
@@ -106,5 +115,6 @@ LoRA strength 0, 0.6, 0.8 and 1.0, fixed seeds. Then:
    rejected checkpoints all go into `lora/RUNS.md` (negative results are kept).
 
 ## 7. Using it
-Flux Studio's `POST /api/jobs` would need a `lora` and `loraStrength` field; check `flux-studio/server.js` on
-EVILAEGIS and add it there (in the studio repo, not here) once a checkpoint is picked.
+- In this repo: `node tools/art/render.mjs <jobs.mjs> <outdir> mkw16_v3.safetensors` talks to ComfyUI directly.
+- Flux Studio: branch `feat/flux-studio-lora` of the studio repo adds `lora` and `loraStrength` to `POST /api/jobs`
+  and `GET /api/loras` (2026-11-27). It is pushed but not merged; the owner merges it and restarts the studio.

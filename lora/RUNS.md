@@ -42,3 +42,21 @@ Every run is kept here, including the ones that are not used.
   - **Pixels:** no crisper than v1 under magnification; the 3 px snapping of the training data did not carry
     through. A true grid still needs the cleanup step (`clean.mjs`) after rendering.
 - **Owner's verdict:** pending (comparison sheet sent 2026-11-26).
+
+## v3, `mkw16_v3` (2026-11-27)
+- **Data:** the 51 owner sprites repeated three times, v2's 121 renders once, and 200 picked card arts from the game
+  (already snapped to a true grid at 128 x 96), enlarged x6 with nearest neighbour to 768 x 576 and captioned with
+  their card subjects (`tools/lora/assemble-v3.mjs`, `docs/LORA.md` section 2d).
+- **Settings:** `mkw16_v3.yaml`: v2's settings, 3500 steps, save and sample every 500.
+- **Cost on EVILAEGIS:** training 3500 steps in 58 minutes plus sampling.
+- **Test on the distilled klein** (`test-v2.mjs`, strength 1.0, the same 18 prompts and seeds as v2).
+  `runs/v3-compare.webp`: pairs, v2 then v3.
+  - **Better:** pixel edges are slightly crisper and outlines heavier, closer to the owner's sheets. Doubled props
+    are fewer: the courier holds one wrench (v2: two), and the fire priest's loose flame and lantern merge into one
+    lantern. The helmet reads as a helmet rather than a crest.
+  - **Same:** scenes, the compass and the paddle boat (still no paddle wheel).
+  - **Still wrong:** the cleanup step is still needed for a true grid; the compass rim still has marks.
+- **Use:** the 48 hero portraits (`tools/art/jobs-portraits.mjs`) were rendered with v3 at 1.0. Faces came out
+  well; subjects written as a pose (crouched, charging) still render as full figures, so three faces were written
+  out by hand.
+- **Owner's verdict:** pending.
