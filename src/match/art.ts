@@ -22,6 +22,11 @@ export function isMissing(id: string, ascended = false, x2 = false): boolean {
   return cache.get(`art/cards/${x2 ? 'x2/' : ''}${id}${ascended ? '.asc' : ''}.png`) === 'missing';
 }
 
+/** Hero portrait, 48 x 48 (ART-STYLE section 5); `ascended` picks the ascended face. */
+export function portrait(id: string, ascended = false): HTMLImageElement | null {
+  return get(`art/portraits/${id}${ascended ? '.asc' : ''}.png`);
+}
+
 export function emblem(key: string): HTMLImageElement | null {
   return get(`art/emblems/${key}.png`);
 }

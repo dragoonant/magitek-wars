@@ -11,7 +11,7 @@ import { wrap } from '../gallery-text';
 import { drawWindow } from '../title';
 import { FACTIONS } from '../data/factions';
 import { FACTION_INFO } from '../data/decks';
-import { cardArt, emblem, field } from '../match/art';
+import { cardArt, emblem, field, portrait } from '../match/art';
 import { HH, HW, Match } from '../match/board';
 import { Session } from '../match/session';
 import {
@@ -339,6 +339,8 @@ export class RunScreen {
     const em = emblem(FACTIONS.find((f) => f.engine === r.faction)!.key);
     if (em) g.ctx.drawImage(em, x + 8, 48);
     drawText(g, FACTION_INFO[r.faction].name.toUpperCase().slice(0, 18), x + 44, 52, { color: 'brassGlint' });
+    const lead = portrait(LEADS[r.faction]);
+    if (lead) { g.rect(x + 99, 63, 50, 50, 'brassDark'); g.ctx.drawImage(lead, x + 100, 64); }
     drawText(g, `BOILER ${r.boiler}/${LIMITS.spire}`, x + 10, 86, { color: r.boiler <= 6 ? 'emberGlow' : 'steamWhite' });
     drawText(g, `SCRIP ${r.scrip}`, x + 10, 98, { color: 'brassLight' });
     drawText(g, `DECK ${r.deck.length} CARDS`, x + 10, 110, { color: 'steamWhite' });
@@ -453,16 +455,21 @@ export class RunScreen {
     const b = r.battle!;
     const deck = b.setup.decks[1];
     const factions = [...new Set(deck.map((id) => def(id).faction))];
-    drawWindow(g, 20, 60, 472, this.foeDeckOpen ? 370 : 230);
+    const bossFace = b.kind === 'boss' && !this.foeDeckOpen;
+    drawWindow(g, 20, 60, 472, this.foeDeckOpen ? 370 : bossFace ? 330 : 230);
     const intro = b.kind === 'boss' ? BOSS_INTRO[factions[0]] : null;
     drawTextCentred(g, b.kind === 'boss' ? `BOSS: ${intro?.who ?? b.foeName.toUpperCase()}` : `${KIND_STYLE[b.kind].name}: ${b.foeName.toUpperCase()}`, HW / 2, 74, { color: b.kind === 'boss' ? 'emberGlow' : 'brassGlint', scale: 2 });
     let y = 100;
-    if (intro) for (const l of intro.lines) { drawTextCentred(g, l, HW / 2, y, { color: 'steamWhite' }); y += 11; }
+    if (intro) {
+      const face = bossFace ? portrait(LEADS[factions[0] as keyof typeof LEADS]) : null;
+      if (face) { g.rect(HW / 2 - 49, y - 1, 98, 98, 'emberDeep'); g.ctx.drawImage(face, HW / 2 - 48, y, 96, 96); y += 104; }
+      for (const l of intro.lines) { drawTextCentred(g, l, HW / 2, y, { color: 'steamWhite' }); y += 11; }
+    }
     y += 6;
     drawTextCentred(g, `FACTIONS: ${factions.map((f) => FACTION_NAMES[f].toUpperCase()).join(', ')}`, HW / 2, y, { color: 'steam' });
     drawTextCentred(g, `FOE DECK ${deck.length} CARDS   FOE BOILER ${b.setup.startSpire?.[1] ?? 20}   AI LEVEL ${b.level === 'easy' ? 'RECRUIT' : b.level === 'normal' ? 'VETERAN' : 'MARSHAL'}`, HW / 2, y + 12, { color: 'steam' });
     drawTextCentred(g, `YOUR BOILER ${r.boiler}   YOUR DECK ${r.deck.length} CARDS`, HW / 2, y + 24, { color: 'steamWhite' });
-    const by = this.foeDeckOpen ? 400 : 250;
+    const by = this.foeDeckOpen ? 400 : bossFace ? 350 : 250;
     this.button(g, 'FIGHT', 300, by, 'fight');
     this.button(g, this.foeDeckOpen ? 'HIDE FOE DECK' : 'VIEW FOE DECK', 150, by, 'foedeck');
     if (this.foeDeckOpen) {

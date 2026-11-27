@@ -71,9 +71,10 @@ Promise.all([scene.load(), title.load(), gallery.load()]).catch((e: unknown) => 
   console.error(e);
 });
 
-/** Integer scale only (ART-STYLE section 1). */
+/** Integer scale (ART-STYLE section 1); a screen smaller than 512 x 448 (a phone) shrinks the canvas to fit. */
 function fit(): void {
-  const s = Math.max(1, Math.floor(Math.min(window.innerWidth / HW, window.innerHeight / HH)));
+  const fitS = Math.min(window.innerWidth / HW, window.innerHeight / HH);
+  const s = fitS >= 1 ? Math.floor(fitS) : fitS;
   canvas!.style.width = `${HW * s}px`;
   canvas!.style.height = `${HH * s}px`;
 }
@@ -183,17 +184,40 @@ canvas.addEventListener('pointermove', (e) => {
   else if (screen === 'run') run?.pointerMove(...logical(e));
   else if (screen === 'decks') builder?.pointerMove(...logical(e));
 });
+// Touch: a tap acts on pointer-up; a press held 400 ms inspects instead (the hover detail), and does not act.
+let touchHold: { x: number; y: number; timer: number; held: boolean } | null = null;
+canvas.addEventListener('pointerup', (e) => {
+  if (e.pointerType !== 'touch' || !touchHold) return;
+  clearTimeout(touchHold.timer);
+  const t0 = touchHold;
+  touchHold = null;
+  if (!t0.held) press(t0.x, t0.y, 0);
+});
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   const [x, y] = logical(e);
+  if (e.pointerType === 'touch') {
+    const hold = { x, y, held: false, timer: 0 };
+    hold.timer = window.setTimeout(() => {
+      hold.held = true;
+      if (screen === 'match') match?.pointerMove(x, y);
+      else if (screen === 'run') run?.pointerMove(x, y);
+      else if (screen === 'decks') builder?.pointerMove(x, y);
+    }, 400);
+    touchHold = hold;
+    return;
+  }
+  press(x, y, e.button);
+});
+function press(x: number, y: number, button: number): void {
   if (screen === 'gallery') gallery.pointerDown(x, y);
   else if (screen === 'setup') setup?.pointerDown(x, y);
   else if (screen === 'match') match?.pointerDown(x, y);
   else if (screen === 'run') run?.pointerDown(x, y);
-  else if (screen === 'decks') builder?.pointerDown(x, y, e.button);
+  else if (screen === 'decks') builder?.pointerDown(x, y, button);
   else title.pointerDown(x, y);
   route();
-});
+}
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('wheel', (e) => {
   if (screen !== 'decks' || !builder) return;
