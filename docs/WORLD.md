@@ -24,6 +24,7 @@ Tone: serious and grounded. Soot, rivets, frost on brass, hard choices on every 
 | **The Sedgekin** | Tall, bark-skinned people who have lived along the surfacing roots since before the Dominion. | Verdigris, gloam, peat brown. | Root-singing (coaxing the Underroot itself), marsh ground, patience. |
 | **The Gale Exchange** | Merchant sky-guilds on kite-borne airships. They sell to everyone. | Steam white, sky dusk, brass glint. | Airships, hired guns, bribes, information. |
 | **The Ashen Choir** | Ascetics who believe gloam is a debt the world owes and must be burned away. | Ash grey, ember, white veils. | Fire casting, martyr charges, burning the ground they stand on. |
+| **The Blackwick** (proposed, PLAN D12) | Gloam smugglers, fences and debt-collectors of Vaskor's undercity; they buy what the war spends. | Soot black, verdigris, a sickly gloam green. | Sacrifice, drain, fear and debts that tax the enemy. |
 
 ## Places
 - **Vaskor**: the Dominion capital, a ring city of smokestacks inside an old caldera around the Great Boilers. At its
@@ -56,6 +57,7 @@ Tone: serious and grounded. Soot, rivets, frost on brass, hard choices on every 
 3. **The Rimeglass Flats.** The war's great battle. Who stands where depends on the player's choices.
 4. **The Boilers.** The ending is a choice about the Great Boilers: bank them, break them, or bargain for time.
 
-## If the game keeps the Annals engine (PLAN D4)
-The five factions map to five decks; the characters above become heroes that level up in play. A sixth faction (if
-the engine keeps six) is still to be designed. Names, card text and art are all written fresh for Magitek Wars.
+## In the card game (PLAN D4, D12)
+The engine is Annals of Scrivenearth's, so the game is a hero-driven card battler against an AI. The six factions
+above (the Blackwick included) are the six decks, matched to the engine's archetypes in PLAN D12, and the characters
+become heroes that level up in play. Names, card text and art are all written fresh for Magitek Wars.

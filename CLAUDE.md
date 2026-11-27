@@ -4,8 +4,14 @@ An **original** 16-bit-style browser game set in a steam-and-magic empire (PLAN 
 any other published game, book or show: no names, characters, places, story, cards, music, sprites or art.
 
 ## Regime
+0. The engine is a copy of Annals of Scrivenearth's (PLAN D4), re-skinned per D12. **The spec is the product**:
+   rules live in `docs/spec/10-rules.md` with ids; code comments and test names cite them; ambiguities become
+   `RULING:` lines. Balance changes need a sim result in `BALANCE.md` (negative results kept). One door per rule in
+   the engine (`damage`, `summon`, `draw`, `stats`, `costOf`, `stateCheck`); no silent fallbacks. The AI only ever
+   receives `view(state, seat)`. Card authoring: `docs/AUTHORING.md`.
 1. `PLAN.md` is the only place a decision lives. `STATUS.md` is rewritten, not appended.
-2. Art follows `docs/ART-STYLE.md` (256 x 224, house palette, 15 colours per sprite). Every displayed pixel colour
+2. Art follows `docs/ART-STYLE.md` (256 x 224, house palette, 15 colours per sprite; characters per section 4a,
+   the owner's reference sheet, style only, never its figures). Every displayed pixel colour
    comes from `src/palette.ts`.
 3. The LoRA dataset (`docs/LORA.md`) is only our own approved renders or CC0/permissive art with a recorded licence.
    Never ripped or copyrighted game art.
@@ -18,8 +24,13 @@ any other published game, book or show: no names, characters, places, story, car
 - Autosave with Continue (rule 22); no text selection on long press (rule 24); this game has its own look (rule 21).
 - Credit "evilgouki". Never a real name, email or home path in the repo. Grep before every commit.
 
+## Layout
+- `src/engine/` rules (`types.ts` is the contract), `src/data/cards/` one file per faction, `src/ai/`,
+  `src/deckbuilder/`; the title screen is `src/main.ts`, `title.ts`, `scene.ts`, `font.ts`, `palette.ts`.
+- `tests/` Vitest (rule-id tests, one behaviour test per card and hero); `tools/sim.ts` arena; `tools/gate.ts`.
+
 ## Commands
-`npm run dev` · `npm test` · `npm run typecheck` · `npm run gate`
+`npm run dev` · `npm test` · `npm run typecheck` · `npm run sim -- --games 100 --a normal --b random` · `npm run gate`
 
 ## Deploy
 Push to `main` runs the gates and deploys to GitHub Pages (`.github/workflows/deploy.yml`).

@@ -3,5 +3,5 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   base: './',
   build: { outDir: 'dist', target: 'es2022' },
-  test: { include: ['tests/**/*.test.ts'] },
+  test: { include: ['tests/**/*.test.ts'], testTimeout: 60000, setupFiles: ['tests/setup-mutate.ts'] },
 });

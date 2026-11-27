@@ -49,11 +49,31 @@ Presentation concept (D5): **field dispatches from a war of steam and gloam, on 
 - Never on sprites under 32 px tall, never on faces, never random noise.
 - Hand anti-aliasing only on art 48 px or taller, using tones already in the ramp, one intermediate pixel per step.
 
+## 4a. Character sprites (owner's reference, PLAN D11)
+The owner chose a reference sheet of 18 standing character sprites on a flat navy ground (2026-11-26: "here's the
+art style i want you to use"). What we take from it is **how the sprites are drawn**, measured here; none of its
+characters, costumes or creatures are reproduced, and the sheet is not used as LoRA training data (PLAN D3).
+- **Proportions:** about 2.8 head-heights; the head (hair included) is about 35% of the sprite's height; shoulders
+  about 1.4 times the head's width; legs about one head long; hands and boots drawn large and solid (about a third
+  of a head each) so they read at small size.
+- **Pose:** standing three-quarter view facing the viewer's left or right, feet planted, weapon or prop held at the
+  side; one sprite per character on a flat ground, about one sprite-width of space between sprites.
+- **Faces:** serious and readable: eyes 2 px tall with a 1 px highlight, brows drawn, nose by a single shadow pixel,
+  mouth 1-2 px. No oversized eyes.
+- **Outline:** a 1 px dark outline all round, in a near-black tone of the local colour (ink on armour, dark brown on
+  skin and leather); interior lines in the material's darkest tone.
+- **Shading:** strong top-left key light, 3-4 tones per material plus a 1 px specular glint on metal; hair in
+  clumped locks with 2-3 tones; no dithering on characters.
+- **Colour:** saturated, one or two dominant hues per character (red cape on grey plate, green hood on brown
+  leather, gold plate with red cloth), within the 15-colour sprite limit.
+- **Contact sheets** for owner review use the same layout: two rows of nine on a flat dusk-zenith or deep-navy
+  ground, labelled underneath.
+
 ## 5. Sizes
 | Asset | Size (px) | Notes |
 |---|---|---|
-| Field sprite (walking) | 16 x 24 | Head 8 wide x 9 tall (about 2.7 head-heights). 3-frame walk per facing, 4 facings. |
-| Battle sprite (person) | 32 x 48 | Head 12 tall (4 head-heights), shoulders 14 wide. Idle 2 frames, act 4 frames, hurt 1. |
+| Field sprite (walking) | 16 x 24 | Head 9 tall (about 2.7 head-heights), the section 4a look simplified. 3-frame walk per facing, 4 facings. |
+| Battle sprite (person) | 24-32 x 32 | The section 4a look: head about 11 tall (about 2.8 head-heights, 35% of height), shoulders about 15 wide. Idle 2 frames, act 4 frames, hurt 1. Large creatures up to 32 x 40. |
 | Battle sprite (gloamwork machine) | 48 x 48 | Pilot always enclosed behind a porthole; never an open saddle seat. |
 | Dialogue portrait | 48 x 48 | Crown to collarbone, face 20 tall, one sub-palette, framed by a 2 px brass bevel. |
 | Card or plate art (if D4 keeps cards) | 64 x 48 | Shown inside a 72 x 104 frame at logical size; x2 in the card viewer. |
@@ -81,6 +101,8 @@ Presentation concept (D5): **field dispatches from a war of steam and gloam, on 
 - **Xross Forge** and **Shadowforge** (sibling projects): broadcast-stage neon, filigree frames.
 - **Any published 16-bit RPG:** no blue gradient window with a white border, no recreated sprites, tiles, fonts,
   monsters, airships or armour designs, no recognisable character silhouettes or hairstyles.
+- **The figures on the owner's reference sheet** (section 4a): we take its drawing style, not its characters. In
+  particular no winged white cat-creature with a pom-pom antenna, no horned blue dragoon armour, no white horned yeti.
 
 ## 9. Generated art
 Flux renders are not pixel art until they are cleaned:

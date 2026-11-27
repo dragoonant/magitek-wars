@@ -7,7 +7,7 @@ palette and font) is our own; it is not based on any published game.
 **Play:** https://dragoonant.github.io/magitek-wars/ (title screen only for now)
 
 ## Status
-The first clickable: a title screen drawn entirely in code at 256 x 224 (house palette, house bitmap font, a dusk city,
+The game runs on a copy of the Annals of Scrivenearth card engine (300 cards, AI, full test suite), being re-skinned for this world. The first clickable is a title screen drawn entirely in code at 256 x 224 (house palette, house bitmap font, a dusk city,
 a gloamwork strider, a riveted menu window). Keyboard (arrows, Enter, Esc) and touch or mouse. See `STATUS.md`.
 
 ## Docs

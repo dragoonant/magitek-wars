@@ -9,12 +9,15 @@ less cleanup. It teaches a **style**, not characters: subjects come from the pro
 - Nothing trained is committed. Checkpoints (`*.safetensors`) and the working dataset stay in gitignored
   `lora/work/`. Only captions, the source ledger and run notes are committed.
 
-## 2. Base model (open question 3)
-| Option | Licence | Notes |
-|---|---|---|
-| **FLUX.2 klein** (recommended) | Apache-2.0 | Already in Flux Studio; 4 steps, fast. Needs a trainer build that supports it; check on the box first. |
-| FLUX.1 schnell | Apache-2.0 | Well supported by trainers; distilled, so LoRAs train less cleanly. |
-| FLUX.1 dev | Non-commercial licence | Best trainer support; fine for a non-commercial project, but the licence travels with the LoRA. |
+## 2. Base model
+**FLUX.2 klein** (Apache-2.0, already in Flux Studio). Owner, 2026-11-26: "Flux.2 KLEIN is fine." Check on the box
+that the trainer build supports klein before the first run; if none does, stop and ask rather than switching base.
+
+## 2a. Target look
+The character look is ART-STYLE section 4a (the owner's reference sheet, PLAN D11), measured in plain numbers. The
+reference sheet itself is **not** training data and is not attached to generation prompts: its provenance is
+unknown and some of its figures are recognisable designs from a published series. Dataset renders are prompted
+from the measurements in section 4a and judged against them.
 
 ## 3. Dataset
 **Allowed sources only:**

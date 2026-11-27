@@ -2,8 +2,7 @@ import './style.css';
 import { Gfx, H, W } from './gfx';
 import { Scene } from './scene';
 import { Title } from './title';
-
-const SAVE_KEY = 'magitek-wars.save';
+import { SAVE_KEY } from './engine/save';
 
 function hasSave(): boolean {
   try {

@@ -9,7 +9,9 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "gate": "tsc --noEmit && vitest run && vite build"
+    "sim": "tsx tools/sim.ts",
+    "gate": "tsx tools/gate.ts",
+    "audit": "tsx tools/audit.ts --warn"
   },
   "repository": {
     "type": "git",
@@ -17,6 +19,8 @@
   },
   "author": "evilgouki",
   "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
     "vitest": "^5.1.0"
