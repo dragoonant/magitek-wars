@@ -5,7 +5,7 @@ import { view } from '../src/engine/view';
 import { def } from '../src/engine/query';
 import { chooseAction } from '../src/ai/ai';
 import type { FactionId } from '../src/engine/types';
-import { FLOORS, LEADS, MIN_DECK, STARTER_SIZE, buy, choices, enter, finishBattle, leaveSupply, newRun, rest, starterDeck, takeReward, type RunState } from '../src/run/run';
+import { FLOORS, LEADS, MIN_DECK, STARTER_SIZE, buy, choices, chooseEvent, enter, finishBattle, leaveSupply, newRun, removeForEvent, rest, starterDeck, takeReward, type RunState } from '../src/run/run';
 
 const FACTIONS: FactionId[] = ['prism', 'ember', 'tide', 'coil', 'storm', 'under'];
 
@@ -67,7 +67,7 @@ describe('spec 20: the campaign run', () => {
     finishBattle(r, 0, 15);
     expect(r.phase).toBe('reward');
     expect(r.scrip).toBe(10);
-    expect(r.boiler).toBe(15);
+    expect(r.boiler).toBe(18); // 15 left, then field repairs +3 (R-R5)
     expect(r.offer!.cards.length).toBe(3);
     for (const id of r.offer!.cards) expect(def(id).type).not.toBe('hero');
     const card = r.offer!.cards[0];
@@ -132,6 +132,7 @@ describe('spec 20: the campaign run', () => {
         if ((r.phase as string) === 'reward') takeReward(r, r.offer!.cards[0]);
       } else if (r.phase === 'rest') rest(r, { kind: 'repair' });
       else if (r.phase === 'supply') leaveSupply(r);
+      else if (r.phase === 'event') { chooseEvent(r, 0); if ((r.phase as string) === 'eventRemove') removeForEvent(r, r.deck[r.deck.length - 1]); }
     }
     expect(['lost', 'map']).toContain(r.phase);
     if (r.phase === 'map') expect(r.act).toBe(2);

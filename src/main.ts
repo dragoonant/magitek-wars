@@ -10,6 +10,8 @@ import { BattleSetup, type DeckOption } from './match/setup';
 import { Session, readStoredSave, clearSave } from './match/session';
 import type { Difficulty } from './ai/ai';
 import { RunScreen } from './run/screen';
+import { DeckBuilder } from './deckbuilder/screen';
+import { installAudioUnlock, isMuted, loadSamples, setMusic, setMuted, type MusicMood } from './audio/audio';
 
 // One canvas at the SNES hi-res size (512 x 448). The title and the gallery are drawn at 256 x 224 into an offscreen
 // canvas and doubled; the battle screens draw at full size (PLAN D17).
@@ -33,14 +35,35 @@ function hasSave(): boolean {
   return readStoredSave().kind === 'ok';
 }
 
+// Sound (PLAN D19): unlocked by the first gesture; M mutes, remembered in this browser.
+installAudioUnlock();
+try {
+  setMuted(localStorage.getItem('magitek-wars.muted') === '1');
+} catch {
+  /* no storage: sound starts on */
+}
+loadSamples(`${import.meta.env.BASE_URL}audio/`).catch((e: unknown) => console.error(e));
+
+/** Music follows the screen: title, menus and the map are calm, a battle drives, a boss is tense. */
+function moodNow(): MusicMood {
+  const m = screen === 'match' ? match : screen === 'run' ? run?.match ?? null : null;
+  if (m) {
+    const st = m.session.state;
+    if (st.phase === 'over') return st.winner === 0 ? 'victory' : 'defeat';
+    return m.mood;
+  }
+  return screen === 'title' || screen === 'gallery' ? 'title' : 'calm';
+}
+
 const scene = new Scene();
 const title = new Title(hasSave);
 const gallery = new Gallery();
 let setup: BattleSetup | null = null;
 let match: Match | null = null;
 let run: RunScreen | null = null;
+let builder: DeckBuilder | null = null;
 let lastBattle: { mine: DeckOption; foe: DeckOption; level: Difficulty } | null = null;
-type Screen = 'title' | 'gallery' | 'setup' | 'match' | 'run';
+type Screen = 'title' | 'gallery' | 'setup' | 'match' | 'run' | 'decks';
 let screen: Screen = 'title';
 let failed = '';
 Promise.all([scene.load(), title.load(), gallery.load()]).catch((e: unknown) => {
@@ -92,10 +115,17 @@ function route(): void {
       setup = new BattleSetup();
       screen = 'setup';
     } else if (o === 'continue') continueBattle();
-    else if (o === 'run') {
+    else if (o === 'decks') {
+      builder = new DeckBuilder();
+      screen = 'decks';
+    } else if (o === 'run') {
       run = new RunScreen();
       screen = 'run';
     }
+  }
+  if (builder?.result) {
+    builder = null;
+    screen = 'title';
   }
   if (run?.exit) {
     run.exit = false;
@@ -129,11 +159,21 @@ function route(): void {
 
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
+  if (e.code === 'KeyM') {
+    setMuted(!isMuted());
+    try {
+      localStorage.setItem('magitek-wars.muted', isMuted() ? '1' : '0');
+    } catch {
+      /* not remembered */
+    }
+    return;
+  }
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Enter', 'Tab', 'PageUp', 'PageDown'].includes(e.code)) e.preventDefault();
   if (screen === 'gallery') gallery.key(e.code);
   else if (screen === 'setup') setup?.key(e.code);
   else if (screen === 'match') match?.key(e.code);
   else if (screen === 'run') run?.key(e.code);
+  else if (screen === 'decks') builder?.key(e.code);
   else title.key(e.code);
   route();
 });
@@ -141,6 +181,7 @@ canvas.addEventListener('pointermove', (e) => {
   if (screen === 'title') title.pointerMove(...logical(e));
   else if (screen === 'match') match?.pointerMove(...logical(e));
   else if (screen === 'run') run?.pointerMove(...logical(e));
+  else if (screen === 'decks') builder?.pointerMove(...logical(e));
 });
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
@@ -149,10 +190,16 @@ canvas.addEventListener('pointerdown', (e) => {
   else if (screen === 'setup') setup?.pointerDown(x, y);
   else if (screen === 'match') match?.pointerDown(x, y);
   else if (screen === 'run') run?.pointerDown(x, y);
+  else if (screen === 'decks') builder?.pointerDown(x, y, e.button);
   else title.pointerDown(x, y);
   route();
 });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+canvas.addEventListener('wheel', (e) => {
+  if (screen !== 'decks' || !builder) return;
+  e.preventDefault();
+  builder.wheel(e.deltaY, ...logical(e as unknown as PointerEvent));
+}, { passive: false });
 
 const STEP = 1000 / 60;
 let t = 0;
@@ -165,6 +212,7 @@ function frame(now: number): void {
     t++;
     acc -= STEP;
   }
+  void setMusic(moodNow()).catch((e: unknown) => console.error(e));
   try {
     drawFrame(now);
   } catch (e) {
@@ -189,6 +237,9 @@ function drawFrame(now: number): void {
   } else if (screen === 'run' && run) {
     run.update(now);
     run.draw(hi, t);
+    route();
+  } else if (screen === 'decks' && builder) {
+    builder.draw(hi, t);
     route();
   } else if (screen === 'setup' && setup) setup.draw(hi);
   else {

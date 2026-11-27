@@ -16,11 +16,14 @@ import { HH, HW, Match } from '../match/board';
 import { Session } from '../match/session';
 import {
   ACT_NAMES, FLOORS, LEADS, MIN_DECK, REST_REPAIR, SUPPLY_REPAIR, SUPPLY_REPAIR_PRICE, buy, choices, enter, finishBattle,
-  leaveSupply, newRun, rest, takeReward, type MapNode, type RunState,
+  leaveSupply, newRun, rest, takeReward, chooseEvent, removeForEvent, FACTION_NAMES, type MapNode, type RunState,
 } from './run';
+import { BOSS_INTRO, EVENTS } from './events';
 
 export const RUN_KEY = 'magitek-wars.run';
 const ACT_FIELDS = ['thrumhollow', 'rimeglass', 'vaskor'];
+
+
 
 interface RunSave { game: 'magitek-wars.run'; version: 1; run: RunState; battleActions: string | null }
 
@@ -54,6 +57,7 @@ const KIND_STYLE: Record<MapNode['kind'], { letter: string; ink: Ink; name: stri
   elite: { letter: 'E', ink: 'emberBright', name: 'ELITE' },
   rest: { letter: 'R', ink: 'gloamBright', name: 'REST' },
   supply: { letter: 'D', ink: 'brassLight', name: 'SUPPLY DEPOT' },
+  event: { letter: '?', ink: 'steamWhite', name: 'EVENT' },
   boss: { letter: 'B', ink: 'emberGlow', name: 'BOSS' },
 };
 
@@ -67,6 +71,7 @@ export class RunScreen {
   private deckOpen = false;
   private removing = false;
   private confirmAbandon = false;
+  private foeDeckOpen = false;
   private hots: Hot[] = [];
   private hover: string | null = null;
   private savedActions = -1;
@@ -78,7 +83,7 @@ export class RunScreen {
     if (r && 'problem' in r) this.problem = r.problem;
     else if (r) {
       this.run = r.run;
-      if (r.run.phase === 'battle' && r.run.battle) this.resumeBattle(r.actions as never[]);
+      if (r.run.phase === 'battle' && r.run.battle && r.actions.length) this.resumeBattle(r.actions as never[]);
     }
   }
 
@@ -120,6 +125,7 @@ export class RunScreen {
     const b = this.run!.battle!;
     this.match = new Match(session, `${KIND_STYLE[b.kind].name}: ${b.foeName}`);
     this.match.endLabel = 'CONTINUE';
+    if (b.kind === 'boss') this.match.mood = 'tense';
     this.savedActions = -1;
   }
 
@@ -181,7 +187,20 @@ export class RunScreen {
     if (k === 'newrun') { clearRun(); this.run = null; return; }
     if (k === 'node') {
       enter(r, v);
-      if (r.phase === 'battle') this.startBattle();
+      this.foeDeckOpen = false;
+      this.save();
+      return;
+    }
+    if (k === 'fight') { this.startBattle(); this.save(); return; }
+    if (k === 'foedeck') { this.foeDeckOpen = !this.foeDeckOpen; return; }
+    if (k === 'choice') {
+      const why = chooseEvent(r, Number(v));
+      if (why) this.note = why;
+      this.save();
+      return;
+    }
+    if (k === 'evcut') {
+      removeForEvent(r, v);
       this.save();
       return;
     }
@@ -222,8 +241,10 @@ export class RunScreen {
       if (r.phase === 'reward') this.drawReward(g, r);
       if (r.phase === 'rest') this.drawRest(g, r);
       if (r.phase === 'supply') this.drawSupply(g, r);
+      if (r.phase === 'event' || r.phase === 'eventRemove') this.drawEvent(g, r);
+      if (r.phase === 'battle') this.drawBriefing(g, r);
     }
-    if (this.deckOpen || this.removing) this.drawDeck(g, r);
+    if (this.deckOpen || this.removing || r.phase === 'eventRemove') this.drawDeck(g, r);
     if (this.note) {
       g.rect(0, HH - 14, HW, 14, 'ink');
       drawText(g, this.note.toUpperCase().slice(0, 84), 4, HH - 11, { color: 'emberGlow' });
@@ -323,12 +344,12 @@ export class RunScreen {
     drawText(g, `DECK ${r.deck.length} CARDS`, x + 10, 110, { color: 'steamWhite' });
     drawText(g, `BATTLES WON ${r.wins}`, x + 10, 122, { color: 'steam' });
     let ly = 140;
-    for (const k of ['skirmish', 'elite', 'rest', 'supply', 'boss'] as const) {
+    for (const k of ['skirmish', 'elite', 'rest', 'supply', 'event', 'boss'] as const) {
       drawText(g, `${KIND_STYLE[k].letter} ${KIND_STYLE[k].name}`, x + 10, ly, { color: KIND_STYLE[k].ink });
       ly += 10;
     }
-    this.button(g, this.deckOpen ? 'HIDE DECK' : 'VIEW DECK', x + 8, 204, 'deck');
-    this.button(g, 'TITLE', x + 92, 204, 'title');
+    this.button(g, this.deckOpen ? 'HIDE DECK' : 'VIEW DECK', x + 8, 210, 'deck');
+    this.button(g, 'TITLE', x + 92, 210, 'title');
     if (this.confirmAbandon) {
       drawText(g, 'END THIS RUN FOR GOOD?', x + 8, 248, { color: 'emberGlow' });
       this.button(g, 'YES, END IT', x + 8, 260, 'abandon-yes');
@@ -395,19 +416,64 @@ export class RunScreen {
 
   private drawDeck(g: Gfx, r: RunState): void {
     drawWindow(g, 6, 30, 340, 410);
-    drawText(g, this.removing ? 'CLICK A CARD TO REMOVE IT' : `YOUR DECK: ${r.deck.length} CARDS`, 16, 40, { color: 'brassGlint' });
+    const cutting = this.removing || r.phase === 'eventRemove';
+    drawText(g, cutting ? 'CLICK A CARD TO REMOVE IT' : `YOUR DECK: ${r.deck.length} CARDS`, 16, 40, { color: 'brassGlint' });
     const counts = new Map<string, number>();
     for (const id of r.deck) counts.set(id, (counts.get(id) ?? 0) + 1);
     const ids = [...counts.keys()].sort((a, b) => def(a).cost - def(b).cost || a.localeCompare(b));
     ids.forEach((id, i) => {
       const x = 16 + Math.floor(i / 36) * 166, y = 54 + (i % 36) * 10;
       const label = `${def(id).cost} ${face(null, 0, id).name.toUpperCase().slice(0, 20)} X${counts.get(id)}`;
-      const hot = this.removing ? `cut|${id}` : `none|${id}`;
-      if (this.hover === hot && this.removing) g.rect(x - 2, y - 1, 164, 9, 'emberDeep');
+      const hot = r.phase === 'eventRemove' ? `evcut|${id}` : this.removing ? `cut|${id}` : `none|${id}`;
+      if (this.hover === hot && cutting) g.rect(x - 2, y - 1, 164, 9, 'emberDeep');
       drawText(g, label, x, y, { color: 'steamWhite' });
-      if (this.removing) this.hots.push({ x: x - 2, y: y - 1, w: 164, h: 9, id: hot });
+      if (cutting) this.hots.push({ x: x - 2, y: y - 1, w: 164, h: 9, id: hot });
     });
-    this.button(g, 'CLOSE', 280, 420, 'close');
+    if (r.phase !== 'eventRemove') this.button(g, 'CLOSE', 280, 420, 'close');
+  }
+
+  private drawEvent(g: Gfx, r: RunState): void {
+    const ev = EVENTS.find((e) => e.id === r.event?.id);
+    if (!ev || r.phase === 'eventRemove') return;
+    drawWindow(g, 20, 110, 472, 210);
+    drawTextCentred(g, ev.title, HW / 2, 124, { color: 'brassGlint', scale: 2 });
+    ev.text.forEach((l, i) => drawTextCentred(g, l.toUpperCase(), HW / 2, 152 + i * 11, { color: 'steamWhite' }));
+    ev.choices.forEach((c, i) => {
+      const y = 196 + i * 26;
+      const short = (c.costScrip ?? 0) > r.scrip;
+      const id = `choice|${i}`;
+      g.rect(36, y, 440, 20, this.hover === id && !short ? 'brassGlint' : 'brassDark');
+      g.rect(37, y + 1, 438, 18, short ? 'ironNight' : 'ironDark');
+      drawText(g, c.label, 46, y + 7, { color: short ? 'iron' : 'brassGlint' });
+      this.hots.push({ x: 36, y, w: 440, h: 20, id });
+    });
+  }
+
+  private drawBriefing(g: Gfx, r: RunState): void {
+    const b = r.battle!;
+    const deck = b.setup.decks[1];
+    const factions = [...new Set(deck.map((id) => def(id).faction))];
+    drawWindow(g, 20, 60, 472, this.foeDeckOpen ? 370 : 230);
+    const intro = b.kind === 'boss' ? BOSS_INTRO[factions[0]] : null;
+    drawTextCentred(g, b.kind === 'boss' ? `BOSS: ${intro?.who ?? b.foeName.toUpperCase()}` : `${KIND_STYLE[b.kind].name}: ${b.foeName.toUpperCase()}`, HW / 2, 74, { color: b.kind === 'boss' ? 'emberGlow' : 'brassGlint', scale: 2 });
+    let y = 100;
+    if (intro) for (const l of intro.lines) { drawTextCentred(g, l, HW / 2, y, { color: 'steamWhite' }); y += 11; }
+    y += 6;
+    drawTextCentred(g, `FACTIONS: ${factions.map((f) => FACTION_NAMES[f].toUpperCase()).join(', ')}`, HW / 2, y, { color: 'steam' });
+    drawTextCentred(g, `FOE DECK ${deck.length} CARDS   FOE BOILER ${b.setup.startSpire?.[1] ?? 20}   AI LEVEL ${b.level === 'easy' ? 'RECRUIT' : b.level === 'normal' ? 'VETERAN' : 'MARSHAL'}`, HW / 2, y + 12, { color: 'steam' });
+    drawTextCentred(g, `YOUR BOILER ${r.boiler}   YOUR DECK ${r.deck.length} CARDS`, HW / 2, y + 24, { color: 'steamWhite' });
+    const by = this.foeDeckOpen ? 400 : 250;
+    this.button(g, 'FIGHT', 300, by, 'fight');
+    this.button(g, this.foeDeckOpen ? 'HIDE FOE DECK' : 'VIEW FOE DECK', 150, by, 'foedeck');
+    if (this.foeDeckOpen) {
+      const counts = new Map<string, number>();
+      for (const id of deck) counts.set(id, (counts.get(id) ?? 0) + 1);
+      const ids = [...counts.keys()].sort((a, c) => def(a).cost - def(c).cost || a.localeCompare(c));
+      ids.forEach((id, i) => {
+        const x = 34 + Math.floor(i / 20) * 230, yy = y + 42 + (i % 20) * 10;
+        drawText(g, `${def(id).cost} ${face(null, 1, id).name.toUpperCase().slice(0, 28)} X${counts.get(id)}`, x, yy, { color: def(id).type === 'hero' ? 'brassLight' : 'steamWhite' });
+      });
+    }
   }
 
   private drawEnd(g: Gfx, r: RunState): void {

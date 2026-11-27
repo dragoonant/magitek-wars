@@ -6,12 +6,13 @@ export const PRESS_START = 'PRESS START';
 export const CREDIT = 'BY EVILGOUKI';
 export const VERSION = 'V0.1';
 
-export type MenuId = 'run' | 'new' | 'continue' | 'cards' | 'credits';
+export type MenuId = 'run' | 'new' | 'continue' | 'decks' | 'cards' | 'credits';
 
 export const MENU: readonly { id: MenuId; label: string }[] = [
   { id: 'run', label: 'CAMPAIGN' },
   { id: 'new', label: 'QUICK BATTLE' },
   { id: 'continue', label: 'CONTINUE' },
+  { id: 'decks', label: 'DECK BUILDER' },
   { id: 'cards', label: 'CARD GALLERY' },
   { id: 'credits', label: 'CREDITS' },
 ];
@@ -20,6 +21,7 @@ export const DIALOGS: Record<MenuId, readonly string[]> = {
   run: [],
   new: [],
   continue: [],
+  decks: [],
   cards: [],
   credits: ['MAGITEK WARS, AN ORIGINAL GAME', 'DESIGN AND CODE: EVILGOUKI', 'ART: FLUX.2 KLEIN WITH OUR', 'OWN STYLE LORA, FIXED IN CODE', 'TITLE TYPE: CINZEL (OFL)', 'CARD ENGINE: ANNALS OF', 'SCRIVENEARTH, ALSO EVILGOUKI'],
 };

@@ -23,11 +23,12 @@ A `default` that waits on an open question is marked **pending Q<n>**; work cont
 | D16 | 2026-11-27 | **Re-skin words.** Owner: "Do all of it. Get the game working into a point where I can play test all the decks." The engine's Spire is printed as the **Boiler** and a glyph as a **tactic** (played, not cast); faction names follow D12; card and hero names come from `tools/art/cards/*.mjs`. Keywords, trigger words, Charge, Reserve, Line, Scrap and every number stay. Internal ids stay. Guide: `docs/RESKIN.md`; `tools/audit.ts` checks the Boiler word. | owner |
 | D17 | 2026-11-27 | **The battle screen uses the SNES hi-res mode, 512 x 448.** Two Lines of six, a hand of ten, the stack, the log and readable card text do not fit 256 x 224. One canvas at 512 x 448: the title and gallery draw at 256 x 224 and are doubled; the battle, deck-select and campaign screens draw at full size with the same 5 x 7 font and palette. Every choice comes from `legalActions` (a click narrows the legal actions; nothing is chosen for the player). QUICK BATTLE offers every premade deck plus one single-faction deck per faction, against a chosen or random foe deck and AI level; `?auto` lets the AI play both seats for play-testing. | owner |
 | D18 | 2026-11-27 | **The roguelike: a campaign run, spec 20.** Owner: "Then start working on the roguelike." A run marches through three acts (Thrumhollow, the Rimeglass Flats, Vaskor) of seven floors: skirmishes, elites, rest stops, supply depots, a boss. One growing deck, a Boiler that carries its damage between battles (engine `Setup.startSpire`, R-X3), card rewards and scrip. The battles are the spec 10 battles against the AI. First playable; balance R-1 in `BALANCE.md`. Saves in its own slot after every node and every move. | owner |
+| D19 | 2026-11-27 | **Licence: all rights reserved** (answers Q4). No licence file; the README says so. Owner, asked the licence: "All rights reserved". Q2 (interface look) and Q5 (re-skin map) stay open: owner, "Keep, I'll revise later", so work builds on them as they are. Overnight scope (owner): finish the open tasks, plus a deck builder, music and sound, a KB entry and a LoRA option in Flux Studio; GPU allowed for renders and a v3 LoRA. | owner |
 
 ## Open questions for the owner
 1. (Answered 2026-11-26, D4: copy the Annals engine.)
 2. **Look (D5):** is "field dispatches from a war of steam and gloam" the interface concept (riveted brass windows,
-   dusk cities)? The character style itself is settled (D11).
+   dusk cities)? The character style itself is settled (D11). Owner 2026-11-27: keep as built for now, may revise.
 3. (Answered 2026-11-26, D3: FLUX.2 klein.)
-4. **Licence for the public repo:** none chosen yet (all rights reserved by default). Pick one, or keep it closed?
+4. (Answered 2026-11-27, D19: all rights reserved.)
 5. **Re-skin map (D12):** the six faction matches above, including a new sixth faction (the Blackwick) for Undervolt?

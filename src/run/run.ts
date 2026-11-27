@@ -5,8 +5,9 @@ import { LIMITS } from '../engine/types';
 import { def } from '../engine/query';
 import { autoDeck, collectible } from '../data/decks';
 import type { Difficulty } from '../ai/ai';
+import { EVENTS, cardFor, eventBoiler } from './events';
 
-export type NodeKind = 'skirmish' | 'elite' | 'rest' | 'supply' | 'boss';
+export type NodeKind = 'skirmish' | 'elite' | 'rest' | 'supply' | 'event' | 'boss';
 export interface MapNode { id: string; floor: number; kind: NodeKind; links: string[] }
 export interface ActMap { act: number; floors: MapNode[][] }
 
@@ -14,7 +15,7 @@ export interface Offer { cards: string[]; scrip: number }
 export interface Shop { cards: { id: string; price: number; sold: boolean }[]; repairSold: boolean }
 export interface Battle { setup: Setup; foeName: string; level: Difficulty; kind: NodeKind }
 
-export type RunPhase = 'map' | 'battle' | 'reward' | 'rest' | 'supply' | 'won' | 'lost';
+export type RunPhase = 'map' | 'battle' | 'reward' | 'rest' | 'supply' | 'event' | 'eventRemove' | 'won' | 'lost';
 
 export interface RunState {
   v: 1;
@@ -32,6 +33,8 @@ export interface RunState {
   battle: Battle | null;
   offer: Offer | null;
   shop: Shop | null;
+  /** The event at this stop (R-R11), and what its last choice gave. */
+  event?: { id: string; result: string[] } | null;
   /** Battles won, for the end screen. */
   wins: number;
   log: string[];
@@ -52,10 +55,12 @@ const ALL: FactionId[] = ['prism', 'ember', 'tide', 'coil', 'storm', 'under'];
 const FOES: Record<'skirmish' | 'elite' | 'boss', [number, number, Difficulty][]> = {
   skirmish: [[20, 10, 'easy'], [24, 14, 'normal'], [28, 18, 'normal']],
   elite: [[24, 14, 'normal'], [28, 18, 'normal'], [30, 20, 'hard']],
-  boss: [[30, 20, 'normal'], [30, 20, 'hard'], [34, 20, 'hard']],
+  boss: [[26, 16, 'normal'], [30, 20, 'hard'], [34, 20, 'hard']],
 };
 const SCRIP: Record<'skirmish' | 'elite' | 'boss', number> = { skirmish: 10, elite: 25, boss: 50 };
 export const REST_REPAIR = 6;
+/** R-R5 field repairs after every won battle (BALANCE R-2). */
+export const FIELD_REPAIR = 3;
 export const SUPPLY_REPAIR = 5;
 export const SUPPLY_REPAIR_PRICE = 20;
 export const MIN_DECK = 10;
@@ -131,7 +136,7 @@ export function makeMap(r: RunState, act: number): ActMap {
       let kind: NodeKind = 'skirmish';
       if (f > 1) {
         const x = next(r);
-        kind = x < 0.48 ? 'skirmish' : x < 0.64 && f > 2 ? 'elite' : x < 0.8 ? 'rest' : 'supply';
+        kind = x < 0.42 ? 'skirmish' : x < 0.56 && f > 2 ? 'elite' : x < 0.7 ? 'rest' : x < 0.84 ? 'supply' : 'event';
       }
       row.push({ id: `a${act}f${f}n${i}`, floor: f, kind, links: [] });
     }
@@ -219,6 +224,11 @@ export function enter(r: RunState, id: string): void {
   } else if (n.kind === 'rest') {
     r.phase = 'rest';
     r.log.push(`Floor ${n.floor}: a rest stop.`);
+  } else if (n.kind === 'event') {
+    const ev = EVENTS[int(r, EVENTS.length)];
+    r.event = { id: ev.id, result: [] };
+    r.phase = 'event';
+    r.log.push(`Floor ${n.floor}: ${ev.title.toLowerCase()}.`);
   } else {
     r.shop = makeShop(r);
     r.phase = 'supply';
@@ -243,6 +253,7 @@ export function finishBattle(r: RunState, winner: Seat | 'draw' | null, myBoiler
     return;
   }
   r.wins += 1;
+  r.boiler = Math.min(LIMITS.spire, r.boiler + FIELD_REPAIR);
   if (kind === 'boss' && r.act === ACTS) {
     r.phase = 'won';
     r.log.push('Vaskor has fallen silent. The march is won.');
@@ -322,6 +333,50 @@ export function buy(r: RunState, what: string): string | null {
   r.deck.push(item.id);
   r.log.push(`Bought ${def(item.id).name}.`);
   return null;
+}
+
+/** R-R11: take one of the event's choices. Returns why it was refused, or null. A "remove" outcome waits for the
+ *  player to pick the card (phase eventRemove); the deck never drops below MIN_DECK, so that outcome is skipped then. */
+export function chooseEvent(r: RunState, index: number): string | null {
+  if (r.phase !== 'event' || !r.event) throw new Error('run: no event here');
+  const ev = EVENTS.find((e) => e.id === r.event!.id);
+  if (!ev) throw new Error(`run: unknown event ${r.event.id}`);
+  const ch = ev.choices[index];
+  if (!ch) throw new Error(`run: event ${ev.id} has no choice ${index}`);
+  if (ch.costScrip && r.scrip < ch.costScrip) return `Needs ${ch.costScrip} scrip.`;
+  if (ch.costScrip) r.scrip -= ch.costScrip;
+  const result: string[] = [];
+  let remove = false;
+  for (const o of ch.outcomes) {
+    if (o.kind === 'scrip') { r.scrip += o.n; result.push(`+${o.n} scrip`); }
+    else if (o.kind === 'boiler') {
+      const before = r.boiler;
+      r.boiler = eventBoiler(r.boiler, o.n);
+      result.push(`Boiler ${r.boiler - before >= 0 ? '+' : ''}${r.boiler - before}`);
+    } else if (o.kind === 'card') {
+      const id = cardFor(o.pool, r.faction, o.minCost ?? 0, next(r));
+      r.deck.push(id);
+      result.push(`gained ${def(id).name}`);
+    } else if (o.kind === 'remove') {
+      if (r.deck.length > MIN_DECK) remove = true;
+      else result.push(`no card removed (the deck is at ${MIN_DECK})`);
+    }
+  }
+  r.event.result = result;
+  r.log.push(`${ev.title.charAt(0)}${ev.title.slice(1).toLowerCase()}: ${result.join(', ') || 'nothing happened'}.`);
+  if (remove) r.phase = 'eventRemove';
+  else { r.event = null; afterNode(r); }
+  return null;
+}
+
+export function removeForEvent(r: RunState, card: string): void {
+  if (r.phase !== 'eventRemove') throw new Error('run: no card to remove');
+  const i = r.deck.indexOf(card);
+  if (i < 0) throw new Error(`run: ${card} is not in the deck`);
+  r.deck.splice(i, 1);
+  r.log.push(`Left ${def(card).name} behind.`);
+  r.event = null;
+  afterNode(r);
 }
 
 export function leaveSupply(r: RunState): void {

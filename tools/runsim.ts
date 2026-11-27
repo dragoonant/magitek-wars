@@ -5,7 +5,7 @@ import { createGame, applyAction } from '../src/engine/rules';
 import { view } from '../src/engine/view';
 import { chooseAction, type Difficulty } from '../src/ai/ai';
 import type { FactionId } from '../src/engine/types';
-import { choices, enter, finishBattle, leaveSupply, newRun, rest, takeReward, type RunState } from '../src/run/run';
+import { choices, chooseEvent, enter, finishBattle, leaveSupply, newRun, removeForEvent, rest, takeReward, type RunState } from '../src/run/run';
 
 const per = Number(process.argv[2] ?? 6);
 const me = (process.argv[3] ?? 'normal') as Difficulty;
@@ -38,11 +38,13 @@ for (const f of FACTIONS) {
         if ((r.phase as string) === 'reward') takeReward(r, r.offer!.cards[0]);
       } else if (r.phase === 'rest') rest(r, { kind: 'repair' });
       else if (r.phase === 'supply') leaveSupply(r);
+      else if (r.phase === 'event') { chooseEvent(r, 0); if ((r.phase as string) === 'eventRemove') removeForEvent(r, r.deck[r.deck.length - 1]); }
     }
     const key = r.phase === 'won' ? 'won' : `act ${r.act}`;
     reach[key] = (reach[key] ?? 0) + 1;
     if (r.phase === 'won') wins++;
-    console.log(f, i, r.phase, 'act', r.act, 'wins', r.wins, 'boiler', r.boiler, 'deck', r.deck.length);
+    const where = r.at ? r.map.floors.flat().find((n) => n.id === r.at) : null;
+    console.log(f, i, r.phase, 'act', r.act, 'wins', r.wins, 'boiler', r.boiler, 'deck', r.deck.length, 'at', where ? `floor ${where.floor} ${where.kind}` : '-');
   }
 }
 const fw = firstFights.reduce((a, b) => a + b, 0);

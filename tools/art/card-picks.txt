@@ -33,6 +33,11 @@ storm-ribbonkite 9342
 under-blackgatejuggernaut 9983
 under-fuserunner 9602
 under-wireboundthug 9902
-# All five seeds carried interface lettering: no art until a reworded render passes.
-ember-meltdowngolem none
-storm-steepdive none
+# Reworded overnight renders (tools/art/jobs-night.mjs) for the two cards with no clean render.
+ember-meltdowngolem 21002
+storm-steepdive 21011
+# Overnight steam-age re-renders (tools/art/jobs-night.mjs) where they read less modern.
+prism-lens-battery 22012
+prism-shieldline-cadet 22043
+prism-steady-aim 22031
+storm-closeechelon 22071

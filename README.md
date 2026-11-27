@@ -1,31 +1,43 @@
 # Magitek Wars
 
-An original 16-bit-style game of steam and gloam for the browser. An empire runs on gloamsteam drawn from the glass
-roots under the continent, and the land above them is dying. Everything here (world, names, story, rules, sprites,
-palette and font) is our own; it is not based on any published game.
+An original 16-bit-style card battler of steam and gloam for the browser. An empire runs on gloamsteam drawn from the
+glass roots under the continent, and the land above them is dying. Everything here (world, names, story, card text,
+art direction) is our own; it is not based on any published game.
 
-**Play:** https://dragoonant.github.io/magitek-wars/ (title screen only for now)
+**Play:** https://dragoonant.github.io/magitek-wars/
 
-## Status
-The game runs on a copy of the Annals of Scrivenearth card engine (300 cards, AI, full test suite), being re-skinned for this world. The first clickable is a title screen drawn entirely in code at 256 x 224 (house palette, house bitmap font, a dusk city,
-a gloamwork strider, a riveted menu window). Keyboard (arrows, Enter, Esc) and touch or mouse. See `STATUS.md`.
+## What is in it
+- **Campaign:** a roguelike march across three acts: pick a faction, grow one deck through skirmishes, elites, events,
+  rest stops, supply depots and bosses, with a Boiler that carries its damage (`docs/spec/20-roguelike.md`).
+- **Quick battle:** any of 24 premade decks, six single-faction decks or your own, against the AI at three levels.
+- **Deck builder** and **card gallery** for all 300 cards and 24 heroes.
+- Keyboard (arrows, Enter, Esc, L for the log, M for sound) and mouse or touch. Saves itself after every move.
 
 ## Docs
 | File | What it holds |
 |---|---|
 | `PLAN.md` | Every decision, and the open questions for the owner |
 | `STATUS.md` | Where the project stands now |
-| `docs/ART-STYLE.md` | The 16-bit house style in plain measurements: grid, palette, outlines, dithering, sizes |
-| `docs/LORA.md` | Plan for a style LoRA trained on our own approved renders and recorded CC0 art |
-| `docs/WORLD.md` | The world sketch: factions, places, characters |
+| `docs/spec/10-rules.md` | The battle rules, with rule ids |
+| `docs/spec/20-roguelike.md` | The campaign rules |
+| `docs/RESKIN.md` | The words this game prints (Boiler, tactic) over the engine's |
+| `docs/ART-STYLE.md` | The 16-bit house style in plain measurements, and how rendered art is snapped to it |
+| `docs/LORA.md`, `lora/RUNS.md` | The style LoRA: data, settings, results |
+| `docs/WORLD.md` | The world: factions, places, characters |
+| `BALANCE.md` | Every balance question asked, with its sim result |
 
 ## Develop
 ```
 npm install
 npm run dev        # local server
-npm run gate       # typecheck, tests, build
+npm run gate       # typecheck, tests, card audit, mutation pass, AI bench, build
 ```
-Push to `main` runs the gates and deploys `dist/` to GitHub Pages (`.github/workflows/deploy.yml`).
+Push to `main` runs the gates and deploys `dist/` to GitHub Pages (`.github/workflows/deploy.yml`). `?auto&fast` in
+the URL lets the AI play both seats of a battle.
 
-## Credits
-Design and code: **evilgouki**. All art is drawn in code for now; no external art, fonts or sounds.
+## Credits and licence
+Design and code: **evilgouki**. The card engine comes from Annals of Scrivenearth, also by evilgouki. Art is rendered
+on our own machine with FLUX.2 klein and our own style LoRA, then fixed to the pixel grid in code. Title type: Cinzel
+(SIL Open Font License, see `NOTICE.md`).
+
+Copyright evilgouki. **All rights reserved** (PLAN D19): the code and art may be read and played here, not reused.

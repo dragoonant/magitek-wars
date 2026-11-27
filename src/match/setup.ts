@@ -11,6 +11,7 @@ import type { Gfx } from '../gfx';
 import { wrap } from '../gallery-text';
 import { drawWindow } from '../title';
 import { emblem } from './art';
+import { savedLegalDecks } from '../deckbuilder/edit';
 import { HH, HW } from './board';
 
 export interface DeckOption { name: string; about: string; cards: string[]; factions: string[] }
@@ -23,6 +24,8 @@ export function deckOptions(): DeckOption[] {
     if (!checkDeck(cards).ok) throw new Error(`the single-faction deck for ${f.name} is not legal`);
     out.push({ name: `${FACTION_INFO[f.engine].name} (single faction)`, about: FACTION_INFO[f.engine].blurb, cards, factions: [f.key] });
   }
+  // decks the player built (only legal ones; the deck builder marks the others ILLEGAL)
+  for (const d of savedLegalDecks()) out.push({ name: `${d.name} (yours)`, about: 'A deck you built in the deck builder.', cards: d.cards, factions: facs(d.cards) });
   return out;
 }
 

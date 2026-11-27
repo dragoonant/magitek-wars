@@ -1,0 +1,34 @@
+{
+  "note": "Magitek Wars generation list for the local Audio Studio on EVILAEGIS (port 7890), run by tools/audio/gen.mjs. ids are the delivery file names under public/audio/. sfx ids match LogEntry.k so src/audio/audio.ts plays them by name; a kind without a sample plays its synthesized voice. Steam, brass, iron and gloam: no crystal, no published game's sounds. Loops are made seamless by level.mjs.",
+  "music": [
+    { "id": "music/title", "duration": 120, "bpm": 72, "key": "D minor", "loop": true,
+      "prompt": "instrumental, slow solemn brass chorale over a deep pulsing steam engine rhythm, distant church bells, low strings, a smoky industrial city at dusk, sixteen-bit era game title theme, cinematic, clean mix" },
+    { "id": "music/calm", "duration": 150, "bpm": 88, "key": "A minor", "loop": true,
+      "prompt": "instrumental, gentle accordion and plucked mandolin over soft brushed snare, warm tuba bass, travelling music for a march across a moor, thoughtful and steady, loopable, clean mix" },
+    { "id": "music/battle", "duration": 150, "bpm": 132, "key": "E minor", "loop": true,
+      "prompt": "instrumental, driving military snare and timpani, urgent staccato strings, bold trumpet and horn melody, clanking anvil percussion, steam whistle accents, heroic card battle music, loopable, clean mix" },
+    { "id": "music/tense", "duration": 120, "bpm": 112, "key": "C minor", "loop": true,
+      "prompt": "instrumental, ominous low brass and pipe organ, pounding war drums, hissing steam and grinding gears, a warlord's final stand, boss battle music, loopable, clean mix" },
+    { "id": "music/victory", "duration": 14, "bpm": 120, "key": "D major", "loop": false,
+      "prompt": "instrumental, short triumphant brass fanfare with snare roll and cymbal, victory jingle, ends cleanly" },
+    { "id": "music/defeat", "duration": 12, "bpm": 70, "key": "D minor", "loop": false,
+      "prompt": "instrumental, short sorrowful solo horn and low strings, a fading steam whistle, defeat jingle, ends cleanly" },
+    { "id": "music/ascend-sting", "duration": 6, "bpm": 100, "key": "D major", "loop": false,
+      "prompt": "instrumental, a rising brass swell into a bright held chord with a bell strike, heroic transformation sting, ends cleanly" }
+  ],
+  "sfx": [
+    { "id": "sfx/round", "seconds": 3, "prompt": "a single deep factory steam whistle blast followed by a large bell strike, no music, no voices" },
+    { "id": "sfx/play", "seconds": 1, "prompt": "a heavy playing card slapped down on a wooden table with a brass click, close, no music" },
+    { "id": "sfx/cast", "seconds": 2, "prompt": "a hiss of pressurised steam releasing with a rising electrical hum, no music, no voices" },
+    { "id": "sfx/strike", "seconds": 1, "prompt": "a heavy iron sword clashing against a riveted steel shield, metallic impact, no music" },
+    { "id": "sfx/dmg", "seconds": 1, "prompt": "a sharp metallic dent, a hammer hitting a steel plate once, no music" },
+    { "id": "sfx/spireDmg", "seconds": 2, "prompt": "a large iron boiler being struck hard, deep booming metallic clang with a burst of steam, no music" },
+    { "id": "sfx/die", "seconds": 2, "prompt": "a machine collapsing, metal crumpling and falling with a last puff of steam, no music, no voices" },
+    { "id": "sfx/attack", "seconds": 2, "prompt": "a squad charging, heavy boots on gravel and a brass bugle note, no music, no voices" },
+    { "id": "sfx/heal", "seconds": 2, "prompt": "a wrench tightening a bolt and a gentle rising chime, repair sound, no music" },
+    { "id": "sfx/ward", "seconds": 1, "prompt": "a shimmering protective barrier ringing as something bounces off it, metallic ping, no music" },
+    { "id": "sfx/stasis", "seconds": 2, "prompt": "ice crackling and freezing over metal, a cold hiss, no music" },
+    { "id": "sfx/ascend", "seconds": 3, "prompt": "a powerful engine roaring to full pressure, gears locking into place, a triumphant steam blast, no music, no voices" }
+  ],
+  "voice": []
+}
