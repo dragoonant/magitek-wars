@@ -5,7 +5,7 @@ import { Gfx, H, W } from './gfx';
 import { Scene } from './scene';
 import { Title } from './title';
 import { Gallery } from './gallery';
-import { HH, HW, Match } from './match/board';
+import { BASE_W, HH, Match, WIDE_MAX, setHW } from './match/board';
 import { BattleSetup, type DeckOption } from './match/setup';
 import { Session, readStoredSave, clearSave } from './match/session';
 import type { Difficulty } from './ai/ai';
@@ -19,32 +19,48 @@ import { installAudioUnlock, isMuted, loadSamples, setMusic, setMuted, type Musi
 // #screen canvas only shows that frame, scaled to fill the window (PLAN D21). With FULL DETAIL art (PLAN D22) both
 // offscreen canvases have a whole number of backing pixels per logical pixel, so rendered art keeps its detail while
 // everything drawn in code stays on the logical grid.
+// The frame's logical width FW follows the window's shape (PLAN D23): a battle lays itself out across all of it;
+// screens built for 512 are drawn into a 512-wide canvas, centred, with a soft blurred copy of themselves at the sides.
 
 const screenEl = document.getElementById('screen');
 if (!(screenEl instanceof HTMLCanvasElement)) throw new Error('main: no #screen canvas');
 const canvas: HTMLCanvasElement = screenEl;
 const shown = canvas.getContext('2d');
 if (!shown) throw new Error('main: no 2d context');
+/** Logical width of the whole frame (even, 512 to WIDE_MAX); the height is always HH. */
+let FW = BASE_W;
 const game = document.createElement('canvas');
-game.width = HW;
-game.height = HH;
 const ctx = game.getContext('2d');
 if (!ctx) throw new Error('main: no 2d context');
-ctx.imageSmoothingEnabled = false;
 const hi = new Gfx(ctx);
+const midCanvas = document.createElement('canvas');
+const midCtx = midCanvas.getContext('2d');
+if (!midCtx) throw new Error('main: no 2d context');
+const mid = new Gfx(midCtx);
+const tiny = document.createElement('canvas');
+tiny.width = 24;
+tiny.height = 21;
+const tinyCtx = tiny.getContext('2d');
+if (!tinyCtx) throw new Error('main: no 2d context');
 const loCanvas = document.createElement('canvas');
 const loCtx = loCanvas.getContext('2d');
 if (!loCtx) throw new Error('main: no 2d context');
 const lo = new Gfx(loCtx);
 /** Backing pixels per logical pixel of the game canvas: 1 for PIXEL art, the next whole display scale for DETAIL. */
 let gameScale = 0;
+let gameW = 0;
 function sizeOffscreen(k: number): void {
-  if (k === gameScale) return;
+  if (k === gameScale && FW === gameW) return;
   gameScale = k;
-  game.width = HW * k;
+  gameW = FW;
+  game.width = FW * k;
   game.height = HH * k;
   ctx!.setTransform(k, 0, 0, k, 0, 0);
   ctx!.imageSmoothingEnabled = false;
+  midCanvas.width = BASE_W * k;
+  midCanvas.height = HH * k;
+  midCtx!.setTransform(k, 0, 0, k, 0, 0);
+  midCtx!.imageSmoothingEnabled = false;
   loCanvas.width = W * 2 * k;
   loCanvas.height = H * 2 * k;
   loCtx!.setTransform(2 * k, 0, 0, 2 * k, 0, 0);
@@ -102,7 +118,8 @@ onDetailChange(() => {
 });
 
 /**
- * The frame fills the window, keeping its 8:7 shape (PLAN D21). The shown canvas has one backing pixel per device
+ * The frame fills the window (PLAN D21, D23): its logical width follows the window's shape, so only a window
+ * narrower than 8:7 or wider than WIDE_MAX:448 leaves bars. The shown canvas has one backing pixel per device
  * pixel. A whole-number scale is drawn with hard pixel edges; any other scale is drawn with hard edges at the next
  * whole number up, then smoothly reduced to fit ("sharp bilinear"), so pixel columns stay even and edges stay crisp.
  */
@@ -112,16 +129,18 @@ if (!upCtx) throw new Error('main: no 2d context');
 let devScale = 1;
 function fit(): void {
   const dpr = window.devicePixelRatio || 1;
-  const s = Math.min(window.innerWidth / HW, window.innerHeight / HH);
-  const w = Math.max(1, Math.floor(HW * s));
+  const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+  FW = Math.max(BASE_W, Math.min(WIDE_MAX, 2 * Math.round((HH * aspect) / 2)));
+  const s = Math.min(window.innerWidth / FW, window.innerHeight / HH);
+  const w = Math.max(1, Math.floor(FW * s));
   const h = Math.max(1, Math.floor(HH * s));
   canvas!.style.width = `${w}px`;
   canvas!.style.height = `${h}px`;
   canvas!.width = Math.max(1, Math.round(w * dpr));
   canvas!.height = Math.max(1, Math.round(h * dpr));
-  devScale = canvas!.width / HW;
+  devScale = canvas!.width / FW;
   const k = Math.max(1, Math.ceil(devScale - 0.001));
-  up.width = HW * k;
+  up.width = FW * k;
   up.height = HH * k;
   sizeOffscreen(isDetail() ? k : 1);
 }
@@ -149,12 +168,34 @@ function present(): void {
 }
 
 const isLo = (): boolean => screen === 'title' || screen === 'gallery';
+/** A battle uses the whole width; every other screen is 512 wide, centred. */
+const isWide = (): boolean => screen === 'match' || (screen === 'run' && !!run?.match);
+const offsetX = (): number => (isWide() ? 0 : (FW - BASE_W) / 2);
 
 function logical(e: PointerEvent): [number, number] {
   const r = canvas!.getBoundingClientRect();
-  const x = ((e.clientX - r.left) / r.width) * HW;
+  const x = ((e.clientX - r.left) / r.width) * FW - offsetX();
   const y = ((e.clientY - r.top) / r.height) * HH;
   return isLo() ? [Math.floor(x / 2), Math.floor(y / 2)] : [Math.floor(x), Math.floor(y)];
+}
+
+/** Put the 512-wide frame in the middle; the sides show it again, blurred and darkened, instead of bars. */
+function compose(): void {
+  const ox = offsetX();
+  if (ox > 0) {
+    tinyCtx!.imageSmoothingEnabled = true;
+    tinyCtx!.drawImage(midCanvas, 0, 0, tiny.width, tiny.height);
+    const ch = (HH * FW) / BASE_W;
+    ctx!.imageSmoothingEnabled = true;
+    ctx!.drawImage(tiny, 0, (HH - ch) / 2, FW, ch);
+    ctx!.fillStyle = 'rgba(8, 8, 16, 0.55)';
+    ctx!.fillRect(0, 0, FW, HH);
+    ctx!.imageSmoothingEnabled = false;
+    hi.rect(ox - 2, 0, 2, HH, 'ink');
+    hi.rect(ox + BASE_W, 0, 2, HH, 'ink');
+  }
+  ctx!.imageSmoothingEnabled = false;
+  ctx!.drawImage(midCanvas, ox, 0, BASE_W, HH);
 }
 
 function startBattle(mine: DeckOption, foe: DeckOption, level: Difficulty): void {
@@ -321,7 +362,7 @@ function frame(now: number): void {
   }
   if (crash) {
     ctx!.fillStyle = '#080810';
-    ctx!.fillRect(0, HH - 12, HW, 12);
+    ctx!.fillRect(0, HH - 12, FW, 12);
     drawText(hi, `ERROR: ${crash}`.toUpperCase().replace(/[^A-Z0-9 .,:'()/+|-]/g, ' ').slice(0, 84), 2, HH - 10, { color: 'emberGlow' });
   }
   present();
@@ -329,18 +370,21 @@ function frame(now: number): void {
 }
 let crash = '';
 function drawFrame(now: number): void {
+  if (screen === 'match' && match) match.update(now);
+  if (screen === 'run' && run) run.update(now);
+  const wide = isWide();
+  setHW(wide ? FW : BASE_W);
+  const g = wide ? hi : mid;
   if (screen === 'match' && match) {
-    match.update(now);
-    match.draw(hi, t);
+    match.draw(g, t);
     route();
   } else if (screen === 'run' && run) {
-    run.update(now);
-    run.draw(hi, t);
+    run.draw(g, t);
     route();
   } else if (screen === 'decks' && builder) {
-    builder.draw(hi, t);
+    builder.draw(g, t);
     route();
-  } else if (screen === 'setup' && setup) setup.draw(hi);
+  } else if (screen === 'setup' && setup) setup.draw(g);
   else {
     if (screen === 'gallery') gallery.draw(lo, t);
     else {
@@ -348,8 +392,10 @@ function drawFrame(now: number): void {
       title.draw(lo, t, scene.emblem);
     }
     if (failed) drawText(lo, 'ART FAILED TO LOAD', 4, 4, { color: 'emberGlow', outline: 'ink' });
-    ctx!.drawImage(loCanvas, 0, 0, HW, HH);
+    midCtx!.imageSmoothingEnabled = false;
+    midCtx!.drawImage(loCanvas, 0, 0, BASE_W, HH);
   }
+  if (!wide) compose();
 }
 requestAnimationFrame(frame);
 

@@ -1,7 +1,7 @@
 // The match screen (PLAN D17): the SNES hi-res mode, 512 x 448. Both Lines, both Boilers, the hand, the stack,
 // the log and the prompt. Every choice comes from legalActions: a click narrows the legal actions, so the screen can
 // never offer a move the engine would refuse, and never makes a choice for the player (KB rules 8 and 12).
-import { drawPic } from '../detail';
+import { drawCover, drawPic } from '../detail';
 import type { Action, GameState, Keyword, Seat, Unit } from '../engine/types';
 import { LIMITS, spireId } from '../engine/types';
 import { legalActions, whyNotPlay, whyNotDeclare } from '../engine/rules';
@@ -20,17 +20,42 @@ import { END_REASONS, KEYWORD_HELP, lineText, targetPrompt } from './text';
 import type { Session } from './session';
 import { playEvent } from '../audio/audio';
 
-export const HW = 512;
+/**
+ * Logical screen size (PLAN D17, D23). The height is fixed at 448; the width follows the window's shape, from 512
+ * (the SNES hi-res frame) up to WIDE_MAX. main.ts sets it each frame: the battle lays itself out across the width,
+ * and screens built for 512 are drawn centred with HW at 512.
+ */
+export let HW = 512;
 export const HH = 448;
+export const BASE_W = 512;
+export const WIDE_MAX = 1280;
+export function setHW(w: number): void {
+  HW = Math.max(BASE_W, Math.min(WIDE_MAX, Math.round(w)));
+}
 
-const SLOT = { w: 82, h: 104, dx: 84, x0: 4 };
+const SLOT = { w: 82, h: 104 };
 const FOE_LINE_Y = 24;
 const MID_Y = 130;
 const MY_LINE_Y = 210;
 const MY_BAR_Y = 316;
 const HAND_Y = 342;
-const CARD = { w: 49, h: 104, dx: 50, x0: 6 };
+const CARD = { h: 104 };
 const AI_DELAY = 520;
+
+/** Line slots: six columns across the width; a slot grows up to 110 wide, its art stays 64 x 48, centred. */
+function slotGeo(): { w: number; dx: number; x0: number } {
+  const dx = (HW - 8) / LIMITS.line;
+  const w = Math.min(110, Math.floor(dx) - 2);
+  return { w, dx, x0: 4 + (dx - w - 2) / 2 };
+}
+/** Hand cards: ten across the width, 49 to 66 wide (66 shows the whole 64-wide art). */
+function cardGeo(): { w: number; dx: number; x0: number } {
+  const dx = Math.max(50, Math.min(72, (HW - 12) / 10));
+  const w = Math.min(66, Math.floor(dx) - 1);
+  return { w, dx, x0: 6 };
+}
+/** The log takes the right part of the middle strip; at 512 it starts at x 300. */
+const logX = (): number => Math.round((HW * 300) / BASE_W);
 
 interface Hot { x: number; y: number; w: number; h: number; id: string; kind: 'hand' | 'unit' | 'spire' | 'stack' | 'button' | 'hero' }
 interface Button { id: string; label: string; enabled: boolean }
@@ -368,7 +393,7 @@ export class Match {
     this.hots = [];
     const v = view(this.s, 0);
     const bg = field(FACTIONS.find((f) => f.engine === def(v.players[0].heroes[0] ?? v.players[0].deckList[0]).faction)?.field ?? 'vaskor');
-    if (bg) drawPic(g, bg, 0, 0, HW, HH);
+    if (bg) drawCover(g, bg, HW, HH);
     else g.rect(0, 0, HW, HH, 'duskZenith');
     g.dither50(0, 0, HW, HH, 'ink');
 
@@ -445,30 +470,33 @@ export class Match {
   }
 
   private unitTile(g: Gfx, v: GameState, u: Unit, x: number, y: number, t: number, role: string): void {
+    const sw = slotGeo().w;
+    const ax = x + Math.floor((sw - 64) / 2);
+    const nameMax = Math.floor((sw - 4) / 6);
     const st = stats(v, u);
     const f = face(v, u.owner, u.card);
     const next = this.nextChoices();
     const choosable = next.has(u.iid) || next.has(`R:${u.iid}`) || (this.picked?.mode === 'duel' && u.owner === 1);
     const pulse = (t >> 4) % 2 === 0;
     const edge: Ink = choosable ? (pulse ? 'brassGlint' : 'emberBright') : this.picked?.iid === u.iid ? 'gloamBright' : role ? 'emberGlow' : f.ascended ? 'brassLight' : 'ink';
-    g.rect(x, y, SLOT.w, SLOT.h, edge);
-    g.rect(x + 1, y + 1, SLOT.w - 2, SLOT.h - 2, u.owner === 0 ? 'ironDark' : 'emberNight');
+    g.rect(x, y, sw, SLOT.h, edge);
+    g.rect(x + 1, y + 1, sw - 2, SLOT.h - 2, u.owner === 0 ? 'ironDark' : 'emberNight');
     const name = f.name.toUpperCase();
-    drawText(g, name.length > 13 ? name.slice(0, 12) + '.' : name, x + 3, y + 3, { color: 'steamWhite' });
+    drawText(g, name.length > nameMax ? name.slice(0, nameMax - 1) + '.' : name, x + 3, y + 3, { color: 'steamWhite' });
     const art = cardArt(u.card, f.ascended);
-    if (art) drawPic(g, art, x + 9, y + 12);
-    else g.rect(x + 9, y + 12, 64, 48, 'ironNight');
-    if (u.stasis) { g.dither50(x + 9, y + 12, 64, 48, 'gloamWhite'); drawTextCentred(g, 'STASIS', x + 41, y + 32, { color: 'ink' }); }
-    if (u.ward) { g.rect(x + 8, y + 11, 66, 1, 'gloamBright'); g.rect(x + 8, y + 60, 66, 1, 'gloamBright'); g.rect(x + 8, y + 11, 1, 50, 'gloamBright'); g.rect(x + 73, y + 11, 1, 50, 'gloamBright'); }
+    if (art) drawPic(g, art, ax, y + 12);
+    else g.rect(ax, y + 12, 64, 48, 'ironNight');
+    if (u.stasis) { g.dither50(ax, y + 12, 64, 48, 'gloamWhite'); drawTextCentred(g, 'STASIS', ax + 32, y + 32, { color: 'ink' }); }
+    if (u.ward) { g.rect(ax - 1, y + 11, 66, 1, 'gloamBright'); g.rect(ax - 1, y + 60, 66, 1, 'gloamBright'); g.rect(ax - 1, y + 11, 1, 50, 'gloamBright'); g.rect(ax + 64, y + 11, 1, 50, 'gloamBright'); }
     const kws = st.keywords.map((k) => KW_SHORT[k]).join(' ');
-    drawText(g, kws.length > 13 ? kws.slice(0, 13) : kws, x + 3, y + 64, { color: 'gloamBright' });
+    drawText(g, kws.length > nameMax ? kws.slice(0, nameMax) : kws, x + 3, y + 64, { color: 'gloamBright' });
     if (role) drawText(g, role, x + 3, y + 74, { color: 'emberGlow' });
     drawText(g, String(st.power), x + 6, y + 86, { color: 'brassGlint', scale: 2 });
     const hp = String(st.hp);
-    drawText(g, hp, x + SLOT.w - 6 - textWidth(hp, 2), y + 86, { color: st.hp < st.health ? 'emberBright' : 'steamWhite', scale: 2 });
-    if (u.silenced) drawText(g, 'SIL', x + 34, y + 90, { color: 'iron' });
-    this.hots.push({ x, y, w: SLOT.w, h: SLOT.h, id: u.iid, kind: 'unit' });
-    this.pos.set(u.iid, [x + SLOT.w / 2, y + SLOT.h / 2]);
+    drawText(g, hp, x + sw - 6 - textWidth(hp, 2), y + 86, { color: st.hp < st.health ? 'emberBright' : 'steamWhite', scale: 2 });
+    if (u.silenced) drawText(g, 'SIL', x + Math.floor(sw / 2) - 7, y + 90, { color: 'iron' });
+    this.hots.push({ x, y, w: sw, h: SLOT.h, id: u.iid, kind: 'unit' });
+    this.pos.set(u.iid, [x + sw / 2, y + SLOT.h / 2]);
   }
 
   private roleOf(v: GameState, u: Unit): string {
@@ -483,13 +511,14 @@ export class Match {
 
   private drawLine(g: Gfx, v: GameState, seat: Seat, y: number, t: number): void {
     const line = v.players[seat].line;
+    const sg = slotGeo();
     for (let i = 0; i < LIMITS.line; i++) {
-      const x = SLOT.x0 + i * SLOT.dx;
+      const x = Math.round(sg.x0 + i * sg.dx);
       const u = line[i];
       if (u) this.unitTile(g, v, u, x, y, t, this.roleOf(v, u));
       else {
-        g.rect(x, y, SLOT.w, SLOT.h, 'ink');
-        g.dither25(x + 1, y + 1, SLOT.w - 2, SLOT.h - 2, 'ironDark');
+        g.rect(x, y, sg.w, SLOT.h, 'ink');
+        g.dither25(x + 1, y + 1, sg.w - 2, SLOT.h - 2, 'ironDark');
       }
     }
   }
@@ -497,8 +526,9 @@ export class Match {
   private drawMiddle(g: Gfx, v: GameState, t: number): void {
     g.rect(0, MID_Y - 4, HW, MY_LINE_Y - MID_Y + 2, 'ink');
     g.dither50(0, MID_Y - 4, HW, MY_LINE_Y - MID_Y + 2, 'duskZenith');
+    const lx = logX();
     const pr = this.note || this.prompt();
-    const lines = wrap(pr.toUpperCase(), 48);
+    const lines = wrap(pr.toUpperCase(), Math.floor((lx - 12) / 6));
     lines.slice(0, 2).forEach((l, i) => drawText(g, l, 6, MID_Y - 1 + i * 9, { color: this.note ? 'emberGlow' : 'brassGlint' }));
     // stack, newest on top
     let sy = MID_Y + 20;
@@ -508,9 +538,9 @@ export class Match {
     for (const it of [...v.stack].reverse().slice(0, 5)) {
       const label = `${it.owner === 0 ? 'YOU' : 'FOE'}: ${this.name(it.card, it.owner).toUpperCase()}`;
       const on = next.has(it.sid);
-      g.rect(4, sy - 1, 290, 10, on ? 'brassDark' : 'ironNight');
-      drawText(g, label.slice(0, 48), 6, sy, { color: on ? 'brassGlint' : 'steamWhite' });
-      this.hots.push({ x: 4, y: sy - 1, w: 290, h: 10, id: it.sid, kind: 'stack' });
+      g.rect(4, sy - 1, lx - 10, 10, on ? 'brassDark' : 'ironNight');
+      drawText(g, label.slice(0, Math.floor((lx - 12) / 6)), 6, sy, { color: on ? 'brassGlint' : 'steamWhite' });
+      this.hots.push({ x: 4, y: sy - 1, w: lx - 10, h: 10, id: it.sid, kind: 'stack' });
       sy += 10;
     }
     // log: the latest lines
@@ -518,37 +548,39 @@ export class Match {
     const out: string[] = [];
     for (const e of log) {
       const txt = lineText(e, (id) => face(this.s, e.seat ?? 0, id).name).toUpperCase();
-      out.push(...wrap(txt, 34));
+      out.push(...wrap(txt, Math.floor((HW - lx - 8) / 6)));
     }
     const shown = out.slice(-8);
-    g.rect(300, MID_Y - 3, 1, 80, 'brassDark');
-    shown.forEach((l, i) => drawText(g, l, 304, MID_Y - 1 + i * 9, { color: i === shown.length - 1 ? 'steamWhite' : 'ironLight' }));
+    g.rect(lx, MID_Y - 3, 1, 80, 'brassDark');
+    shown.forEach((l, i) => drawText(g, l, lx + 4, MID_Y - 1 + i * 9, { color: i === shown.length - 1 ? 'steamWhite' : 'ironLight' }));
     void t;
   }
 
   private drawHand(g: Gfx, v: GameState, t: number): void {
     const p = v.players[0];
     const acts = this.acts();
+    const cg = cardGeo();
+    const cw = cg.w, aw = Math.min(64, cw - 2), sx0 = Math.floor((64 - aw) / 2);
     for (let i = 0; i < p.hand.length; i++) {
       const h = p.hand[i];
-      const x = CARD.x0 + i * CARD.dx;
+      const x = Math.round(cg.x0 + i * cg.dx);
       const y = HAND_Y - (this.armed?.iid === h.iid ? 6 : 0);
       const d = def(h.card);
       const f = face(v, 0, h.card);
       const playable = acts.some((a) => (a.type === 'play' || a.type === 'channel') && a.iid === h.iid);
       const marked = this.mull.has(h.iid);
-      g.rect(x, y, CARD.w, CARD.h, this.armed?.iid === h.iid ? 'gloamBright' : marked ? 'emberBright' : playable ? 'brassLight' : 'ink');
-      g.rect(x + 1, y + 1, CARD.w - 2, CARD.h - 2, d.type === 'glyph' ? 'duskHigh' : 'ironDark');
+      g.rect(x, y, cw, CARD.h, this.armed?.iid === h.iid ? 'gloamBright' : marked ? 'emberBright' : playable ? 'brassLight' : 'ink');
+      g.rect(x + 1, y + 1, cw - 2, CARD.h - 2, d.type === 'glyph' ? 'duskHigh' : 'ironDark');
       const art = cardArt(h.card, f.ascended);
-      if (art) drawPic(g, art, x + 1, y + 12, 47, 48, { x: 8, y: 0, w: 47, h: 48 });
+      if (art) drawPic(g, art, x + 1, y + 12, aw, 48, { x: sx0, y: 0, w: aw, h: 48 });
       const cost = String(costOf(this.s, 0, h.card));
       g.rect(x + 1, y + 1, 12, 10, 'ink');
       drawText(g, cost, x + 4, y + 3, { color: cost === String(d.cost) ? 'brassGlint' : 'gloamBright' });
-      drawText(g, d.type === 'glyph' ? (d.speed ?? '').slice(0, 1).toUpperCase() : d.type === 'hero' ? 'H' : 'U', x + CARD.w - 8, y + 3, { color: 'ironLight' });
-      wrap(f.name.toUpperCase(), 8).slice(0, 3).forEach((l, j) => drawText(g, l, x + 2, y + 62 + j * 9, { color: 'steamWhite' }));
+      drawText(g, d.type === 'glyph' ? (d.speed ?? '').slice(0, 1).toUpperCase() : d.type === 'hero' ? 'H' : 'U', x + cw - 8, y + 3, { color: 'ironLight' });
+      wrap(f.name.toUpperCase(), Math.max(8, Math.floor((cw - 3) / 6))).slice(0, 3).forEach((l, j) => drawText(g, l, x + 2, y + 62 + j * 9, { color: 'steamWhite' }));
       if (d.type !== 'glyph') drawText(g, `${f.power}|${f.health}`, x + 3, y + 93, { color: 'brassLight' });
-      if (marked) drawText(g, 'SWAP', x + 12, y + 30, { color: 'emberGlow', outline: 'ink' });
-      this.hots.push({ x, y, w: CARD.w, h: CARD.h, id: h.iid, kind: 'hand' });
+      if (marked) drawText(g, 'SWAP', x + Math.floor(cw / 2) - 12, y + 30, { color: 'emberGlow', outline: 'ink' });
+      this.hots.push({ x, y, w: cw, h: CARD.h, id: h.iid, kind: 'hand' });
     }
     if (p.hand.length === 0) drawText(g, 'YOUR HAND IS EMPTY', 6, HAND_Y + 40, { color: 'iron' });
     void t;
@@ -676,11 +708,12 @@ export class Match {
       const age = t - f.born;
       if (f.flash) {
         if ((age >> 2) % 2 === 0) {
-          const x = f.x - SLOT.w / 2, y = f.y - SLOT.h / 2;
-          g.rect(x, y, SLOT.w, 2, f.ink);
-          g.rect(x, y + SLOT.h - 2, SLOT.w, 2, f.ink);
+          const sw = slotGeo().w;
+          const x = f.x - sw / 2, y = f.y - SLOT.h / 2;
+          g.rect(x, y, sw, 2, f.ink);
+          g.rect(x, y + SLOT.h - 2, sw, 2, f.ink);
           g.rect(x, y, 2, SLOT.h, f.ink);
-          g.rect(x + SLOT.w - 2, y, 2, SLOT.h, f.ink);
+          g.rect(x + sw - 2, y, 2, SLOT.h, f.ink);
         }
         continue;
       }

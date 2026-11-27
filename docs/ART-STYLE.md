@@ -11,7 +11,7 @@ Presentation concept (D5): **field dispatches from a war of steam and gloam, on 
 |---|---|
 | Logical resolution | **256 x 224** pixels. Every screen is composed at this size. |
 | Art detail | Rendered art is drawn in full detail by default, or snapped to the grid with ART: PIXEL (PLAN D22). Everything drawn in code stays on the logical grid in both. |
-| Display | The frame fills the window at its own shape (PLAN D21). A whole-number scale is drawn nearest-neighbour; any other scale is drawn nearest-neighbour at the next whole number up and smoothly reduced to fit (sharp bilinear), at one backing pixel per device pixel, so pixel columns stay even. Square pixels; we do not emulate the 8:7 stretch. Letterbox the rest in ink (`#080810`). |
+| Display | The frame fills the window (PLAN D21); its logical width follows the window from 512 to 1280 at a height of 448 (PLAN D23). Battles use the whole width; 512-wide screens sit in the middle with a blurred copy of themselves at the sides. A whole-number scale is drawn nearest-neighbour; any other scale is drawn nearest-neighbour at the next whole number up and smoothly reduced to fit (sharp bilinear), at one backing pixel per device pixel, so pixel columns stay even. Square pixels; we do not emulate the 8:7 stretch. Letterbox the rest in ink (`#080810`). |
 | Tile | **8 x 8**. Backgrounds and UI snap to the 8 px grid. Metatiles are 16 x 16. |
 | Positions | Whole pixels only. No sub-pixel sprite movement, no rotation or scaling of sprites at run time (rotation is drawn as frames). |
 | Frame | 60 logical frames per second. Animation frames are held 6-12 frames; palette cycles step every 4-12 frames. |

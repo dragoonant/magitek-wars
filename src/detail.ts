@@ -91,3 +91,11 @@ export function drawPic(
   } else ctx.drawImage(img, x, y, dw, dh);
   ctx.imageSmoothingEnabled = false;
 }
+
+/** Draw a picture to cover a w x h area from (0, 0), keeping its shape and cropping the overflow evenly. */
+export function drawCover(g: Gfx, img: HTMLImageElement | HTMLCanvasElement, w: number, h: number): void {
+  const size = picSize(img);
+  const k = Math.max(w / size.w, h / size.h);
+  const sw = w / k, sh = h / k;
+  drawPic(g, img, 0, 0, w, h, { x: (size.w - sw) / 2, y: (size.h - sh) / 2, w: sw, h: sh });
+}
