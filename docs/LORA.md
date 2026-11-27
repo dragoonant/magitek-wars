@@ -31,6 +31,21 @@ published series (ART-STYLE section 8).
   `lora/captions/`, and the source ledger `lora/SOURCES.csv` (sha256 of each sheet). The images stay on EVILAEGIS.
 - Results go in `lora/RUNS.md`.
 
+## 2c. v2 run (2026-11-26)
+- Why: v1 leans toward people (every training image is a standing figure on navy). Owner: "Train v2".
+- New data: 64 prompts (14 wide scenes, 6 buildings, 10 machines, 12 creatures, 14 items, 8 people in motion),
+  three seeds each, rendered on the distilled klein with v1 at 0.9 (`tools/lora/v2-prompts.mjs`, `gen-v2.mjs`).
+  121 of the 192 picked on labelled contact sheets (`grid2.mjs`, `lora/picks-v2.txt`): renders with stray lettering,
+  doubled parts (a two-barrelled cannon, two swords) or digits are out; renders that differ from their prompt keep a
+  caption that says what is drawn.
+- Each pick is snapped to a true 3 px grid: the most common colour of each cell's inner pixels, cut to 64 colours
+  without dithering, enlarged back with nearest neighbour (`clean.mjs`). The renders' pseudo-pixels do not sit on a
+  steady pitch, so the grid is fixed rather than detected.
+- Training: the 51 owner sprites repeated twice plus the 121 renders once, 3000 steps, otherwise v1's settings
+  (`lora/mkw16_v2.yaml`). Captions in `lora/captions-v2/`; framing words name the kind of image (`a 16-bit game
+  background scene, wide view, no characters`, `... item icon, centred ...`, `... creature sprite ...`).
+- Test: `test-v2.mjs` renders v1's 12 prompts plus 6 held-out subjects that are not people, for each LoRA, same seeds.
+
 ## 3. Dataset
 **Allowed sources only:**
 0. **The owner's own Gemini generations** (PLAN D3, amended 2026-11-26): sprite sheets of 18 figures on a flat navy
