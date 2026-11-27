@@ -1,0 +1,38 @@
+# Card art picks that differ from the first seed (see tools/art/picks.md). "<id> <seed>" or "<id> none".
+# Dominion: seeds with stray glyphs in a corner switched.
+prism-flak-burst 7441
+prism-range-warden 7341
+prism-tier-pikeman 7361
+prism-tierguard 7051
+# Choir, Gale, Free Gauge, Blackwick: first seed had stray interface lettering or a doubled prop.
+ember-flarebot 7821
+ember-ventburst 7711
+ember-torva 7781
+tide-mirroreel 8071
+tide-turnofthelocks 8521
+tide-weirgolem 8391
+storm-galesurge 9261
+storm-gyrekite 9401
+storm-loopback 9521
+storm-parceldrop 9511
+storm-skyraid 9311
+under-bagman 9891
+under-calledtoaccount 10001
+under-hostiletakeover 10071
+under-penn 9841
+under-vaultpawnbroker 9691
+under-vex 9581
+# Re-renders (tools/art/card-retry.mjs): the clean seed of three more.
+ember-arcwelder 7622
+ember-sparkbot 7532
+tide-marginclerk 8312
+tide-mooringline 8463
+tide-wardtender 8082
+storm-flightdrill 9554
+storm-ribbonkite 9342
+under-blackgatejuggernaut 9983
+under-fuserunner 9602
+under-wireboundthug 9902
+# All five seeds carried interface lettering: no art until a reworded render passes.
+ember-meltdowngolem none
+storm-steepdive none

@@ -1,11 +1,11 @@
 # Status (2026-11-26)
 
-**Live:** https://dragoonant.github.io/magitek-wars/ shows the title screen in the LoRA look.
+**Live:** https://dragoonant.github.io/magitek-wars/ shows the title screen in the LoRA look and a card gallery.
 
 ## What exists
 - Public repo `dragoonant/magitek-wars`; push to `main` runs typecheck, tests and build, then deploys to Pages.
 - **Engine (PLAN D4):** Annals of Scrivenearth's engine, AI, card data (300 cards, 24 heroes, 6 factions), deck
-  builder model, tests and tools, copied at 8b4ebac. `npm run gate` passes here: 456 tests, the card audit (332
+  builder model, tests and tools, copied at 8b4ebac. `npm run gate` passes here: 460 tests, the card audit (332
   faces), the mutation pass (every card's test bites), the AI bench and the build. Save and deck storage use this
   game's own keys.
 - **Not yet re-skinned:** card, hero and faction names, card text and the tutorial are still Annals' (D12 is the map).
@@ -13,8 +13,12 @@
   and forecast tests.
 - **Title screen (D13, done):** 256 x 224. Vaskor's Gear Citadel at dusk between two cliffs and the six faction leads
   on the cliff tops (rendered with `mkw16_v2`, snapped by `tools/art/snap.mjs`), a winged gear emblem, a Cinzel
-  wordmark reduced to pixels and coloured in code, twinkling stars. NEW GAME and CREDITS open dialogs; CONTINUE is
+  wordmark reduced to pixels and coloured in code, twinkling stars. NEW GAME and CREDITS open dialogs; CARD GALLERY opens the gallery; CONTINUE is
   greyed until a save exists.
+- **Card gallery (D15):** all 308 cards and 24 ascended forms by faction, with art (330 of 332 faces; two cards say
+  NO ART because every render had stray lettering), the proposed name (D12, pending Q5), and the engine's cost,
+  power, health, text and ascend condition. Six faction emblems and seven battlefields (one per WORLD place) are in
+  `public/art/`. Render picks: `tools/art/picks.md`, `tools/art/card-picks.txt`.
 - **Art:** `docs/ART-STYLE.md` section 4a records the owner's reference sheet as the character style (D11). Two style
   LoRAs are trained on EVILAEGIS (D3, `lora/RUNS.md`): **`mkw16_v1`** (51 sprites from the owner's three Gemini
   sheets) and **`mkw16_v2`** (those plus 121 of our own renders of scenes, buildings, machines, creatures, items and
@@ -29,8 +33,9 @@
 - Q2 interface concept, Q4 licence, Q5 re-skin map (`PLAN.md`).
 
 ## Next
-0. Art for the rest of the game (owner, 2026-11-26: "work the art for everything else"): the asset list in
-   `docs/ART-STYLE.md`, rendered and snapped the same way.
+0. Art still to do: hero portraits (48 x 48) and board sprites for the match client; re-render the two cards without
+   art (`ember-meltdowngolem`, `storm-steepdive`); a prompt pass for the Dominion and Free Gauge cards that drifted
+   to modern-war looks (steel helmets, a tank). The owner reviews the gallery; rejected art is re-rendered.
 1. Re-skin the card data per D12: new names, text and heroes per faction; ids renamed with the factions; audit and
    mutation stay green.
 2. The match client in this game's look (board, hand, HUD, prompts, log), so NEW GAME starts a match against the AI.

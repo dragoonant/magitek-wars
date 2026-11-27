@@ -42,7 +42,7 @@ describe('ART-STYLE 5 font', () => {
   });
   it('draws every string on the title screen', () => {
     const all = [S.TITLE_TOP, S.TITLE_BOTTOM, S.SUBTITLE, S.PRESS_START, S.CREDIT, S.VERSION, S.DIALOG_CLOSE,
-      ...S.MENU.map((m) => m.label), ...Object.values(S.DIALOGS).flat()];
+      ...S.MENU.map((m) => m.label), ...Object.values(S.DIALOGS).flat(), ...Object.values(S.GALLERY)];
     for (const s of all) expect(canDraw(s), s).toBe(true);
   });
   it('dialogue lines fit the dialog window (192 px of text)', () => {

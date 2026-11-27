@@ -8,7 +8,7 @@ import { buildWordmark } from './wordmark';
 
 export type Mode = { kind: 'press' } | { kind: 'menu' } | { kind: 'dialog'; id: MenuId };
 
-const MENU_BOX = { x: 76, y: 157, w: 104, h: 52 };
+const MENU_BOX = { x: 70, y: 150, w: 116, h: 62 };
 const WORDMARK_CAP = 18;
 const WORDMARK_Y = 43;
 const ITEM_X = MENU_BOX.x + 24;
@@ -42,6 +42,8 @@ export class Title {
   mode: Mode = { kind: 'press' };
   cursor = 0;
   private wordmark: HTMLCanvasElement | null = null;
+  /** A screen the player asked for; main.ts switches to it and clears this. */
+  open: 'cards' | null = null;
 
   constructor(private readonly hasSave: boolean) {}
 
@@ -55,7 +57,8 @@ export class Title {
 
   private confirm(): void {
     const item = MENU[this.cursor];
-    this.mode = { kind: 'dialog', id: item.id };
+    if (item.id === 'cards') this.open = 'cards';
+    else this.mode = { kind: 'dialog', id: item.id };
   }
 
   key(code: string): void {

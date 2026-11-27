@@ -3,6 +3,7 @@ import { drawText } from './font';
 import { Gfx, H, W } from './gfx';
 import { Scene } from './scene';
 import { Title } from './title';
+import { Gallery } from './gallery';
 import { SAVE_KEY } from './engine/save';
 
 function hasSave(): boolean {
@@ -21,8 +22,10 @@ ctx.imageSmoothingEnabled = false;
 const g = new Gfx(ctx);
 const scene = new Scene();
 const title = new Title(hasSave());
+const gallery = new Gallery();
+let screen: 'title' | 'gallery' = 'title';
 let failed = '';
-Promise.all([scene.load(), title.load()]).catch((e: unknown) => {
+Promise.all([scene.load(), title.load(), gallery.load()]).catch((e: unknown) => {
   failed = e instanceof Error ? e.message : String(e);
   console.error(e);
 });
@@ -43,14 +46,31 @@ function logical(e: PointerEvent): [number, number] {
 
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
-  if (['ArrowUp', 'ArrowDown', 'Space', 'Enter'].includes(e.code)) e.preventDefault();
-  title.key(e.code);
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Enter', 'Tab', 'PageUp', 'PageDown'].includes(e.code)) e.preventDefault();
+  if (screen === 'gallery') gallery.key(e.code);
+  else title.key(e.code);
+  route();
 });
-canvas.addEventListener('pointermove', (e) => title.pointerMove(...logical(e)));
+canvas.addEventListener('pointermove', (e) => {
+  if (screen === 'title') title.pointerMove(...logical(e));
+});
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
-  title.pointerDown(...logical(e));
+  if (screen === 'gallery') gallery.pointerDown(...logical(e));
+  else title.pointerDown(...logical(e));
+  route();
 });
+/** Move between screens when one asks to. */
+function route(): void {
+  if (title.open === 'cards') {
+    title.open = null;
+    screen = 'gallery';
+  }
+  if (gallery.exit) {
+    gallery.exit = false;
+    screen = 'title';
+  }
+}
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 const STEP = 1000 / 60;
@@ -64,12 +84,15 @@ function frame(now: number): void {
     t++;
     acc -= STEP;
   }
-  scene.draw(g, t);
-  title.draw(g, t, scene.emblem);
+  if (screen === 'gallery') gallery.draw(g, t);
+  else {
+    scene.draw(g, t);
+    title.draw(g, t, scene.emblem);
+  }
   if (failed) drawText(g, 'ART FAILED TO LOAD', 4, 4, { color: 'emberGlow', outline: 'ink' });
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Read-only hook for end-to-end checks.
-(window as unknown as { __mkw: object }).__mkw = { mode: () => title.mode.kind, cursor: () => title.cursor, ready: () => scene.ready, failed: () => failed };
+(window as unknown as { __mkw: object }).__mkw = { mode: () => title.mode.kind, cursor: () => title.cursor, ready: () => scene.ready, failed: () => failed, screen: () => screen, gallery: () => ({ faction: gallery.faction, index: gallery.index, view: gallery.view.kind }) };
