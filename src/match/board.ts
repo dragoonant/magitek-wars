@@ -1,6 +1,7 @@
 // The match screen (PLAN D17): the SNES hi-res mode, 512 x 448. Both Lines, both Boilers, the hand, the stack,
 // the log and the prompt. Every choice comes from legalActions: a click narrows the legal actions, so the screen can
 // never offer a move the engine would refuse, and never makes a choice for the player (KB rules 8 and 12).
+import { drawPic } from '../detail';
 import type { Action, GameState, Keyword, Seat, Unit } from '../engine/types';
 import { LIMITS, spireId } from '../engine/types';
 import { legalActions, whyNotPlay, whyNotDeclare } from '../engine/rules';
@@ -367,7 +368,7 @@ export class Match {
     this.hots = [];
     const v = view(this.s, 0);
     const bg = field(FACTIONS.find((f) => f.engine === def(v.players[0].heroes[0] ?? v.players[0].deckList[0]).faction)?.field ?? 'vaskor');
-    if (bg) g.ctx.drawImage(bg, 0, 0, HW, HH);
+    if (bg) drawPic(g, bg, 0, 0, HW, HH);
     else g.rect(0, 0, HW, HH, 'duskZenith');
     g.dither50(0, 0, HW, HH, 'ink');
 
@@ -393,7 +394,7 @@ export class Match {
     g.rect(0, y + 21, HW, 1, 'brassDark');
     const fk = p.deckList.length ? factionOf(p.deckList[0]) : 'dominion';
     const em = emblem(fk);
-    if (em) g.ctx.drawImage(em, 2, y + 1, 20, 20);
+    if (em) drawPic(g, em, 2, y + 1, 20, 20);
     const who = seat === 0 ? 'YOU' : 'FOE';
     drawText(g, who, 26, y + 2, { color: seat === 0 ? 'brassGlint' : 'emberGlow' });
     if (v.initiative === seat) {
@@ -455,7 +456,7 @@ export class Match {
     const name = f.name.toUpperCase();
     drawText(g, name.length > 13 ? name.slice(0, 12) + '.' : name, x + 3, y + 3, { color: 'steamWhite' });
     const art = cardArt(u.card, f.ascended);
-    if (art) g.ctx.drawImage(art, x + 9, y + 12);
+    if (art) drawPic(g, art, x + 9, y + 12);
     else g.rect(x + 9, y + 12, 64, 48, 'ironNight');
     if (u.stasis) { g.dither50(x + 9, y + 12, 64, 48, 'gloamWhite'); drawTextCentred(g, 'STASIS', x + 41, y + 32, { color: 'ink' }); }
     if (u.ward) { g.rect(x + 8, y + 11, 66, 1, 'gloamBright'); g.rect(x + 8, y + 60, 66, 1, 'gloamBright'); g.rect(x + 8, y + 11, 1, 50, 'gloamBright'); g.rect(x + 73, y + 11, 1, 50, 'gloamBright'); }
@@ -539,7 +540,7 @@ export class Match {
       g.rect(x, y, CARD.w, CARD.h, this.armed?.iid === h.iid ? 'gloamBright' : marked ? 'emberBright' : playable ? 'brassLight' : 'ink');
       g.rect(x + 1, y + 1, CARD.w - 2, CARD.h - 2, d.type === 'glyph' ? 'duskHigh' : 'ironDark');
       const art = cardArt(h.card, f.ascended);
-      if (art) g.ctx.drawImage(art, 8, 0, 47, 48, x + 1, y + 12, 47, 48);
+      if (art) drawPic(g, art, x + 1, y + 12, 47, 48, { x: 8, y: 0, w: 47, h: 48 });
       const cost = String(costOf(this.s, 0, h.card));
       g.rect(x + 1, y + 1, 12, 10, 'ink');
       drawText(g, cost, x + 4, y + 3, { color: cost === String(d.cost) ? 'brassGlint' : 'gloamBright' });
@@ -594,7 +595,7 @@ export class Match {
     const y = 40;
     drawWindow(g, x, y, w, hgt);
     const art = cardArt(cardId, f.ascended, true);
-    if (art) g.ctx.drawImage(art, x + 8, y + 8);
+    if (art) drawPic(g, art, x + 8, y + 8);
     else drawTextCentred(g, isMissing(cardId, f.ascended, true) || !CARD_ART[cardId]?.art ? 'NO ART' : '...', x + 72, y + 50, { color: 'iron' });
     const nm = wrap(f.name.toUpperCase(), 17);
     nm.forEach((l, i) => drawText(g, l, x + 140, y + 10 + i * 9, { color: 'brassGlint' }));

@@ -6,7 +6,7 @@ export const PRESS_START = 'PRESS START';
 export const CREDIT = 'BY EVILGOUKI';
 export const VERSION = 'V0.1';
 
-export type MenuId = 'run' | 'new' | 'continue' | 'decks' | 'cards' | 'credits';
+export type MenuId = 'run' | 'new' | 'continue' | 'decks' | 'cards' | 'art' | 'credits';
 
 export const MENU: readonly { id: MenuId; label: string }[] = [
   { id: 'run', label: 'CAMPAIGN' },
@@ -14,6 +14,7 @@ export const MENU: readonly { id: MenuId; label: string }[] = [
   { id: 'continue', label: 'CONTINUE' },
   { id: 'decks', label: 'DECK BUILDER' },
   { id: 'cards', label: 'CARD GALLERY' },
+  { id: 'art', label: 'ART: DETAIL' },
   { id: 'credits', label: 'CREDITS' },
 ];
 
@@ -23,10 +24,14 @@ export const DIALOGS: Record<MenuId, readonly string[]> = {
   continue: [],
   decks: [],
   cards: [],
+  art: [],
   credits: ['MAGITEK WARS, AN ORIGINAL GAME', 'DESIGN AND CODE: EVILGOUKI', 'ART: FLUX.2 KLEIN WITH OUR', 'OWN STYLE LORA, FIXED IN CODE', 'TITLE TYPE: CINZEL (OFL)', 'CARD ENGINE: ANNALS OF', 'SCRIVENEARTH, ALSO EVILGOUKI'],
 };
 
 export const DIALOG_CLOSE = 'PRESS ANY KEY';
+
+/** The title menu's art switch (PLAN D22) names the current mode; P switches it anywhere. */
+export const ART_LABEL = { detail: 'ART: DETAIL', pixel: 'ART: PIXEL' } as const;
 
 /** Fixed labels on the card gallery (src/gallery.ts). */
 export const GALLERY = {

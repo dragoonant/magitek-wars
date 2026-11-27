@@ -11,7 +11,8 @@ art direction) is our own; it is not based on any published game.
   rest stops, supply depots and bosses, with a Boiler that carries its damage (`docs/spec/20-roguelike.md`).
 - **Quick battle:** any of 24 premade decks, six single-faction decks or your own, against the AI at three levels.
 - **Deck builder** and **card gallery** for all 300 cards and 24 heroes.
-- Keyboard (arrows, Enter, Esc, L for the log, M for sound) and mouse or touch. Saves itself after every move.
+- Art in full detail or as 16-bit pixels (ART on the title menu, or P).
+- Keyboard (arrows, Enter, Esc, L for the log, M for sound, P for the art) and mouse or touch. Saves itself after every move.
 
 ## Docs
 | File | What it holds |

@@ -42,8 +42,8 @@ export async function snapScene(inFile, outFile, w, h, colours = 96) {
   return { w, h };
 }
 
-export async function snapSprite(inFile, outFile, height, colours = 32, flip = false) {
-  const { data, info } = await sharp(inFile).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+/** The figure in a sprite render: ground-coloured pixels connected to the border are background. */
+function figure(data, info, inFile) {
   const W = info.width, H = info.height;
   const at = (x, y) => (y * W + x) * 3;
   const border = [];
@@ -67,6 +67,14 @@ export async function snapSprite(inFile, outFile, height, colours = 32, flip = f
     bx0 = Math.min(bx0, x); bx1 = Math.max(bx1, x); by0 = Math.min(by0, y); by1 = Math.max(by1, y);
   }
   if (bx1 < 0) throw new Error('snap: no figure in ' + inFile);
+  return { isBg, bx0, bx1, by0, by1 };
+}
+
+export async function snapSprite(inFile, outFile, height, colours = 32, flip = false) {
+  const { data, info } = await sharp(inFile).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const W = info.width, H = info.height;
+  const at = (x, y) => (y * W + x) * 3;
+  const { isBg, bx0, bx1, by0, by1 } = figure(data, info, inFile);
   const k = (by1 - by0 + 1) / height;
   const w = Math.ceil((bx1 - bx0 + 1) / k), h = height;
   const out = Buffer.alloc(w * h * 4);
@@ -83,6 +91,38 @@ export async function snapSprite(inFile, outFile, height, colours = 32, flip = f
   }
   await sharp(await quantize(out, w, h, 4, colours)).png().toFile(outFile);
   return { w, h, cell: +k.toFixed(2) };
+}
+
+/**
+ * Full-detail art (PLAN D22): the same figure as snapSprite, cut out with the same mask and framed to exactly
+ * factor x the snapped sprite's size, smoothly resized, with soft transparency. The game draws it into the snapped
+ * sprite's logical rectangle.
+ */
+export async function detailSprite(inFile, outFile, height, factor, flip = false) {
+  const { data, info } = await sharp(inFile).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const W = info.width;
+  const { isBg, bx0, bx1, by0, by1 } = figure(data, info, inFile);
+  const k = (by1 - by0 + 1) / height;
+  const w = Math.ceil((bx1 - bx0 + 1) / k), h = height;
+  const rw = Math.round(w * k), rh = by1 - by0 + 1;
+  const out = Buffer.alloc(rw * rh * 4);
+  for (let y = 0; y < rh; y++) for (let x = 0; x < rw; x++) {
+    const sx = bx0 + x, sy = by0 + y;
+    if (sx >= W || isBg[sy * W + sx]) continue;
+    const i = (sy * W + sx) * 3;
+    out.set([data[i], data[i + 1], data[i + 2], 255], (y * rw + x) * 4);
+  }
+  let img = sharp(out, { raw: { width: rw, height: rh, channels: 4 } }).resize(w * factor, h * factor, { fit: 'fill', kernel: 'lanczos3' });
+  if (flip) img = img.flop();
+  await img.webp({ quality: 88, alphaQuality: 90 }).toFile(outFile);
+  return { w, h };
+}
+
+/** Full-detail art for a scene: the whole render resized to exactly w x h (it is drawn into w / factor logical pixels). */
+export async function detailScene(inFile, outFile, w, h, extract) {
+  let img = sharp(inFile).removeAlpha();
+  if (extract) img = img.extract(extract);
+  await img.resize(w, h, { fit: 'fill', kernel: 'lanczos3' }).webp({ quality: 84 }).toFile(outFile);
 }
 
 if (process.argv[1] && process.argv[1].endsWith('snap.mjs')) {

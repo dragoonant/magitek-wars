@@ -1,5 +1,6 @@
 // The campaign screens (spec 20, PLAN D18), hi-res 512 x 448: faction pick, act map, reward, rest, supply, deck,
 // and the end of the run. Battles use the match screen; this controller starts them and reads their result.
+import { drawPic } from '../detail';
 import type { FactionId } from '../engine/types';
 import { LIMITS } from '../engine/types';
 import { def, face } from '../engine/query';
@@ -232,7 +233,7 @@ export class RunScreen {
     const r = this.run;
     if (!r) { this.drawPick(g); return; }
     const bg = field(ACT_FIELDS[Math.min(2, r.act - 1)]);
-    if (bg) g.ctx.drawImage(bg, 0, 0, HW, HH);
+    if (bg) drawPic(g, bg, 0, 0, HW, HH);
     g.dither50(0, 0, HW, HH, 'ink');
     if (r.phase === 'won' || r.phase === 'lost') this.drawEnd(g, r);
     else {
@@ -275,12 +276,12 @@ export class RunScreen {
       g.rect(x, y, 160, 178, on ? 'brassGlint' : 'brassDark');
       g.rect(x + 1, y + 1, 158, 176, 'ironNight');
       const em = emblem(f.key);
-      if (em) g.ctx.drawImage(em, x + 4, y + 4);
+      if (em) drawPic(g, em, x + 4, y + 4);
       drawText(g, f.name.replace('THE ', ''), x + 40, y + 8, { color: 'brassGlint' });
       const lead = LEADS[f.engine as FactionId];
       drawText(g, face(null, 0, lead).name.toUpperCase().slice(0, 19), x + 40, y + 20, { color: 'steam' });
       const art = cardArt(lead);
-      if (art) g.ctx.drawImage(art, x + 4, y + 40, 128, 96);
+      if (art) drawPic(g, art, x + 4, y + 40, 128, 96);
       wrap(FACTION_INFO[f.engine as FactionId].blurb.toUpperCase(), 25).slice(0, 4).forEach((l, j) => drawText(g, l, x + 6, y + 140 + j * 9, { color: 'steamWhite' }));
       this.hots.push({ x, y, w: 160, h: 178, id });
     });
@@ -337,10 +338,10 @@ export class RunScreen {
     const x = 352;
     drawWindow(g, x, 40, 154, 200);
     const em = emblem(FACTIONS.find((f) => f.engine === r.faction)!.key);
-    if (em) g.ctx.drawImage(em, x + 8, 48);
+    if (em) drawPic(g, em, x + 8, 48);
     drawText(g, FACTION_INFO[r.faction].name.toUpperCase().slice(0, 18), x + 44, 52, { color: 'brassGlint' });
     const lead = portrait(LEADS[r.faction]);
-    if (lead) { g.rect(x + 99, 63, 50, 50, 'brassDark'); g.ctx.drawImage(lead, x + 100, 64); }
+    if (lead) { g.rect(x + 99, 63, 50, 50, 'brassDark'); drawPic(g, lead, x + 100, 64); }
     drawText(g, `BOILER ${r.boiler}/${LIMITS.spire}`, x + 10, 86, { color: r.boiler <= 6 ? 'emberGlow' : 'steamWhite' });
     drawText(g, `SCRIP ${r.scrip}`, x + 10, 98, { color: 'brassLight' });
     drawText(g, `DECK ${r.deck.length} CARDS`, x + 10, 110, { color: 'steamWhite' });
@@ -369,7 +370,7 @@ export class RunScreen {
     g.rect(x, y, 150, 250, on ? 'brassGlint' : 'brassDark');
     g.rect(x + 1, y + 1, 148, 248, 'ironNight');
     const art = cardArt(id, false, true);
-    if (art) g.ctx.drawImage(art, x + 11, y + 6);
+    if (art) drawPic(g, art, x + 11, y + 6);
     wrap(f.name.toUpperCase(), 23).slice(0, 2).forEach((l, i) => drawText(g, l, x + 6, y + 108 + i * 9, { color: 'brassGlint' }));
     const stat = d.type === 'glyph' ? `TACTIC, COST ${d.cost}` : `COST ${d.cost}  ${f.power}|${f.health}`;
     drawText(g, stat, x + 6, y + 128, { color: 'steam' });
@@ -403,7 +404,7 @@ export class RunScreen {
       g.rect(x, y, 112, 200, c.sold ? 'iron' : on ? 'brassGlint' : 'brassDark');
       g.rect(x + 1, y + 1, 110, 198, 'ironNight');
       const art = cardArt(c.id);
-      if (art) g.ctx.drawImage(art, x + 24, y + 6);
+      if (art) drawPic(g, art, x + 24, y + 6);
       const f = face(null, 0, c.id);
       wrap(f.name.toUpperCase(), 17).slice(0, 2).forEach((l, j) => drawText(g, l, x + 4, y + 58 + j * 9, { color: 'brassGlint' }));
       const d = def(c.id);
@@ -462,7 +463,7 @@ export class RunScreen {
     let y = 100;
     if (intro) {
       const face = bossFace ? portrait(LEADS[factions[0] as keyof typeof LEADS]) : null;
-      if (face) { g.rect(HW / 2 - 49, y - 1, 98, 98, 'emberDeep'); g.ctx.drawImage(face, HW / 2 - 48, y, 96, 96); y += 104; }
+      if (face) { g.rect(HW / 2 - 49, y - 1, 98, 98, 'emberDeep'); drawPic(g, face, HW / 2 - 48, y, 96, 96); y += 104; }
       for (const l of intro.lines) { drawTextCentred(g, l, HW / 2, y, { color: 'steamWhite' }); y += 11; }
     }
     y += 6;

@@ -2,6 +2,7 @@
 // grouped by cost, with every R-G1 limit and every rule checkDeck reports. Saved decks go through ./model (DECKS_KEY).
 // Editing logic is in ./edit (tested); this file only draws and routes input. No native tooltips: hovering a card
 // shows a detail window drawn on the canvas.
+import { drawPic } from '../detail';
 import type { CardType, DeckList, FactionId } from '../engine/types';
 import { LIMITS } from '../engine/types';
 import { def, face, hasCard } from '../engine/query';
@@ -412,7 +413,7 @@ export class DeckBuilder {
       g.rect(x, TAB_Y, 20, 18, on ? 'brassLight' : 'ink');
       g.rect(x + 1, TAB_Y + 1, 18, 16, on ? 'brassDark' : 'ironNight');
       const em = emblem(f.key);
-      if (em) g.ctx.drawImage(em, x + 2, TAB_Y + 1, 16, 16);
+      if (em) drawPic(g, em, x + 2, TAB_Y + 1, 16, 16);
       else drawText(g, f.key.slice(0, 2).toUpperCase(), x + 4, TAB_Y + 6, { color: 'steam' });
       this.hots.push({ x, y: TAB_Y, w: 20, h: 18, id: `fac:${f.engine}` });
       x += 22;
@@ -451,7 +452,7 @@ export class DeckBuilder {
       g.rect(x, y, 66, 50, hover ? 'brassGlint' : n > 0 ? 'brassLight' : 'iron');
       g.rect(x + 1, y + 1, 64, 48, c.type === 'glyph' ? 'duskHigh' : 'ironDark');
       const art = cardArt(c.id);
-      if (art) g.ctx.drawImage(art, x + 1, y + 1, 64, 48);
+      if (art) drawPic(g, art, x + 1, y + 1, 64, 48);
       else drawTextCentred(g, isMissing(c.id) || !CARD_ART[c.id]?.art ? 'NO ART' : '...', x + 33, y + 21, { color: 'iron' });
       if (why && n === 0) g.dither50(x + 1, y + 1, 64, 48, 'ink');
       g.rect(x + 1, y + 1, 12, 10, 'ink');
@@ -501,7 +502,7 @@ export class DeckBuilder {
     check.factions.forEach((f, i) => {
       const key = FACTIONS.find((y) => y.engine === f)?.key;
       const em = key ? emblem(key) : null;
-      if (em) g.ctx.drawImage(em, x + 160 + i * 12, 35, 10, 10);
+      if (em) drawPic(g, em, x + 160 + i * 12, 35, 10, 10);
     });
     drawText(g, `HEROES ${hc}/${LIMITS.heroCards}`, x + 70, 46, { color: hc > LIMITS.heroCards ? 'emberGlow' : 'steamWhite' });
     drawText(g, `MAX ${LIMITS.copies} EACH`, x + 140, 46, { color: 'steamWhite' });
@@ -591,7 +592,7 @@ export class DeckBuilder {
     const y = 40;
     drawWindow(g, x, y, w, hgt);
     const art = cardArt(cardId, false, true);
-    if (art) g.ctx.drawImage(art, x + 8, y + 8);
+    if (art) drawPic(g, art, x + 8, y + 8);
     else drawTextCentred(g, isMissing(cardId, false, true) || !CARD_ART[cardId]?.art ? 'NO ART' : '...', x + 72, y + 50, { color: 'iron' });
     const nm = wrap(say(f.name), 17);
     nm.forEach((l, i) => drawText(g, l, x + 140, y + 10 + i * 9, { color: 'brassGlint' }));

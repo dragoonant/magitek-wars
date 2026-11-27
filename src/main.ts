@@ -11,11 +11,14 @@ import { Session, readStoredSave, clearSave } from './match/session';
 import type { Difficulty } from './ai/ai';
 import { RunScreen } from './run/screen';
 import { DeckBuilder } from './deckbuilder/screen';
+import { isDetail, onDetailChange, setDetail } from './detail';
 import { installAudioUnlock, isMuted, loadSamples, setMusic, setMuted, type MusicMood } from './audio/audio';
 
-// The game draws into one offscreen canvas at the SNES hi-res size (512 x 448). The title and the gallery are drawn at
-// 256 x 224 into another and doubled; the battle screens draw at full size (PLAN D17). The page's #screen canvas only
-// shows that frame, scaled to fill the window (PLAN D21).
+// The game draws into one offscreen canvas in logical pixels at the SNES hi-res size (512 x 448). The title and the
+// gallery are drawn at 256 x 224 into another and doubled; the battle screens draw at full size (PLAN D17). The page's
+// #screen canvas only shows that frame, scaled to fill the window (PLAN D21). With FULL DETAIL art (PLAN D22) both
+// offscreen canvases have a whole number of backing pixels per logical pixel, so rendered art keeps its detail while
+// everything drawn in code stays on the logical grid.
 
 const screenEl = document.getElementById('screen');
 if (!(screenEl instanceof HTMLCanvasElement)) throw new Error('main: no #screen canvas');
@@ -30,11 +33,24 @@ if (!ctx) throw new Error('main: no 2d context');
 ctx.imageSmoothingEnabled = false;
 const hi = new Gfx(ctx);
 const loCanvas = document.createElement('canvas');
-loCanvas.width = W;
-loCanvas.height = H;
 const loCtx = loCanvas.getContext('2d');
 if (!loCtx) throw new Error('main: no 2d context');
 const lo = new Gfx(loCtx);
+/** Backing pixels per logical pixel of the game canvas: 1 for PIXEL art, the next whole display scale for DETAIL. */
+let gameScale = 0;
+function sizeOffscreen(k: number): void {
+  if (k === gameScale) return;
+  gameScale = k;
+  game.width = HW * k;
+  game.height = HH * k;
+  ctx!.setTransform(k, 0, 0, k, 0, 0);
+  ctx!.imageSmoothingEnabled = false;
+  loCanvas.width = W * 2 * k;
+  loCanvas.height = H * 2 * k;
+  loCtx!.setTransform(2 * k, 0, 0, 2 * k, 0, 0);
+  loCtx!.imageSmoothingEnabled = false;
+}
+sizeOffscreen(1);
 
 function hasSave(): boolean {
   return readStoredSave().kind === 'ok';
@@ -75,6 +91,15 @@ Promise.all([scene.load(), title.load(), gallery.load()]).catch((e: unknown) => 
   failed = e instanceof Error ? e.message : String(e);
   console.error(e);
 });
+// Switching the art (PLAN D22) reloads the art loaded up front and resizes the offscreen canvases; the rest loads on
+// demand. The old art stays on screen until the new art has arrived.
+onDetailChange(() => {
+  fit();
+  Promise.all([scene.load(), gallery.load()]).catch((e: unknown) => {
+    failed = e instanceof Error ? e.message : String(e);
+    console.error(e);
+  });
+});
 
 /**
  * The frame fills the window, keeping its 8:7 shape (PLAN D21). The shown canvas has one backing pixel per device
@@ -98,11 +123,19 @@ function fit(): void {
   const k = Math.max(1, Math.ceil(devScale - 0.001));
   up.width = HW * k;
   up.height = HH * k;
+  sizeOffscreen(isDetail() ? k : 1);
 }
 window.addEventListener('resize', fit);
 fit();
 function present(): void {
   const c = canvas!;
+  if (gameScale > 1) {
+    // DETAIL: the frame is already drawn at the next whole scale; reduce it smoothly.
+    shown!.imageSmoothingEnabled = true;
+    shown!.imageSmoothingQuality = 'high';
+    shown!.drawImage(game, 0, 0, c.width, c.height);
+    return;
+  }
   if (Math.abs(devScale - Math.round(devScale)) < 0.01 || devScale < 1) {
     shown!.imageSmoothingEnabled = devScale < 1;
     shown!.drawImage(game, 0, 0, c.width, c.height);
@@ -192,9 +225,16 @@ function route(): void {
   }
 }
 
+/** Single-key switches (M sound, P art) are off while a deck name is being typed, so those letters can be typed. */
+const typing = (): boolean => screen === 'decks' && builder?.debug().mode === 'name';
+
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
-  if (e.code === 'KeyM') {
+  if (e.code === 'KeyP' && !typing()) {
+    setDetail(!isDetail());
+    return;
+  }
+  if (e.code === 'KeyM' && !typing()) {
     setMuted(!isMuted());
     try {
       localStorage.setItem('magitek-wars.muted', isMuted() ? '1' : '0');

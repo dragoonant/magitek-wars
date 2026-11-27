@@ -6,7 +6,7 @@ import { FACTIONS, type Faction } from './data/factions';
 import { drawText, drawTextCentred, textWidth } from './font';
 import { Gfx, H, W, drawSprite } from './gfx';
 import { wrap } from './gallery-text';
-import { loadImage } from './scene';
+import { drawPic, isDetail, loadArt } from './detail';
 import { CURSOR, CURSOR_LEGEND } from './sprites';
 import { GALLERY } from './strings';
 import { drawWindow } from './title';
@@ -14,7 +14,6 @@ import { drawWindow } from './title';
 // Card gallery: every card's art (PLAN D13/D14 pipeline), its proposed name (D12) and its engine numbers and text.
 // Every number shown comes from the card definition (KB rule 8).
 
-const BASE = import.meta.env.BASE_URL;
 const COLS = 3;
 const ROWS = 3;
 const PAGE = COLS * ROWS;
@@ -48,8 +47,8 @@ export class Gallery {
   async load(): Promise<void> {
     await Promise.all(FACTIONS.map(async (f) => {
       const [field, emblem] = await Promise.all([
-        loadImage(`${BASE}art/fields/${f.field}.png`),
-        loadImage(`${BASE}art/emblems/${f.key}.png`),
+        loadArt(`art/fields/${f.field}.png`),
+        loadArt(`art/emblems/${f.key}.png`),
       ]);
       this.fields.set(f.key, field);
       this.emblems.set(f.key, emblem);
@@ -58,12 +57,13 @@ export class Gallery {
 
   /** Card art loads on demand; a card without art says so instead of showing a stand-in. */
   private art(id: string, x2: boolean): HTMLImageElement | null {
-    const key = `${x2 ? 'x2/' : ''}${fileOf(id)}`;
+    const file = `${x2 ? 'x2/' : ''}${fileOf(id)}`;
+    const key = `${isDetail() ? 'hd' : 'px'}:${file}`;
     const have = this.thumbs.get(key);
     if (have instanceof HTMLImageElement) return have;
     if (have) return null;
     this.thumbs.set(key, 'loading');
-    loadImage(`${BASE}art/cards/${key}.png`).then(
+    loadArt(`art/cards/${file}.png`).then(
       (img) => this.thumbs.set(key, img),
       () => this.thumbs.set(key, 'missing'),
     );
@@ -133,7 +133,7 @@ export class Gallery {
 
   private backdrop(g: Gfx): void {
     const field = this.fields.get(this.f.key);
-    if (field) g.ctx.drawImage(field, 0, 0);
+    if (field) drawPic(g, field, 0, 0, W, H);
     else g.rect(0, 0, W, H, 'duskZenith');
     g.dither50(0, 0, W, H, 'ink');
   }
@@ -146,7 +146,7 @@ export class Gallery {
 
   private drawGrid(g: Gfx, t: number): void {
     const emblem = this.emblems.get(this.f.key);
-    if (emblem) g.ctx.drawImage(emblem, 4, 0);
+    if (emblem) drawPic(g, emblem, 4, 0);
     drawText(g, this.f.name, 40, 6, { color: 'brassLight', outline: 'ink' });
     const count = `${this.index + 1}/${this.cards.length}`;
     drawText(g, count, 40, 17, { color: 'steam', outline: 'ink' });
@@ -161,7 +161,7 @@ export class Gallery {
       g.rect(gx - 2, gy - 2, 68, 52, on ? 'brassGlint' : 'ink');
       g.rect(gx - 1, gy - 1, 66, 50, on ? 'brass' : 'ironDark');
       const img = CARD_ART[c.id].art ? this.art(c.id, false) : null;
-      if (img) g.ctx.drawImage(img, gx, gy);
+      if (img) drawPic(g, img, gx, gy, 64, 48);
       else {
         g.rect(gx, gy, 64, 48, 'ironNight');
         drawTextCentred(g, this.artLabel(c.id, false), gx + 32, gy + 20, { color: 'iron' });
@@ -188,7 +188,7 @@ export class Gallery {
     drawWindow(g, 2, 2, W - 4, H - 4);
     g.rect(7, 7, 130, 98, 'ink');
     const img = CARD_ART[c.id].art ? this.art(artId, true) : null;
-    if (img) g.ctx.drawImage(img, 8, 8);
+    if (img) drawPic(g, img, 8, 8, 128, 96);
     else drawTextCentred(g, this.artLabel(artId, true), 72, 52, { color: 'iron' });
 
     const name = (a ? CARD_ART[c.id].ascendedName ?? c.ascended?.name ?? '' : CARD_ART[c.id].name).toUpperCase();

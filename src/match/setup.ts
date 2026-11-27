@@ -1,5 +1,6 @@
 // Battle setup (hi-res, 512 x 448): your deck, the foe's deck and the AI level. Every premade deck is here, plus
 // one single-faction deck per faction, so every deck can be play-tested (owner, 2026-11-27).
+import { drawPic } from '../detail';
 import type { FactionId } from '../engine/types';
 import { checkDeck } from '../engine/validate';
 import { def } from '../engine/query';
@@ -116,7 +117,7 @@ export class BattleSetup {
       g.rect(x, y - 1, 246, ROW - 1, on ? 'brassDark' : 'ironNight');
       r.facs.forEach((f, j) => {
         const em = emblem(f);
-        if (em) g.ctx.drawImage(em, x + 2 + j * 11, y - 1, 9, 9);
+        if (em) drawPic(g, em, x + 2 + j * 11, y - 1, 9, 9);
       });
       drawText(g, r.label.slice(0, 34), x + 26, y + 1, { color: on ? 'brassGlint' : 'steamWhite' });
       this.hots.push({ x, y: y - 1, w: 246, h: ROW - 1, id: `${id}:${r.i}` });

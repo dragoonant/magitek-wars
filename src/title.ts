@@ -1,14 +1,15 @@
+import { drawPic, isDetail, picSize, setDetail } from './detail';
 import { drawText, drawTextCentred, textWidth } from './font';
 import { Gfx, H, W, drawSprite } from './gfx';
 import { CURSOR, CURSOR_LEGEND } from './sprites';
 import {
-  CREDIT, DIALOGS, DIALOG_CLOSE, MENU, PRESS_START, SUBTITLE, TITLE_BOTTOM, TITLE_TOP, VERSION, type MenuId,
+  ART_LABEL, CREDIT, DIALOGS, DIALOG_CLOSE, MENU, PRESS_START, SUBTITLE, TITLE_BOTTOM, TITLE_TOP, VERSION, type MenuId,
 } from './strings';
 import { buildWordmark } from './wordmark';
 
 export type Mode = { kind: 'press' } | { kind: 'menu' } | { kind: 'dialog'; id: MenuId };
 
-const MENU_BOX = { x: 70, y: 140, w: 116, h: 74 };
+const MENU_BOX = { x: 70, y: 130, w: 116, h: 84 };
 const WORDMARK_CAP = 18;
 const WORDMARK_Y = 43;
 const ITEM_X = MENU_BOX.x + 24;
@@ -58,7 +59,8 @@ export class Title {
   private confirm(): void {
     const item = MENU[this.cursor];
     if (!this.enabled(item.id)) return;
-    if (item.id === 'cards' || item.id === 'new' || item.id === 'continue' || item.id === 'run' || item.id === 'decks') this.open = item.id;
+    if (item.id === 'art') setDetail(!isDetail());
+    else if (item.id === 'cards' || item.id === 'new' || item.id === 'continue' || item.id === 'run' || item.id === 'decks') this.open = item.id;
     else this.mode = { kind: 'dialog', id: item.id };
   }
 
@@ -104,8 +106,8 @@ export class Title {
   }
 
   draw(g: Gfx, t: number, emblem: HTMLImageElement | null): void {
-    if (emblem) g.ctx.drawImage(emblem, Math.round(W / 2 - emblem.width / 2), 3);
-    if (this.wordmark) g.ctx.drawImage(this.wordmark, Math.round(W / 2 - this.wordmark.width / 2), WORDMARK_Y);
+    if (emblem) drawPic(g, emblem, Math.round(W / 2 - picSize(emblem).w / 2), 3);
+    if (this.wordmark) drawPic(g, this.wordmark, Math.round(W / 2 - this.wordmark.width / 2), WORDMARK_Y);
     drawTextCentred(g, SUBTITLE, W / 2, WORDMARK_Y + WORDMARK_CAP + 10, { color: 'emberGlow', outline: 'ink' });
 
     if (this.mode.kind === 'press') {
@@ -115,7 +117,7 @@ export class Title {
       MENU.forEach((item, i) => {
         const on = this.enabled(item.id);
         const color = !on ? 'iron' : i === this.cursor ? 'brassGlint' : 'steamWhite';
-        drawText(g, item.label, ITEM_X, ITEM_Y0 + i * ITEM_STEP, { color });
+        drawText(g, item.id === 'art' ? ART_LABEL[isDetail() ? 'detail' : 'pixel'] : item.label, ITEM_X, ITEM_Y0 + i * ITEM_STEP, { color });
       });
       const bob = (t >> 4) % 2;
       drawSprite(g, CURSOR, CURSOR_LEGEND, ITEM_X - 12 + bob, ITEM_Y0 + this.cursor * ITEM_STEP);

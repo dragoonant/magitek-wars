@@ -47,3 +47,8 @@ Nyra, Marrow and Brakk have faces written out by hand (their card subjects are a
 Two seeds per face. The first ships unless `tools/art/portrait-picks.txt` names the other (Ysolde: goggles up, to
 match her ascended face; Corra: bare-headed, to match). `tools/art/build-portraits.mjs` crops the central 614 px and
 snaps it into `public/art/portraits/`.
+
+## Full-detail art (PLAN D22)
+The same picks as above, smoothly resized instead of snapped (`tools/art/build-detail.mjs`): cards 384 x 288, portraits
+288 x 288, battlefields and the title backdrop 1024 x 896, emblems and title figures 6 x their sprite, cut out with the
+sprite's mask. `tests/detail-art.test.ts` checks every pixel file has one at an exact multiple of its size.
