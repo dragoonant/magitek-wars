@@ -40,3 +40,10 @@ Every piece in `public/art/` with the job and seed it came from (`tools/art/jobs
 Subjects and proposed names per faction in `tools/art/cards/*.mjs`; two seeds per card. The first seed ships unless
 `tools/art/card-picks.txt` names the other one (or `none`, which shows NO ART). `tools/art/build-cards.mjs` snaps
 the picks and regenerates `src/data/cardart.ts`.
+
+## Hero portraits (`tools/art/jobs-portraits.mjs`, 48 x 48, 32 colours, LoRA mkw16_v3)
+Close-up prompts built from the appearance part of each hero's card subject; the ascended face adds glowing teal eyes.
+Nyra, Marrow and Brakk have faces written out by hand (their card subjects are all pose and rendered as full figures).
+Two seeds per face. The first ships unless `tools/art/portrait-picks.txt` names the other (Ysolde: goggles up, to
+match her ascended face; Corra: bare-headed, to match). `tools/art/build-portraits.mjs` crops the central 614 px and
+snaps it into `public/art/portraits/`.

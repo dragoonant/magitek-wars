@@ -1,0 +1,3 @@
+# Hero portrait picks: <job id> <seed>. Unlisted jobs use their first seed. Judged from contact sheets, 2026-11-27.
+pt-prism-ysolde 23001
+pt-tide-corra 23111
