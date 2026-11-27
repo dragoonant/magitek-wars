@@ -13,8 +13,12 @@
   and forecast tests.
 - **Title screen:** 256 x 224, drawn in code (house palette, 5x7 font, Vaskor at dusk, a gloamwork strider, riveted
   menu). NEW GAME and CREDITS open dialogs; CONTINUE is greyed until a save exists.
-- **Art:** `docs/ART-STYLE.md` section 4a records the owner's reference sheet as the character style (D11), drawing
-  style only. LoRA base is FLUX.2 klein (D3).
+- **Art:** `docs/ART-STYLE.md` section 4a records the owner's reference sheet as the character style (D11). The
+  **style LoRA `mkw16_v1`** is trained (D3): 51 sprites from the owner's three Gemini sheets, FLUX.2 klein 4B Base,
+  2000 steps in about 35 minutes on EVILAEGIS, and it works on the distilled klein in ComfyUI (`lora/RUNS.md`,
+  `lora/runs/v1-compare.webp`). It leans toward people; scenes and props need more data. Flux Studio's API has no
+  LoRA field yet; `tools/lora/test-lora.mjs` drives ComfyUI directly.
+- **Title screen:** waits for the LoRA (D13); the code-drawn placeholder is still live.
 - Docs: `PLAN.md`, `docs/ART-STYLE.md`, `docs/LORA.md`, `docs/WORLD.md`, plus the inherited `docs/spec/10-rules.md`,
   `docs/AUTHORING.md`, `docs/SETS.md`, `BALANCE.md`.
 
@@ -22,6 +26,8 @@
 - Q2 interface concept, Q4 licence, Q5 re-skin map (`PLAN.md`).
 
 ## Next
+0. Owner's verdict on LoRA v1; then the title screen per D13 (characters and scene rendered with the LoRA, wordmark
+   and menu drawn in code), and a v2 dataset with scenes, props and creatures if v1 falls short there.
 1. Re-skin the card data per D12: new names, text and heroes per faction; ids renamed with the factions; audit and
    mutation stay green.
 2. The match client in this game's look (board, hand, HUD, prompts, log), so NEW GAME starts a match against the AI.

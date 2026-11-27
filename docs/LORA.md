@@ -15,12 +15,26 @@ that the trainer build supports klein before the first run; if none does, stop a
 
 ## 2a. Target look
 The character look is ART-STYLE section 4a (the owner's reference sheet, PLAN D11), measured in plain numbers. The
-reference sheet itself is **not** training data and is not attached to generation prompts: its provenance is
-unknown and some of its figures are recognisable designs from a published series. Dataset renders are prompted
-from the measurements in section 4a and judged against them.
+owner's sheets are Gemini generations made by the owner, so they are training data, minus the figures that copy a
+published series (ART-STYLE section 8).
+
+## 2b. v1 run (2026-11-26)
+- Trainer: ostris ai-toolkit (commit 89680b0), torch 2.13.0+cu130, in a `lora-trainer` folder next to the project
+  folders on EVILAEGIS (outside every repo). Config `mkw16_v1.yaml`: FLUX.2-klein-base-4B, LoRA rank 16 / alpha 16,
+  AdamW 8-bit, lr 1e-4, 2000 steps, batch 1, buckets 512/768, horizontal flip, fp8 quantized base and text encoder,
+  low-VRAM mode, EMA 0.99, save and sample every 250 steps.
+- Dataset: each sprite cut from its sheet (`cut.mjs`: nine-column grid, neighbours' slivers painted out), enlarged x2
+  with nearest neighbour onto a 512 x 512 navy ground, one caption each starting `mkw16 pixel art, a 16-bit game
+  character sprite, standing, three-quarter view, plain navy background, ...`. Three owner sheets (A, B, C; 54
+  sprites); three of sheet A's figures are excluded (`lora/SOURCES.csv`), so v1 trains on 51.
+- In the repo: `tools/lora/cut.mjs` and `grid.mjs`, the config `lora/mkw16_v1.yaml`, every caption in
+  `lora/captions/`, and the source ledger `lora/SOURCES.csv` (sha256 of each sheet). The images stay on EVILAEGIS.
+- Results go in `lora/RUNS.md`.
 
 ## 3. Dataset
 **Allowed sources only:**
+0. **The owner's own Gemini generations** (PLAN D3, amended 2026-11-26): sprite sheets of 18 figures on a flat navy
+   ground. Figures that copy a published game's designs are cut out first (ART-STYLE section 8). v1 trains on these.
 1. **Our own Flux renders**, made on EVILAEGIS for this project, cleaned to the pixel grid (ART-STYLE section 9) and
    approved by the owner on a contact sheet.
 2. **CC0 or permissively licensed pixel art** (for example CC0 packs on OpenGameArt or Kenney), each image checked
