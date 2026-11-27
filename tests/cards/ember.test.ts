@@ -266,7 +266,7 @@ describe('ember cards', () => {
     attack(s, [t]); // unblocked: strikes the Spire for 2 (5th strike)
     resolveCombat(s);
     expect(isAscended(s, 0, 'ember-torva')).toBe(true);
-    expect(face(s, 0, 'ember-torva').name).toBe('Torva, Pit Sovereign');
+    expect(face(s, 0, 'ember-torva').name).toBe('Hask, Ember Penitent');
     expect(t.dmg).toBe(0); // R-H5 repaired
     expect(s.players[1].line.map((u) => u.card)).toEqual(['zz-wall']); // Ascend: 4 to the grunt and the wall
     expect(unit(s, 1, 'zz-wall').dmg).toBe(4);

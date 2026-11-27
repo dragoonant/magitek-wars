@@ -10,7 +10,7 @@ describe('heroes', () => {
     const w = unit(s, 1, 'zz-wall');
     for (let i = 0; i < 6; i++) play(s, 'zz-zap', [w.iid]);
     expect(isAscended(s, 0, 'tide-maren')).toBe(true);
-    expect(face(s, 0, 'tide-maren').name).toBe('Maren, Voice of the Canals');
+    expect(face(s, 0, 'tide-maren').name).toBe('Quill, Broker of Skies');
     play(s, 'tide-maren');
     expect(st(s, unit(s, 0, 'tide-maren')).power).toBe(3);
   });

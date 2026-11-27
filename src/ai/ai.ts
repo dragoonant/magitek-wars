@@ -5,9 +5,9 @@ import { decide } from './brain';
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 export const DIFFICULTIES: { id: Difficulty; name: string; blurb: string }[] = [
-  { id: 'easy', name: 'Apprentice', blurb: 'Plays its cards but trades poorly and rarely holds glyphs back.' },
-  { id: 'normal', name: 'Adept', blurb: 'Weighs every attack and block and builds toward its heroes.' },
-  { id: 'hard', name: 'Archon', blurb: 'Looks a move further ahead and plays around your open Charge.' },
+  { id: 'easy', name: 'Recruit', blurb: 'Plays its cards but trades poorly and rarely holds tactics back.' },
+  { id: 'normal', name: 'Veteran', blurb: 'Weighs every attack and block and builds toward its heroes.' },
+  { id: 'hard', name: 'Marshal', blurb: 'Looks a move further ahead and plays around your open Charge.' },
 ];
 
 /** A uniformly random legal action (never concedes). The control for benches and flow tests. */

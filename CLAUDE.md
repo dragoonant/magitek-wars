@@ -26,8 +26,11 @@ any other published game, book or show: no names, characters, places, story, car
 
 ## Layout
 - `src/engine/` rules (`types.ts` is the contract), `src/data/cards/` one file per faction, `src/ai/`,
-  `src/deckbuilder/`; the title screen is `src/main.ts`, `title.ts`, `scene.ts`, `font.ts`, `palette.ts`.
-- `tests/` Vitest (rule-id tests, one behaviour test per card and hero); `tools/sim.ts` arena; `tools/gate.ts`.
+  `src/deckbuilder/`; screens: `src/main.ts` (one 512 x 448 canvas), `title.ts`, `scene.ts`, `gallery.ts`,
+  `src/match/` (battle screen, deck select, session, log text), `src/run/` (campaign rules and screens, spec 20).
+- Card names and words follow `docs/RESKIN.md` (Boiler, tactic); art pipeline in `tools/art/`, LoRA in `tools/lora/`.
+- `tests/` Vitest (rule-id tests, one behaviour test per card and hero); `tools/sim.ts` arena; `tools/runsim.ts`
+  campaign bench; `tools/gate.ts`. `?auto&fast` in the URL lets the AI play both seats of a battle.
 
 ## Commands
 `npm run dev` · `npm test` · `npm run typecheck` · `npm run sim -- --games 100 --a normal --b random` · `npm run gate`

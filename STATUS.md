@@ -1,46 +1,40 @@
-# Status (2026-11-26)
+# Status (2026-11-27)
 
-**Live:** https://dragoonant.github.io/magitek-wars/ shows the title screen in the LoRA look and a card gallery.
+**Live:** https://dragoonant.github.io/magitek-wars/ is playable: battles against the AI with every deck, a
+campaign run, and the card gallery.
 
 ## What exists
 - Public repo `dragoonant/magitek-wars`; push to `main` runs typecheck, tests and build, then deploys to Pages.
-- **Engine (PLAN D4):** Annals of Scrivenearth's engine, AI, card data (300 cards, 24 heroes, 6 factions), deck
-  builder model, tests and tools, copied at 8b4ebac. `npm run gate` passes here: 460 tests, the card audit (332
-  faces), the mutation pass (every card's test bites), the AI bench and the build. Save and deck storage use this
-  game's own keys.
-- **Not yet re-skinned:** card, hero and faction names, card text and the tutorial are still Annals' (D12 is the map).
-  There is no match client yet: the Annals client stayed behind (rule 21), and with it the client-text, audio-map
-  and forecast tests.
-- **Title screen (D13, done):** 256 x 224. Vaskor's Gear Citadel at dusk between two cliffs and the six faction leads
-  on the cliff tops (rendered with `mkw16_v2`, snapped by `tools/art/snap.mjs`), a winged gear emblem, a Cinzel
-  wordmark reduced to pixels and coloured in code, twinkling stars. NEW GAME and CREDITS open dialogs; CARD GALLERY opens the gallery; CONTINUE is
-  greyed until a save exists.
-- **Card gallery (D15):** all 308 cards and 24 ascended forms by faction, with art (330 of 332 faces; two cards say
-  NO ART because every render had stray lettering), the proposed name (D12, pending Q5), and the engine's cost,
-  power, health, text and ascend condition. Six faction emblems and seven battlefields (one per WORLD place) are in
-  `public/art/`. Render picks: `tools/art/picks.md`, `tools/art/card-picks.txt`.
-- **Art:** `docs/ART-STYLE.md` section 4a records the owner's reference sheet as the character style (D11). Two style
-  LoRAs are trained on EVILAEGIS (D3, `lora/RUNS.md`): **`mkw16_v1`** (51 sprites from the owner's three Gemini
-  sheets) and **`mkw16_v2`** (those plus 121 of our own renders of scenes, buildings, machines, creatures, items and
-  people in motion, 3000 steps in 50 minutes). Both work on the distilled klein in ComfyUI. v2 fixes v1's prop
-  confusion (the owl on a lamp post) and is otherwise level with it; both still double a held prop now and then, and
-  neither renders a true pixel grid, so `tools/lora/clean.mjs` snaps renders afterwards. Flux Studio's API has no LoRA
-  field yet; `tools/lora/test-v2.mjs` and `gen-v2.mjs` drive ComfyUI directly.
-- Docs: `PLAN.md`, `docs/ART-STYLE.md`, `docs/LORA.md`, `docs/WORLD.md`, plus the inherited `docs/spec/10-rules.md`,
-  `docs/AUTHORING.md`, `docs/SETS.md`, `BALANCE.md`.
+- **Engine (PLAN D4):** Annals of Scrivenearth's engine, AI and card data (300 cards, 24 heroes, 6 factions), copied at
+  8b4ebac, plus one setup field for runs (`startSpire`, R-X3). `npm run gate` passes: 472 tests, the card audit (332
+  faces), the mutation pass, the AI bench and the build.
+- **Re-skin (D12, D16):** every card and hero has its Magitek Wars name and text; the Spire is printed as the Boiler
+  and a glyph as a tactic (`docs/RESKIN.md`, audit-checked). Faction names, the 24 premade decks and the AI levels
+  (Recruit, Veteran, Marshal) use this world's words. Card ids and the rules spec's internal words are unchanged.
+- **Title (D13):** Vaskor at dusk with the six faction leads, rendered with the `mkw16_v2` style LoRA; menu CAMPAIGN,
+  QUICK BATTLE, CONTINUE, CARD GALLERY, CREDITS.
+- **Quick battle (D17):** deck select (24 premade decks plus one single-faction deck per faction, a chosen or random
+  foe deck, three AI levels), then the battle screen at 512 x 448: both Lines, Boilers, Charge and Reserve, hero
+  progress, the stack, the log, the hand, hover to inspect any card, every choice drawn from the engine's legal
+  actions. Autosaves after every move; CONTINUE reopens it. `?auto` lets the AI play both seats; all 30 decks played a
+  full battle through the screen this way with no error (13-17 by seat).
+- **Campaign (D18, spec 20):** pick a faction, then three acts of seven floors (skirmish, elite, rest, supply depot,
+  boss) with one growing deck, a Boiler that carries its damage, card rewards and scrip. Saves after every node and
+  move in its own slot. Balance R-1: an AI stand-in wins every first battle; 4 of 18 runs get past act 1, none won yet.
+- **Art (D3, D14, D15):** style LoRAs `mkw16_v1` and `mkw16_v2`; card art for 330 of 332 faces, six emblems, seven
+  battlefields; picks in `tools/art/picks.md`.
 
 ## Waiting on the owner
+- Play-test: the battles (every deck), the campaign's difficulty (R-1), and the card art and names.
 - Q2 interface concept, Q4 licence, Q5 re-skin map (`PLAN.md`).
 
 ## Next
-0. Art still to do: hero portraits (48 x 48) and board sprites for the match client; re-render the two cards without
-   art (`ember-meltdowngolem`, `storm-steepdive`); a prompt pass for the Dominion and Free Gauge cards that drifted
-   to modern-war looks (steel helmets, a tank). The owner reviews the gallery; rejected art is re-rendered.
-1. Re-skin the card data per D12: new names, text and heroes per faction; ids renamed with the factions; audit and
-   mutation stay green.
-2. The match client in this game's look (board, hand, HUD, prompts, log), so NEW GAME starts a match against the AI.
-3. Art audition on EVILAEGIS: a contact sheet of 18 faction characters in the section 4a style (FLUX.2 klein,
-   cleaned to the grid), to the owner before any batch; the approved ones seed the LoRA dataset.
+1. Campaign: events, a deck view before each battle, boss intros, and a second balance pass once the owner has played
+   a few runs.
+2. Battle screen: attack and block arrows, strike animations, a full log viewer, the Scrap viewer.
+3. Art: hero portraits; re-render the two cards without art (`ember-meltdowngolem`, `storm-steepdive`); a prompt pass
+   for cards that drifted to modern-war looks.
 4. KB: a `magitek-wars.md` entry in `dragoonant/tabletop-kb` (rule 19).
 
-Not verified: the title screen has been checked in headless Chromium at 1024 x 896 only, not on a phone.
+Not verified: the screens have been checked in headless Chromium at 1024 x 896 only, not on a phone (the battle screen
+needs at least 512 x 448 CSS pixels).

@@ -423,7 +423,7 @@ describe('storm cards', () => {
     expect(isAscended(s, 0, 'storm-odile')).toBe(false);
     play(s, 'storm-tailwind', [a.iid]);
     expect(isAscended(s, 0, 'storm-odile')).toBe(true);
-    expect(face(s, 0, 'storm-odile').name).toBe('Odile, Crown of the Squadron');
+    expect(face(s, 0, 'storm-odile').name).toBe('Hettie, Mother of the Lofts');
     expect(st(s, o)).toMatchObject({ power: 5, health: 7 });
     expect(st(s, a)).toMatchObject({ power: 3 + 2 + 2, health: 3 + 2 + 2 });
     expect(st(s, unit(s, 0, 'zz-grunt'))).toMatchObject({ power: 2, health: 2 });
@@ -452,7 +452,7 @@ describe('storm cards', () => {
     const g = unit(s, 0, 'zz-grunt');
     attack(s, [n, g]);
     expect(isAscended(s, 0, 'storm-ness')).toBe(true);
-    expect(face(s, 0, 'storm-ness').name).toBe('Ness, the Endless Line');
+    expect(face(s, 0, 'storm-ness').name).toBe('Otto Brandt, the Whole Union');
     expect(st(s, g).power).toBe(3); // Ascend: +1|+0 this round
     expect(st(s, n).power).toBe(5);
     resolveCombat(s);

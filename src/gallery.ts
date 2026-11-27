@@ -211,7 +211,6 @@ export class Gallery {
     lines.forEach((l, i) => drawText(g, l, 10, 112 + i * 10, { color: 'steamWhite' }));
     if (c.level && !a) wrap(`${GALLERY.ascendsWhen}${c.level.text}`.toUpperCase(), 39)
       .forEach((l, i) => drawText(g, l, 10, 116 + (lines.length + i) * 10, { color: 'gloamBright' }));
-    drawText(g, GALLERY.draftText, 10, H - 16, { color: 'iron' });
   }
 }
 

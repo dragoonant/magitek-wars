@@ -386,6 +386,8 @@ export interface Setup {
   noShuffle?: boolean;
   /** Test hook: skip the mulligan phase. */
   skipMulligan?: boolean;
+  /** R-X3 (spec 20): each side's starting Integrity, 1-20. Omitted = 20. Campaign runs only. */
+  startSpire?: [number, number];
 }
 
 export type Action =

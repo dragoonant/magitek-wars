@@ -61,10 +61,10 @@ function finish(s: GameState, winner: Seat | 'draw', reason: string): void {
 }
 
 // ---------- setup ----------
-function newPlayer(deck: string[]): PlayerState {
+function newPlayer(deck: string[], spire: number = LIMITS.spire): PlayerState {
   const heroes = [...new Set(deck.filter((id) => hasCard(id) && def(id).type === 'hero'))];
   return {
-    spire: LIMITS.spire, charge: 0, maxCharge: 0, reserve: 0, deck: [...deck], hand: [], line: [], scrap: [],
+    spire, charge: 0, maxCharge: 0, reserve: 0, deck: [...deck], hand: [], line: [], scrap: [],
     seen: {}, seenRound: {}, ascended: [], heroes, canAttack: false, extraAttacks: 0, mulliganed: false,
     deckList: [...deck].sort(),
   };
@@ -72,9 +72,12 @@ function newPlayer(deck: string[]): PlayerState {
 
 export function createGame(setup: Setup): GameState {
   for (const d of setup.decks) for (const id of d) def(id); // unknown ids throw at load (no silent fallback)
+  // R-X3: a run may start a side below 20 Integrity; anything outside 1..20 is refused, never clamped silently.
+  const start = setup.startSpire ?? [LIMITS.spire, LIMITS.spire];
+  for (const n of start) if (!Number.isInteger(n) || n < 1 || n > LIMITS.spire) throw new Error(`startSpire must be 1-${LIMITS.spire}, got ${n}`);
   const s: GameState = {
     v: 1, rng: setup.seed >>> 0 || 1, round: 0, initiative: 0, priority: 0, phase: 'mulligan', passes: 0,
-    stack: [], stackStarter: null, combat: null, players: [newPlayer(setup.decks[0]), newPlayer(setup.decks[1])],
+    stack: [], stackStarter: null, combat: null, players: [newPlayer(setup.decks[0], start[0]), newPlayer(setup.decks[1], start[1])],
     nextId: 1, winner: null, endReason: null, log: [], acted: [0, 0],
   };
   if (!setup.noShuffle) for (const p of s.players) shuffle(s, p.deck);
@@ -734,17 +737,17 @@ export function whyNotPlay(s: GameState, seat: Seat, iid: string): string | null
   const have = budget(s, seat, hc.card);
   if (d.type !== 'glyph') {
     if (s.phase !== 'main') return 'Units cannot be played during an attack';
-    if (s.stack.length > 0) return 'Units cannot be played while glyphs are waiting to resolve';
+    if (s.stack.length > 0) return 'Units cannot be played while tactics are waiting to resolve';
     if (d.type === 'hero' && s.players[seat].line.some((u) => u.card === hc.card)) {
       return 'That hero is already on your Line: Channel this copy instead';
     }
-    if (have < cost) return `Needs ${cost} Charge (you have ${have}; Reserve only pays for glyphs)`;
+    if (have < cost) return `Needs ${cost} Charge (you have ${have}; Reserve only pays for tactics)`;
     return null;
   }
-  if (s.phase !== 'main' && s.phase !== 'combat') return 'Glyphs cannot be cast while attackers or blockers are being chosen';
+  if (s.phase !== 'main' && s.phase !== 'combat') return 'Tactics cannot be played while attackers or blockers are being chosen';
   if (d.speed === 'ritual') {
-    if (s.phase !== 'main') return 'Ritual glyphs cannot be cast during an attack';
-    if (s.stack.length > 0) return 'Ritual glyphs cannot answer another glyph';
+    if (s.phase !== 'main') return 'Ritual tactics cannot be played during an attack';
+    if (s.stack.length > 0) return 'Ritual tactics cannot answer another tactic';
   }
   if (have < cost) return `Needs ${cost} Charge (you have ${have} with Reserve)`;
   if (d.castIf && !evalCond(s, seat, d.castIf)) return 'Its condition is not met';
@@ -784,7 +787,7 @@ function whyNotTargets(s: GameState, seat: Seat, iid: string, targets: string[])
 export function whyNotDeclare(s: GameState, seat: Seat, unitId: string, duel?: string): string | null {
   if (s.priority !== seat) return 'Not your turn to act';
   if (s.phase !== 'main' && s.phase !== 'declare') return 'An attack is already under way';
-  if (s.phase === 'main' && s.stack.length > 0) return 'Cannot attack while glyphs are waiting to resolve';
+  if (s.phase === 'main' && s.stack.length > 0) return 'Cannot attack while tactics are waiting to resolve';
   const p = s.players[seat];
   if (s.phase === 'main' && !p.canAttack) return s.initiative === seat ? 'You have already attacked this round' : 'You do not hold the Initiative this round';
   const u = p.line.find((x) => x.iid === unitId);

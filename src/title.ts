@@ -8,12 +8,12 @@ import { buildWordmark } from './wordmark';
 
 export type Mode = { kind: 'press' } | { kind: 'menu' } | { kind: 'dialog'; id: MenuId };
 
-const MENU_BOX = { x: 70, y: 150, w: 116, h: 62 };
+const MENU_BOX = { x: 70, y: 144, w: 116, h: 68 };
 const WORDMARK_CAP = 18;
 const WORDMARK_Y = 43;
 const ITEM_X = MENU_BOX.x + 24;
 const ITEM_Y0 = MENU_BOX.y + 10;
-const ITEM_STEP = 12;
+const ITEM_STEP = 11;
 
 /** Riveted iron-and-brass window with a smoked-glass interior (ART-STYLE section 7). */
 export function drawWindow(g: Gfx, x: number, y: number, w: number, h: number): void {
@@ -43,21 +43,22 @@ export class Title {
   cursor = 0;
   private wordmark: HTMLCanvasElement | null = null;
   /** A screen the player asked for; main.ts switches to it and clears this. */
-  open: 'cards' | null = null;
+  open: 'cards' | 'new' | 'continue' | 'run' | null = null;
 
-  constructor(private readonly hasSave: boolean) {}
+  constructor(private readonly hasSave: () => boolean) {}
 
   async load(): Promise<void> {
     this.wordmark = await buildWordmark(`${TITLE_TOP} ${TITLE_BOTTOM}`, WORDMARK_CAP);
   }
 
   enabled(id: MenuId): boolean {
-    return id !== 'continue' || this.hasSave;
+    return id !== 'continue' || this.hasSave();
   }
 
   private confirm(): void {
     const item = MENU[this.cursor];
-    if (item.id === 'cards') this.open = 'cards';
+    if (!this.enabled(item.id)) return;
+    if (item.id === 'cards' || item.id === 'new' || item.id === 'continue' || item.id === 'run') this.open = item.id;
     else this.mode = { kind: 'dialog', id: item.id };
   }
 

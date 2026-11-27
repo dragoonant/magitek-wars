@@ -1,29 +1,47 @@
 import './style.css';
+import './data/cards/index';
 import { drawText } from './font';
 import { Gfx, H, W } from './gfx';
 import { Scene } from './scene';
 import { Title } from './title';
 import { Gallery } from './gallery';
-import { SAVE_KEY } from './engine/save';
+import { HH, HW, Match } from './match/board';
+import { BattleSetup, type DeckOption } from './match/setup';
+import { Session, readStoredSave, clearSave } from './match/session';
+import type { Difficulty } from './ai/ai';
+import { RunScreen } from './run/screen';
 
-function hasSave(): boolean {
-  try {
-    return localStorage.getItem(SAVE_KEY) !== null;
-  } catch {
-    return false;
-  }
-}
+// One canvas at the SNES hi-res size (512 x 448). The title and the gallery are drawn at 256 x 224 into an offscreen
+// canvas and doubled; the battle screens draw at full size (PLAN D17).
 
 const canvas = document.getElementById('screen');
 if (!(canvas instanceof HTMLCanvasElement)) throw new Error('main: no #screen canvas');
+canvas.width = HW;
+canvas.height = HH;
 const ctx = canvas.getContext('2d');
 if (!ctx) throw new Error('main: no 2d context');
 ctx.imageSmoothingEnabled = false;
-const g = new Gfx(ctx);
+const hi = new Gfx(ctx);
+const loCanvas = document.createElement('canvas');
+loCanvas.width = W;
+loCanvas.height = H;
+const loCtx = loCanvas.getContext('2d');
+if (!loCtx) throw new Error('main: no 2d context');
+const lo = new Gfx(loCtx);
+
+function hasSave(): boolean {
+  return readStoredSave().kind === 'ok';
+}
+
 const scene = new Scene();
-const title = new Title(hasSave());
+const title = new Title(hasSave);
 const gallery = new Gallery();
-let screen: 'title' | 'gallery' = 'title';
+let setup: BattleSetup | null = null;
+let match: Match | null = null;
+let run: RunScreen | null = null;
+let lastBattle: { mine: DeckOption; foe: DeckOption; level: Difficulty } | null = null;
+type Screen = 'title' | 'gallery' | 'setup' | 'match' | 'run';
+let screen: Screen = 'title';
 let failed = '';
 Promise.all([scene.load(), title.load(), gallery.load()]).catch((e: unknown) => {
   failed = e instanceof Error ? e.message : String(e);
@@ -32,45 +50,108 @@ Promise.all([scene.load(), title.load(), gallery.load()]).catch((e: unknown) => 
 
 /** Integer scale only (ART-STYLE section 1). */
 function fit(): void {
-  const s = Math.max(1, Math.floor(Math.min(window.innerWidth / W, window.innerHeight / H)));
-  canvas!.style.width = `${W * s}px`;
-  canvas!.style.height = `${H * s}px`;
+  const s = Math.max(1, Math.floor(Math.min(window.innerWidth / HW, window.innerHeight / HH)));
+  canvas!.style.width = `${HW * s}px`;
+  canvas!.style.height = `${HH * s}px`;
 }
 window.addEventListener('resize', fit);
 fit();
 
+const isLo = (): boolean => screen === 'title' || screen === 'gallery';
+
 function logical(e: PointerEvent): [number, number] {
   const r = canvas!.getBoundingClientRect();
-  return [Math.floor(((e.clientX - r.left) / r.width) * W), Math.floor(((e.clientY - r.top) / r.height) * H)];
+  const x = ((e.clientX - r.left) / r.width) * HW;
+  const y = ((e.clientY - r.top) / r.height) * HH;
+  return isLo() ? [Math.floor(x / 2), Math.floor(y / 2)] : [Math.floor(x), Math.floor(y)];
+}
+
+function startBattle(mine: DeckOption, foe: DeckOption, level: Difficulty): void {
+  lastBattle = { mine, foe, level };
+  const seed = (Math.random() * 0x7fffffff) >>> 0;
+  const session = Session.start({ seed, decks: [mine.cards, foe.cards] }, { deckNames: [mine.name, foe.name], difficulty: level });
+  match = new Match(session, `${mine.name} vs ${foe.name}`);
+  screen = 'match';
+}
+
+function continueBattle(): void {
+  const r = readStoredSave();
+  if (r.kind !== 'ok') return;
+  const session = Session.fromSave(r.save);
+  match = new Match(session, `${r.save.meta.deckNames[0]} vs ${r.save.meta.deckNames[1]}`);
+  screen = 'match';
+}
+
+/** Move between screens when one asks to. */
+function route(): void {
+  if (title.open) {
+    const o = title.open;
+    title.open = null;
+    if (o === 'cards') screen = 'gallery';
+    else if (o === 'new') {
+      setup = new BattleSetup();
+      screen = 'setup';
+    } else if (o === 'continue') continueBattle();
+    else if (o === 'run') {
+      run = new RunScreen();
+      screen = 'run';
+    }
+  }
+  if (run?.exit) {
+    run.exit = false;
+    run = null;
+    screen = 'title';
+  }
+  if (gallery.exit) {
+    gallery.exit = false;
+    screen = 'title';
+  }
+  if (setup?.result) {
+    const r = setup.result;
+    setup.result = null;
+    if (r.kind === 'back') screen = 'title';
+    else startBattle(r.mine, r.foe, r.level);
+  }
+  if (match?.exit) {
+    const e = match.exit;
+    match.exit = null;
+    if (e === 'rematch' && lastBattle) startBattle(lastBattle.mine, lastBattle.foe, lastBattle.level);
+    else if (e === 'rematch') {
+      clearSave();
+      setup = new BattleSetup();
+      screen = 'setup';
+    } else {
+      match = null;
+      screen = 'title';
+    }
+  }
 }
 
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Enter', 'Tab', 'PageUp', 'PageDown'].includes(e.code)) e.preventDefault();
   if (screen === 'gallery') gallery.key(e.code);
+  else if (screen === 'setup') setup?.key(e.code);
+  else if (screen === 'match') match?.key(e.code);
+  else if (screen === 'run') run?.key(e.code);
   else title.key(e.code);
   route();
 });
 canvas.addEventListener('pointermove', (e) => {
   if (screen === 'title') title.pointerMove(...logical(e));
+  else if (screen === 'match') match?.pointerMove(...logical(e));
+  else if (screen === 'run') run?.pointerMove(...logical(e));
 });
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
-  if (screen === 'gallery') gallery.pointerDown(...logical(e));
-  else title.pointerDown(...logical(e));
+  const [x, y] = logical(e);
+  if (screen === 'gallery') gallery.pointerDown(x, y);
+  else if (screen === 'setup') setup?.pointerDown(x, y);
+  else if (screen === 'match') match?.pointerDown(x, y);
+  else if (screen === 'run') run?.pointerDown(x, y);
+  else title.pointerDown(x, y);
   route();
 });
-/** Move between screens when one asks to. */
-function route(): void {
-  if (title.open === 'cards') {
-    title.open = null;
-    screen = 'gallery';
-  }
-  if (gallery.exit) {
-    gallery.exit = false;
-    screen = 'title';
-  }
-}
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 const STEP = 1000 / 60;
@@ -84,15 +165,60 @@ function frame(now: number): void {
     t++;
     acc -= STEP;
   }
-  if (screen === 'gallery') gallery.draw(g, t);
-  else {
-    scene.draw(g, t);
-    title.draw(g, t, scene.emblem);
+  try {
+    drawFrame(now);
+  } catch (e) {
+    // never silent: the error is shown on screen and in the console, and the loop keeps running
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg !== crash) console.error(e);
+    crash = msg;
   }
-  if (failed) drawText(g, 'ART FAILED TO LOAD', 4, 4, { color: 'emberGlow', outline: 'ink' });
+  if (crash) {
+    ctx!.fillStyle = '#080810';
+    ctx!.fillRect(0, HH - 12, HW, 12);
+    drawText(hi, `ERROR: ${crash}`.toUpperCase().replace(/[^A-Z0-9 .,:'()/+|-]/g, ' ').slice(0, 84), 2, HH - 10, { color: 'emberGlow' });
+  }
   requestAnimationFrame(frame);
+}
+let crash = '';
+function drawFrame(now: number): void {
+  if (screen === 'match' && match) {
+    match.update(now);
+    match.draw(hi, t);
+    route();
+  } else if (screen === 'run' && run) {
+    run.update(now);
+    run.draw(hi, t);
+    route();
+  } else if (screen === 'setup' && setup) setup.draw(hi);
+  else {
+    if (screen === 'gallery') gallery.draw(lo, t);
+    else {
+      scene.draw(lo, t);
+      title.draw(lo, t, scene.emblem);
+    }
+    if (failed) drawText(lo, 'ART FAILED TO LOAD', 4, 4, { color: 'emberGlow', outline: 'ink' });
+    ctx!.drawImage(loCanvas, 0, 0, HW, HH);
+  }
 }
 requestAnimationFrame(frame);
 
 // Read-only hook for end-to-end checks.
-(window as unknown as { __mkw: object }).__mkw = { mode: () => title.mode.kind, cursor: () => title.cursor, ready: () => scene.ready, failed: () => failed, screen: () => screen, gallery: () => ({ faction: gallery.faction, index: gallery.index, view: gallery.view.kind }) };
+(window as unknown as { __mkw: object }).__mkw = {
+  mode: () => title.mode.kind,
+  cursor: () => title.cursor,
+  ready: () => scene.ready,
+  failed: () => failed,
+  crash: () => crash,
+  screen: () => screen,
+  gallery: () => ({ faction: gallery.faction, index: gallery.index, view: gallery.view.kind }),
+  /** Play-test hook: start a battle between two deck indices of the setup list (used with ?auto&fast). */
+  battle: (mine: number, foe: number) => {
+    const s = new BattleSetup();
+    startBattle(s.decks[mine], s.decks[foe], 'normal');
+    return s.decks.length;
+  },
+  run: () => (run ? { phase: run.run?.phase ?? 'pick', act: run.run?.act, boiler: run.run?.boiler, deck: run.run?.deck.length, inBattle: !!run.match } : null),
+  ui: () => (match ? match.debug() : null),
+  match: () => (match ? { phase: match.session.state.phase, round: match.session.state.round, priority: match.session.state.priority, winner: match.session.state.winner, actions: match.session.actions.length } : null),
+};

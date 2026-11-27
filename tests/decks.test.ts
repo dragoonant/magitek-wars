@@ -23,7 +23,7 @@ describe('premade decks', () => {
     expect(NEW_HERO_DECKS.length).toBe(6);
   });
   it('the first six keep their names and old order (?decks= indices rely on it)', () => {
-    expect(premadeDecks().slice(0, 6).map((d) => d.name)).toEqual(['Wall of Thorns', 'Foundry Squall', 'Cold Current', 'Skywatch', 'Wildfire Garden', 'Blackwater']);
+    expect(premadeDecks().slice(0, 6).map((d) => d.name)).toEqual(['Rampart and Reed', 'Pyre Express', 'Cold Ledger', 'Skywatch', 'Burning Marsh', 'Blackwater']);
   });
   it('names are unique, and every hand-built deck has a one-line plan with no numbers in it (rule 8)', () => {
     const names = premadeDecks().map((d) => d.name);
