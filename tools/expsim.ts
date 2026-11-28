@@ -1,5 +1,5 @@
 // Hero Expeditions bench (spec 21): play many expeditions with the AI standing in for the player, report how far they get.
-//   npx tsx tools/expsim.ts [runs per hero=6] [player AI level=normal] [rank=1] [expedition=all]
+//   npx tsx tools/expsim.ts [runs per hero=6] [player AI level=normal] [rank=1] [expedition=all]  (SEED=<n> sets the first seed)
 import '../src/data/cards/index';
 import { createGame, applyAction } from '../src/engine/rules';
 import { view } from '../src/engine/view';
@@ -67,7 +67,7 @@ for (const e of EXPEDITIONS.filter((x) => !only || x.id === only)) {
   for (const h of HEROES) {
     let hw = 0;
     for (let i = 0; i < per; i++) {
-      const seed = 1000 + i * 97 + h.id.length;
+      const seed = Number(process.env.SEED ?? 1000) + i * 97 + h.id.length;
       const r = newRun(h.id, e.id, seed, rank);
       const res = play(r, seed);
       total++;

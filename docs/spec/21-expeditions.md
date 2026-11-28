@@ -27,7 +27,7 @@ against the AI. Rule ids (R-E...) are cited in code and tests. Ambiguities becom
   boss whose faction is the player hero's uses the expedition's other boss faction.
 - **R-E7 Orders.** An Order is a power for the rest of the run (R-X6): it works in every later battle. Orders are
   picked 1 of 3 at Order stops and after a boss that is not the last, and bought at Depots. A run never offers an Order
-  it already holds. The catalog is `src/expedition/orders.ts`; each Order prints everything it does.
+  it already holds, nor a hero's innate, signature or mastery Order. The catalog is `src/expedition/orders.ts`; each Order prints everything it does.
 - **R-E8 Fittings.** A Fitting is an upgrade fitted to every copy of one card in the run deck (R-X5): more power or
   health, a keyword, or a lower cost. A card holds one Fitting; a new one replaces the old. Stat and keyword Fittings go
   on units and heroes only; a cost Fitting goes on any card that costs 2 or more. Fittings are picked 1 of 3 at Caches
@@ -47,7 +47,7 @@ against the AI. Rule ids (R-E...) are cited in code and tests. Ambiguities becom
 - **R-E13 Hero rank.** Each hero keeps XP between runs (the profile, R-E15). A won battle gives 10 XP (elite 20, boss
   40); winning the expedition gives 30 more per star. XP earned in a lost run is kept. Ranks need 0, 30, 80, 150, 250,
   380, 540 and 750 XP (rank 1 to 8). Each rank unlocks, for every later run with that hero:
-  2: start with 15 scrip. 3: start with the hero's signature Order. 4: rests repair 3 more. 5: the hero's signature
+  1: the hero's **innate Order**, its own power in every run (like a champion's; BALANCE R-4). 2: start with 15 scrip. 3: start with the hero's signature Order. 4: rests repair 3 more. 5: the hero's signature
   Fitting on the hero card. 6: start with one more Order, picked at random from the common Orders. 7: field repairs
   2 more. 8: start with the hero's mastery Order.
 - **R-E14 Expeditions unlocked.** The first expedition is open; each later one opens once any hero wins the one before.

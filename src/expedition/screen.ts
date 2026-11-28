@@ -4,7 +4,7 @@
 import { drawPic } from '../detail';
 import type { GameState } from '../engine/types';
 import { LIMITS } from '../engine/types';
-import { allCards, def, face, type Face } from '../engine/query';
+import { allCards, def, face, hasCard, type Face } from '../engine/query';
 import { replay } from '../engine/save';
 import { drawText, drawTextCentred, fitText, textWidth, wrapPx } from '../font';
 import type { Gfx } from '../gfx';
@@ -15,7 +15,7 @@ import { FACTION_INFO } from '../data/decks';
 import { cardArt, emblem, portrait } from '../match/art';
 import { HH, HW, Match } from '../match/board';
 import { Session } from '../match/session';
-import { bigCard, cardGrid, confirmCard, grouped, miniCard, scrollButtons } from '../cardgrid';
+import { cardGrid, confirmCard, grouped, lens, miniCard, scrollButtons, zoomCard } from '../cardgrid';
 import {
   DEPOT, FACTION_NAMES, MIN_DECK, bossName, foeName, buy, canRemove, choices, chooseEvent, choosePick, deckFittings, enter, exp, finishBattle, fit,
   fitTargets, leaveDepot, newRun, removeForEvent, rest, restRepair, stop, takeReward, type RunState,
@@ -100,6 +100,10 @@ export class ExpeditionScreen {
   /** A picked card waiting for the player to confirm it, or a card opened for a closer look. */
   private confirm: { kind: 'cut' | 'evcut' | 'buy' | 'fit'; id: string } | null = null;
   private peek: string | null = null;
+  /** The card opened large is the foe's (printed without the run's Fittings). */
+  private peekFoe = false;
+  /** Where cards are drawn, for right-click and touch-hold zoom; topmost last. */
+  private spots: { x: number; y: number; w: number; h: number; card: string; foe?: boolean }[] = [];
   private confirmAbandon = false;
   private foeDeckOpen = false;
   private hots: Hot[] = [];
@@ -120,12 +124,49 @@ export class ExpeditionScreen {
     }
   }
 
-  /** The card as it stands in this run: its Fitting included (R-X5). */
-  private faceOf(id: string): Face {
-    const r = this.run;
-    if (!r) return face(null, 0, id);
-    const fake = { players: [{ ascended: [], fittings: deckFittings(r) }, { ascended: [] }] } as unknown as GameState;
+  /** The card as it stands in this run: its Fitting included (R-X5); `ascended` prints a hero's other face. */
+  private faceOf(id: string, ascended = false): Face {
+    const asc = ascended ? [id] : [];
+    const fits = this.run ? deckFittings(this.run) : {};
+    const fake = { players: [{ ascended: asc, fittings: fits }, { ascended: asc }] } as unknown as GameState;
     return face(fake, 0, id);
+  }
+
+  /** A foe's card, as printed (no Fittings). */
+  private foeFace(id: string, ascended = false): Face {
+    const fake = { players: [{ ascended: [] }, { ascended: ascended ? [id] : [] }] } as unknown as GameState;
+    return face(fake, 1, id);
+  }
+
+  // ---------- zoom: every card on these screens opens large (lens, right-click, or a touch held 400 ms) ----------
+  /** The card under a point: a drawn card spot, or any hot that names a card. */
+  private cardAt(x: number, y: number): { card: string; foe: boolean } | null {
+    for (let i = this.spots.length - 1; i >= 0; i--) {
+      const sp = this.spots[i];
+      if (x >= sp.x && y >= sp.y && x < sp.x + sp.w && y < sp.y + sp.h) return { card: sp.card, foe: !!sp.foe };
+    }
+    const h = this.hit(x, y);
+    if (!h) return null;
+    const [k, raw] = h.id.split('|');
+    const v = raw?.startsWith('card:') ? raw.slice(5) : raw;
+    return v && hasCard(v) ? { card: v, foe: k === 'zoomfoe' } : null;
+  }
+
+  /** Right-click or a held touch: open the card there, if any. */
+  inspect(x: number, y: number): void {
+    if (this.match) return;
+    const c = this.cardAt(x, y);
+    if (c) { this.peek = c.card; this.peekFoe = c.foe; this.confirm = null; }
+  }
+
+  /** A lens badge that opens the card large; pushed last so it wins over the card's own click. */
+  private zoomLens(g: Gfx, cx: number, cy: number, card: string, foe = false): void {
+    const id = `${foe ? 'zoomfoe' : 'zoom'}|${card}`;
+    lens(g, cx, cy, this.hover === id);
+    this.hots.push({ x: cx - 8, y: cy - 8, w: 16, h: 16, id });
+  }
+  private spot(x: number, y: number, w: number, h: number, card: string, foe = false): void {
+    this.spots.push({ x, y, w, h, card, foe });
   }
 
   // ---------- saving (R-E16) ----------
@@ -244,8 +285,9 @@ export class ExpeditionScreen {
     }
   }
 
-  pointerDown(x: number, y: number): void {
+  pointerDown(x: number, y: number, button = 0): void {
     if (this.match) { this.match.pointerDown(x, y); return; }
+    if (button === 2) { this.inspect(x, y); return; }
     const h = this.hit(x, y);
     if (!h) return;
     this.note = '';
@@ -270,7 +312,7 @@ export class ExpeditionScreen {
     if (k === 'grid-up') { this.gridScroll = Math.max(0, this.gridScroll - 1); return; }
     if (k === 'grid-down') { this.gridScroll = Math.min(this.gridMax, this.gridScroll + 1); return; }
     if (k === 'deck-bg' || k === 'orders-bg') { if (k === 'orders-bg') this.ordersOpen = false; return; }
-    if (k === 'look') { this.peek = v; return; }
+    if (k === 'look' || k === 'zoom' || k === 'zoomfoe') { this.peek = v; this.peekFoe = k === 'zoomfoe'; return; }
     if (k === 'cutpick') { this.confirm = { kind: 'cut', id: v }; return; }
     if (k === 'evpick') { this.confirm = { kind: 'evcut', id: v }; return; }
     if (k === 'fitpick') { this.confirm = { kind: 'fit', id: v }; return; }
@@ -329,6 +371,7 @@ export class ExpeditionScreen {
   draw(g: Gfx, t: number): void {
     if (this.match) { this.match.draw(g, t); return; }
     this.hots = [];
+    this.spots = [];
     const r = this.run;
     if (!r) {
       if (this.chosen) this.drawExpeditions(g, hero(this.chosen));
@@ -351,13 +394,8 @@ export class ExpeditionScreen {
       if (this.deckOpen || this.removing || r.phase === 'eventRemove' || r.phase === 'fit') this.drawDeck(g, r);
       if (this.ordersOpen) this.drawOrders(g, r);
       if (this.confirm) this.drawConfirm(g, r);
-      else if (this.peek) {
-        g.wash(0, 0, HW, HH, 'ink', 0.55);
-        this.hots.push({ x: 0, y: 0, w: HW, h: HH, id: 'peek-bg' });
-        bigCard(g, this.peek, this.faceOf(this.peek), HW / 2 - 90, 60, 180);
-        drawTextCentred(g, 'Tap anywhere to close', HW / 2, HH - 20, { color: 'steam' });
-      }
     }
+    if (this.peek) zoomCard(g, HW, HH, this.peek, (id, a) => (this.peekFoe ? this.foeFace(id, a) : this.faceOf(id, a)), this.hots);
     if (this.note) {
       const ctx = g.ctx;
       const gr = ctx.createLinearGradient(0, HH - 18, 0, HH);
@@ -421,6 +459,7 @@ export class ExpeditionScreen {
       drawText(g, fitText(face(null, 0, h.id).name, 112, 1, 'display'), x + 42, y + 8, { color: 'brassGlint', face: 'display', shadow: 'ink' });
       drawText(g, fitText(FACTION_INFO[h.faction].name, 112), x + 42, y + 20, { color: 'steam', scale: 0.95 });
       this.pic(g, cardArt(h.id), x + 16, y + 36, 128, 80, on ? 'brassGlint' : 'brassDark', on);
+      this.spot(x + 16, y + 36, 128, 80, h.id);
       const rank = heroRank(this.profile, h.id);
       const nx = toNextRank(this.profile, h.id);
       drawText(g, `Rank ${rank}`, x + 8, y + 122, { color: 'brassLight', face: 'bold' });
@@ -429,6 +468,7 @@ export class ExpeditionScreen {
       this.bar(g, x + 50, y + 125, 60, nx ? nx.have / nx.need : 1);
       wrapPx(h.plan, 146, 0.95).slice(0, 3).forEach((l, j) => drawText(g, l, x + 7, y + 136 + j * 10.5, { color: 'steamWhite', scale: 0.95 }));
       this.hots.push({ x, y, w: 160, h: 178, id });
+      this.zoomLens(g, x + 135, y + 45, h.id);
     });
     this.button(g, 'BACK', 8, HH - 24, 'title');
   }
@@ -438,6 +478,8 @@ export class ExpeditionScreen {
     const nm = face(null, 0, h.id).name;
     panel(g, 8, 8, 196, 432);
     this.pic(g, cardArt(h.id, false, true), 14, 14, 184, 138, 'brassGlint', true);
+    this.hots.push({ x: 14, y: 14, w: 184, h: 138, id: `zoom|${h.id}` });
+    this.zoomLens(g, 188, 24, h.id);
     drawText(g, fitText(nm, 184, 1.2, 'bold'), 14, 158, { color: 'brassGlint', face: 'bold', scale: 1.2, shadow: 'ink' });
     drawText(g, FACTION_INFO[h.faction].name, 14, 172, { color: 'steam', scale: 0.95 });
     drawText(g, this.rankLine(h.id), 14, 186, { color: 'brassLight', face: 'bold', scale: 0.95 });
@@ -456,9 +498,9 @@ export class ExpeditionScreen {
       }
       y += 2;
     }
-    const sig = order(h.signatureOrder), mst = order(h.masteryOrder), sf = fitting(h.signatureFitting);
+    const inn = order(h.innateOrder), sig = order(h.signatureOrder), mst = order(h.masteryOrder), sf = fitting(h.signatureFitting);
     y += 4;
-    for (const l of [`${sig.name}: ${sig.text}`, `${sf.name}: ${sf.text} on ${nm.split(' ').slice(-1)[0]}.`, `${mst.name}: ${mst.text}`]) {
+    for (const l of [`${inn.name}: ${inn.text}`, `${sig.name}: ${sig.text}`, `${sf.name}: ${sf.text} on ${nm.split(' ').slice(-1)[0]}.`, `${mst.name}: ${mst.text}`]) {
       for (const w of wrapPx(l, 182, 0.85)) { if (y < 432) drawText(g, w, 14, y, { color: 'steam', scale: 0.85 }); y += 9; }
     }
     // expeditions
@@ -593,6 +635,8 @@ export class ExpeditionScreen {
     panel(g, x, 34, 154, 252);
     const pt = portrait(r.hero);
     if (pt) this.pic(g, pt, x + 8, 42, 40, 40);
+    this.hots.push({ x: x + 8, y: 42, w: 40, h: 40, id: `zoom|${r.hero}` });
+    this.zoomLens(g, x + 44, 78, r.hero);
     wrapPx(face(null, 0, r.hero).name, 96, 1, 'bold').slice(0, 2).forEach((l, i) => drawText(g, l, x + 54, 44 + i * 11, { color: 'brassGlint', face: 'bold' }));
     drawText(g, `Rank ${r.rank}${r.recruits.length ? ` · +${r.recruits.length} hero` : ''}`, x + 54, 68, { color: 'steam', scale: 0.95 });
     const row = (label: string, value: string, y: number, ink: Ink) => {
@@ -649,12 +693,18 @@ export class ExpeditionScreen {
       b.forEach((cid, j) => {
         const cx = bx + 6 + (j % 2) * (cw + 6), cy = by + 34 + Math.floor(j / 2) * (ch + 6);
         miniCard(g, cid, this.faceOf(cid), cx, cy, { hot: on, w: cw, h: ch });
+        this.spot(cx, cy, cw, ch, cid);
       });
       const listY = by + 34 + Math.ceil(b.length / 2) * (ch + 6) + 2;
-      b.forEach((cid, j) => drawText(g, fitText(`${def(cid).cost} · ${this.faceOf(cid).name}`, bw - 12, 0.9), bx + 6, listY + j * 10, { color: 'steamWhite', scale: 0.9 }));
+      b.forEach((cid, j) => {
+        drawText(g, fitText(`${def(cid).cost} · ${this.faceOf(cid).name}`, bw - 12, 0.9), bx + 6, listY + j * 10, { color: 'steamWhite', scale: 0.9 });
+        this.spot(bx + 4, listY + j * 10 - 1, bw - 8, 10, cid);
+      });
       drawTextCentred(g, 'CLICK TO TAKE', bx + bw / 2, by + bh - 16, { color: on ? 'brassGlint' : 'brassLight', face: 'display' });
+      b.forEach((cid, j) => this.zoomLens(g, bx + 6 + (j % 2) * (cw + 6) + cw - 9, by + 34 + Math.floor(j / 2) * (ch + 6) + Math.round(ch * 0.54) - 9, cid));
     });
-    this.centredButton(g, 'TAKE NO CARDS', 402, 'bundle|-');
+    this.centredButton(g, 'TAKE NO CARDS', 400, 'bundle|-');
+    drawTextCentred(g, 'The lens on a card, a right-click or a long press opens it large.', HW / 2, 419, { color: 'steam', scale: 0.9 });
   }
 
   private optionPanel(g: Gfx, x: number, y: number, w: number, h: number, id: string, title: string, tag: string, text: string, ink: Ink): void {
@@ -706,6 +756,12 @@ export class ExpeditionScreen {
       [`${face(null, 0, id).name} ×2`, ...support.map((c) => `${def(c).name} ×2`)].forEach((l, j) => drawText(g, fitText(l, w - 16, 0.95), x + 8, y + 176 + j * 10.5, { color: 'steamWhite', scale: 0.95 }));
       drawText(g, 'CLICK TO RECRUIT', x + 8, y + hh - 16, { color: on ? 'brassGlint' : 'brassLight', face: 'display' });
       this.hots.push({ x, y, w, h: hh, id: hid });
+      this.spot(x + 8, y + 8, 128, 96, id);
+      this.zoomLens(g, x + 127, y + 17, id);
+      [id, ...support].forEach((c, j) => {
+        this.spot(x + 8, y + 175 + j * 10.5, w - 16, 10.5, c);
+        this.zoomLens(g, x + w - 14, y + 180 + j * 10.5, c);
+      });
     });
     this.centredButton(g, 'GO ON ALONE', 354, 'pick|-');
   }
@@ -762,6 +818,8 @@ export class ExpeditionScreen {
       wrapPx(f.text, 100, 0.9).slice(0, 7).forEach((l, j) => drawText(g, l, x + 6, sy + 12 + j * 9.5, { color: 'steamWhite', scale: 0.9 }));
       drawText(g, c.sold ? 'BOUGHT' : `${c.price} SCRIP`, x + 6, y + 183, { color: c.sold ? 'iron' : 'brassLight', face: 'display' });
       if (!c.sold) this.hots.push({ x, y, w: 112, h: 196, id });
+      this.spot(x, y, 112, 196, c.id);
+      this.zoomLens(g, x + 95, y + 15, c.id);
     });
     // the Fitting and the Order on the shelf
     const fx = 380, fw = 112;
@@ -803,7 +861,10 @@ export class ExpeditionScreen {
     const ids = fitting_ ? r.deck.filter((id) => fitTargets(r, r.fitWith!.id).includes(id)) : cutting ? r.deck.filter((id) => canRemove(r, id)) : r.deck;
     const prefix = fitting_ ? 'fitpick|' : r.phase === 'eventRemove' ? 'evpick|' : this.removing ? 'cutpick|' : 'look|';
     const items = grouped(ids, (id) => this.faceOf(id)).map((it) => ({ ...it, tag: r.fittings[it.id] && r.deck.includes(it.id) ? fitting(r.fittings[it.id]).name : undefined }));
+    const before = this.hots.length;
     const res = cardGrid(g, items, (id) => this.faceOf(id), 14, 70, 434, 336, this.gridScroll, this.hover, prefix, this.hots);
+    // a click picks here, so the lens is how to look closer (in the plain deck view a click already opens the card)
+    if (prefix !== 'look|') for (const q of this.hots.slice(before)) this.zoomLens(g, q.x + q.w - 9, q.y + Math.round(q.h * 0.54) - 9, q.id.slice(prefix.length));
     this.gridScroll = res.scroll;
     this.gridMax = res.maxScroll;
     scrollButtons(g, 454, 72, 330, res.scroll, res.maxScroll, this.hover, this.hots);
@@ -886,8 +947,12 @@ export class ExpeditionScreen {
       ids.forEach((id, i) => {
         const x = 34 + Math.floor(i / 22) * 230, yy = y + 42 + (i % 22) * 10;
         drawText(g, String(def(id).cost), x, yy, { color: 'crystalBright', face: 'bold', scale: 0.95 });
+        const zid = `zoomfoe|${id}`;
+        if (this.hover === zid) fillRound(g, x - 3, yy - 1.5, 222, 10, 'brassDark', 0.6, 2);
         drawText(g, fitText(`${face(null, 1, id).name} ×${counts.get(id)}`, 206, 0.95), x + 10, yy, { color: def(id).type === 'hero' ? 'brassLight' : 'steamWhite', scale: 0.95 });
+        this.hots.push({ x: x - 3, y: yy - 1.5, w: 222, h: 10, id: zid });
       });
+      drawTextCentred(g, 'Click a card to see it large.', HW / 2, y + 42 + 22 * 10 + 2, { color: 'steam', scale: 0.9 });
     }
   }
 

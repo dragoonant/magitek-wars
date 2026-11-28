@@ -1,9 +1,9 @@
 // The campaign screens (spec 20, PLAN D18), hi-res 512 x 448: faction pick, act map, reward, rest, supply, deck,
 // and the end of the run. Battles use the match screen; this controller starts them and reads their result.
 import { drawPic } from '../detail';
-import type { FactionId } from '../engine/types';
+import type { FactionId, GameState } from '../engine/types';
 import { LIMITS } from '../engine/types';
-import { def, face } from '../engine/query';
+import { def, face, hasCard, type Face } from '../engine/query';
 import { replay } from '../engine/save';
 import { drawText, drawTextCentred, fitText, textWidth, wrapPx } from '../font';
 import type { Gfx } from '../gfx';
@@ -14,7 +14,7 @@ import { FACTION_INFO } from '../data/decks';
 import { cardArt, emblem, portrait } from '../match/art';
 import { HH, HW, Match } from '../match/board';
 import { Session } from '../match/session';
-import { bigCard, cardGrid, confirmCard, grouped, scrollButtons } from '../cardgrid';
+import { cardGrid, confirmCard, grouped, lens, scrollButtons, zoomCard } from '../cardgrid';
 import {
   ACT_NAMES, FLOORS, LEADS, MIN_DECK, REST_REPAIR, SUPPLY_REPAIR, SUPPLY_REPAIR_PRICE, buy, choices, enter, finishBattle,
   leaveSupply, newRun, rest, takeReward, chooseEvent, removeForEvent, FACTION_NAMES, type MapNode, type RunState,
@@ -79,6 +79,8 @@ export class RunScreen {
   /** A picked card waiting for the player to confirm it (PLAN D29), or a card opened for a closer look. */
   private confirm: { kind: 'cut' | 'evcut' | 'take' | 'buy'; id: string } | null = null;
   private peek: string | null = null;
+  /** Where cards are drawn, for right-click and touch-hold zoom; topmost last. */
+  private spots: { x: number; y: number; w: number; h: number; card: string }[] = [];
   private confirmAbandon = false;
   private foeDeckOpen = false;
   private hots: Hot[] = [];
@@ -191,8 +193,41 @@ export class RunScreen {
     }
   }
 
-  pointerDown(x: number, y: number): void {
+  // ---------- zoom: every card on these screens opens large (lens, right-click, or a touch held 400 ms) ----------
+  /** A card's printed face; `ascended` prints a hero's other face. */
+  private faceOf(id: string, ascended = false): Face {
+    const asc = ascended ? [id] : [];
+    return face({ players: [{ ascended: asc }, { ascended: asc }] } as unknown as GameState, 0, id);
+  }
+
+  /** The card under a point: a drawn card spot, or any hot that names a card. */
+  private cardAt(x: number, y: number): string | null {
+    for (let i = this.spots.length - 1; i >= 0; i--) {
+      const sp = this.spots[i];
+      if (x >= sp.x && y >= sp.y && x < sp.x + sp.w && y < sp.y + sp.h) return sp.card;
+    }
+    const h = this.hit(x, y);
+    const v = h?.id.split('|')[1];
+    return v && hasCard(v) ? v : null;
+  }
+
+  /** Right-click or a held touch: open the card there, if any. */
+  inspect(x: number, y: number): void {
+    if (this.match) return;
+    const c = this.cardAt(x, y);
+    if (c) { this.peek = c; this.confirm = null; }
+  }
+
+  /** A lens badge that opens the card large; pushed last so it wins over the card's own click. */
+  private zoomLens(g: Gfx, cx: number, cy: number, card: string): void {
+    const id = `zoom|${card}`;
+    lens(g, cx, cy, this.hover === id);
+    this.hots.push({ x: cx - 8, y: cy - 8, w: 16, h: 16, id });
+  }
+
+  pointerDown(x: number, y: number, button = 0): void {
     if (this.match) { this.match.pointerDown(x, y); return; }
+    if (button === 2) { this.inspect(x, y); return; }
     const h = this.hit(x, y);
     if (!h) return;
     this.note = '';
@@ -218,7 +253,7 @@ export class RunScreen {
     if (k === 'grid-up') { this.gridScroll = Math.max(0, this.gridScroll - 1); return; }
     if (k === 'grid-down') { this.gridScroll = Math.min(this.gridMax, this.gridScroll + 1); return; }
     if (k === 'deck-bg') return;
-    if (k === 'look') { this.peek = v; return; }
+    if (k === 'look' || k === 'zoom') { this.peek = v; return; }
     if (k === 'cutpick') { this.confirm = { kind: 'cut', id: v }; return; }
     if (k === 'evpick') { this.confirm = { kind: 'evcut', id: v }; return; }
     if (k === 'title') { this.exit = true; return; }
@@ -274,8 +309,13 @@ export class RunScreen {
       return;
     }
     this.hots = [];
+    this.spots = [];
     const r = this.run;
-    if (!r) { this.drawPick(g, t); return; }
+    if (!r) {
+      this.drawPick(g, t);
+      if (this.peek) zoomCard(g, HW, HH, this.peek, (id, a) => this.faceOf(id, a), this.hots);
+      return;
+    }
     backdrop(g, HW, HH, ACT_FIELDS[Math.min(2, r.act - 1)], 0.5);
     if (r.phase === 'won' || r.phase === 'lost') this.drawEnd(g, r);
     else {
@@ -291,12 +331,7 @@ export class RunScreen {
     }
     if (this.deckOpen || this.removing || r.phase === 'eventRemove') this.drawDeck(g, r);
     if (this.confirm) this.drawConfirm(g, r);
-    else if (this.peek) {
-      g.wash(0, 0, HW, HH, 'ink', 0.55);
-      this.hots.push({ x: 0, y: 0, w: HW, h: HH, id: 'peek-bg' });
-      bigCard(g, this.peek, face(null, 0, this.peek), HW / 2 - 90, 60, 180);
-      drawTextCentred(g, 'Tap anywhere to close', HW / 2, HH - 20, { color: 'steam' });
-    }
+    if (this.peek) zoomCard(g, HW, HH, this.peek, (id, a) => this.faceOf(id, a), this.hots);
     if (this.note) {
       const ctx = g.ctx;
       const gr = ctx.createLinearGradient(0, HH - 18, 0, HH);
@@ -342,8 +377,10 @@ export class RunScreen {
       const lead = LEADS[f.engine as FactionId];
       drawText(g, fitText(face(null, 0, lead).name, 112), x + 42, y + 22, { color: 'steam' });
       this.pic(g, cardArt(lead), x + 16, y + 40, 128, 96, on ? 'brassGlint' : 'brassDark', on);
+      this.spots.push({ x: x + 16, y: y + 40, w: 128, h: 96, card: lead });
       wrapPx(FACTION_INFO[f.engine as FactionId].blurb, 146).slice(0, 3).forEach((l, j) => drawText(g, l, x + 7, y + 142 + j * 10.5, { color: 'steamWhite' }));
       this.hots.push({ x, y, w: 160, h: 178, id });
+      this.zoomLens(g, x + 135, y + 49, lead);
     });
     void t;
     this.button(g, 'BACK', 8, HH - 24, 'title');
@@ -461,6 +498,8 @@ export class RunScreen {
     wrapPx(FACTION_INFO[r.faction].name.toUpperCase(), 100, 1, 'display').slice(0, 2).forEach((l, i) => drawText(g, l, x + 44, 50 + i * 10, { color: 'brassGlint', face: 'display' }));
     const lead = portrait(LEADS[r.faction]);
     if (lead) this.pic(g, lead, x + 100, 70, 48, 48);
+    this.hots.push({ x: x + 100, y: 70, w: 48, h: 48, id: `zoom|${LEADS[r.faction]}` });
+    this.zoomLens(g, x + 143, 113, LEADS[r.faction]);
     const row = (label: string, value: string, y: number, ink: Ink) => {
       drawText(g, label, x + 10, y, { color: 'ironLight' });
       drawText(g, value, x + 56, y, { color: ink, face: 'bold' });
@@ -506,6 +545,7 @@ export class RunScreen {
     wrapPx(f.text, 136).slice(0, 9).forEach((l, i) => drawText(g, l, x + 7, sy + 16 + i * 10.5, { color: 'steamWhite' }));
     drawText(g, foot, x + 7, y + 236, { color: on ? 'brassGlint' : 'brassLight', face: 'display' });
     this.hots.push({ x, y, w: 150, h: 250, id: hot });
+    this.zoomLens(g, x + 130, y + 15, id);
   }
 
   private drawReward(g: Gfx, r: RunState): void {
@@ -544,6 +584,8 @@ export class RunScreen {
       wrapPx(f.text, 100, 0.9).slice(0, 7).forEach((l, j) => drawText(g, l, x + 6, sy + 12 + j * 9.5, { color: 'steamWhite', scale: 0.9 }));
       drawText(g, c.sold ? 'BOUGHT' : `${c.price} SCRIP`, x + 6, y + 183, { color: c.sold ? 'iron' : 'brassLight', face: 'display' });
       if (!c.sold) this.hots.push({ x, y, w: 112, h: 196, id: `buy|${c.id}` });
+      this.spots.push({ x, y, w: 112, h: 196, card: c.id });
+      this.zoomLens(g, x + 95, y + 15, c.id);
     });
     this.button(g, r.shop!.repairSold ? 'REPAIR USED' : `REPAIR +${SUPPLY_REPAIR} FOR ${SUPPLY_REPAIR_PRICE}`, 20, 284, 'buy|repair', !r.shop!.repairSold);
     this.button(g, 'LEAVE THE DEPOT', 492 - 10 - (textWidth('LEAVE THE DEPOT', 1, 'display') + 16), 392, 'leave');
@@ -561,7 +603,10 @@ export class RunScreen {
     drawText(g, sub, 18, 50, { color: 'steam', scale: 0.95 });
     rule(g, 12, 62, 488);
     const prefix = r.phase === 'eventRemove' ? 'evpick|' : this.removing ? 'cutpick|' : 'look|';
+    const before = this.hots.length;
     const res = cardGrid(g, grouped(r.deck, (id) => face(null, 0, id)), (id) => face(null, 0, id), 14, 70, 434, 336, this.gridScroll, this.hover, prefix, this.hots);
+    // a click picks here, so the lens is how to look closer (in the plain deck view a click already opens the card)
+    if (prefix !== 'look|') for (const q of this.hots.slice(before)) this.zoomLens(g, q.x + q.w - 9, q.y + Math.round(q.h * 0.54) - 9, q.id.slice(prefix.length));
     this.gridScroll = res.scroll;
     this.gridMax = res.maxScroll;
     scrollButtons(g, 454, 72, 330, res.scroll, res.maxScroll, this.hover, this.hots);
@@ -635,8 +680,12 @@ export class RunScreen {
       ids.forEach((id, i) => {
         const x = 34 + Math.floor(i / 20) * 230, yy = y + 42 + (i % 20) * 10;
         drawText(g, String(def(id).cost), x, yy, { color: 'crystalBright', face: 'bold', scale: 0.95 });
+        const zid = `zoom|${id}`;
+        if (this.hover === zid) fillRound(g, x - 3, yy - 1.5, 222, 10, 'brassDark', 0.6, 2);
         drawText(g, fitText(`${face(null, 1, id).name} ×${counts.get(id)}`, 206, 0.95), x + 10, yy, { color: def(id).type === 'hero' ? 'brassLight' : 'steamWhite', scale: 0.95 });
+        this.hots.push({ x: x - 3, y: yy - 1.5, w: 222, h: 10, id: zid });
       });
+      drawTextCentred(g, 'Click a card to see it large.', HW / 2, y + 42 + 20 * 10 + 2, { color: 'steam', scale: 0.9 });
     }
   }
 

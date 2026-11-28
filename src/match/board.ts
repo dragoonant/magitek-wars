@@ -13,7 +13,7 @@ import { PALETTE, rgba, type Ink } from '../palette';
 import { button, clipRound, fillRound, frame, highlight, panel, rule } from '../ui';
 import { FACTIONS } from '../data/factions';
 import { CARD_ART } from '../data/cardart';
-import { cardArt, emblem, field, isMissing } from './art';
+import { cardArt, field, isMissing } from './art';
 import { END_REASONS, KEYWORD_HELP, lineText, targetPrompt } from './text';
 import type { Session } from './session';
 import { playEvent } from '../audio/audio';
@@ -34,19 +34,25 @@ export function setHW(w: number): void {
 }
 
 const SLOT = { w: 82, h: 104 };
-/** The foe's hand as card backs, with its Deck and Scrap piles at the right. */
-const FOE_HAND_Y = 24;
-const FOE_LINE_Y = 44;
-const MID_Y = 150;
-const MY_LINE_Y = 210;
+/**
+ * The Clockface layout (PLAN D37). Each player is a dial: the Crystal at the hub, Charge as an outer ring of ten
+ * segments, Reserve as an inner ring of three arcs. The foe's dial sits at the top centre, yours at the bottom centre
+ * with your hand split around it; Deck and Scrap piles at the far corners; the prompt, stack and buttons in the lane.
+ */
+const FOE_DIAL = { y: 23, r: 26 };
+const MY_DIAL = { y: 410, r: 31 };
+const FOE_LINE_Y = 58;
+const MID_Y = 164;
+const MY_LINE_Y = 208;
 /** How far an attacker or blocker steps out of its Line toward the other side. */
-const LUNGE = 8;
-/** My Deck and Scrap piles sit either side of the hand. */
+const LUNGE = 6;
+/** My Deck and Scrap piles sit at the far left and far right of the hand row. */
 const PILE = { w: 44, h: 62 };
-const MY_BAR_Y = 316;
-const HAND_Y = 342;
+const HAND_Y = 330;
 const CARD = { h: 104 };
 const AI_DELAY = 520;
+/** The gap kept clear around my dial in the hand row. */
+const DIAL_GAP = 46;
 
 /** Line slots: six columns across the width; a slot grows up to 110 wide, its art stays 64 x 48, centred. */
 function slotGeo(): { w: number; dx: number; x0: number } {
@@ -55,16 +61,20 @@ function slotGeo(): { w: number; dx: number; x0: number } {
   return { w, dx, x0: 4 + (dx - w - 2) / 2 };
 }
 /**
- * Hand cards, centred between the two piles. Cards are 58 wide at 512 and 66 (the whole 64-wide art) on wider
- * screens; a big hand overlaps them rather than shrinking them.
+ * Hand cards, split around my dial (PLAN D37): the first half to its left, the rest to its right, each half centred
+ * between a pile and the dial. Cards are 58 wide at 512 and 66 on wider screens; a big hand overlaps.
  */
-function cardGeo(n: number): { w: number; dx: number; x0: number } {
+function handGeo(n: number): { w: number; xs: number[] } {
   const w = HW >= 640 ? 66 : 58;
-  const left = 6 + PILE.w + 10, right = HW - 6 - PILE.w - 10;
-  const avail = right - left;
-  const dx = n > 1 ? Math.min(w + 6, (avail - w) / (n - 1)) : 0;
-  const total = w + Math.max(0, n - 1) * dx;
-  return { w, dx, x0: Math.round(HW / 2 - total / 2) };
+  const nl = Math.ceil(n / 2), nr = n - nl;
+  const lane = (count: number, a: number, b: number): number[] => {
+    if (count === 0) return [];
+    const dx = count > 1 ? Math.min(w + 6, (b - a - w) / (count - 1)) : 0;
+    const total = w + (count - 1) * dx;
+    const x0 = (a + b) / 2 - total / 2;
+    return Array.from({ length: count }, (_, i) => Math.round(x0 + i * dx));
+  };
+  return { w, xs: [...lane(nl, 6 + PILE.w + 8, HW / 2 - DIAL_GAP), ...lane(nr, HW / 2 + DIAL_GAP, HW - 6 - PILE.w - 8)] };
 }
 /** The log drawer: it slides in from the right over the board. */
 const drawerW = (): number => Math.round(Math.min(340, Math.max(250, HW * 0.4)));
@@ -78,10 +88,6 @@ function pathOf(a: Action): string[] {
   return [...(a.targets ?? []), ...(a.replace ? [`R:${a.replace}`] : [])];
 }
 
-function factionOf(cardId: string): string {
-  const d = def(cardId);
-  return FACTIONS.find((f) => f.engine === d.faction)?.key ?? 'dominion';
-}
 
 export class Match {
   /** Hand card armed for play, and the targets clicked so far. */
@@ -461,7 +467,7 @@ export class Match {
     const h = this.hit(x, y);
     if (h?.kind === 'button') { this.press(h.id); return; }
     const d = { x, y, hot: h, touch, timer: 0, held: false, dead: false };
-    if (touch && h && h.kind !== 'spire') {
+    if (touch && h) {
       d.timer = window.setTimeout(() => {
         if (this.down !== d || this.drag) return;
         d.held = true;
@@ -640,16 +646,16 @@ export class Match {
     const [sx, sy] = this.fx.screen(t);
     g.ctx.save();
     g.ctx.translate(sx, sy);
-    this.drawBar(g, v, 1, 0);
-    this.drawFoeHand(g, v);
     this.drawMiddle(g, v, t);
     this.fx.drawUnder(g, t, HW);
     this.drawLine(g, v, 1, FOE_LINE_Y, t);
     this.drawLine(g, v, 0, MY_LINE_Y, t);
-    this.drawBar(g, v, 0, MY_BAR_Y);
+    this.drawTop(g, v);
     this.drawCombat(g, v, t);
     this.drawPiles(g, v);
     this.drawHand(g, v, t);
+    this.drawDial(g, v, 1, t);
+    this.drawDial(g, v, 0, t);
     this.fx.draw(g, t, HW, HH);
     g.ctx.restore();
     if (v.phase === 'over') this.drawOver(g, v);
@@ -730,67 +736,35 @@ export class Match {
     drawTextCentred(g, s, cx, cy - 3.6, { color: kind === 'power' ? 'ink' : 'steamWhite', face: 'bold', scale: 1.05, shadow: kind === 'power' ? undefined : 'ink' });
   }
 
-  private drawBar(g: Gfx, v: GameState, seat: Seat, y: number): void {
+  /** The top corners: MENU and LOG at the left with the foe's heroes under them; the foe's hand and piles. */
+  private drawTop(g: Gfx, v: GameState): void {
+    let x = 6;
+    for (const [id, label] of [['menu', 'MENU'], ['log', 'LOG']] as const) {
+      const w = textWidth(label, 0.9, 'display') + 14;
+      button(g, label, x, 4, { w, h: 14, state: this.hover?.id === id ? 'hot' : 'on' });
+      this.hots.push({ x, y: 4, w, h: 14, id, kind: 'button' });
+      x += w + 5;
+    }
+    this.drawFoeHand(g, v);
+    this.heroChips(g, v, 1, 6, 23, false);
+    this.heroChips(g, v, 0, 6, MY_LINE_Y + SLOT.h + 5, false);
+  }
+
+  /** Hero progress chips (R-H3, open information): a short name and Ascension progress; click for the card. */
+  private heroChips(g: Gfx, v: GameState, seat: Seat, x: number, y: number, right: boolean): void {
     const p = v.players[seat];
-    const ctx = g.ctx;
-    const gr = ctx.createLinearGradient(0, y, 0, y + 22);
-    gr.addColorStop(0, rgba('ironDark', 0.92));
-    gr.addColorStop(1, rgba('ironNight', 0.95));
-    ctx.fillStyle = gr;
-    ctx.fillRect(0, y, HW, 22);
-    rule(g, 0, seat === 1 ? y + 21 : y, HW);
-    const fk = p.deckList.length ? factionOf(p.deckList[0]) : 'dominion';
-    const em = emblem(fk);
-    if (em) drawPic(g, em, 2, y + 1, 20, 20);
-    const who = seat === 0 ? 'YOU' : 'FOE';
-    drawText(g, who, 26, y + 4, { color: seat === 0 ? 'brassGlint' : 'emberGlow', face: 'display', shadow: 'ink' });
-    if (v.initiative === seat) {
-      // the Initiative: a glowing brass diamond beside the name
-      const dx = 26 + textWidth(who, 1, 'display') + 6 - 49.5;
-      ctx.save();
-      ctx.translate(dx, 0);
-      ctx.shadowColor = rgba('brassGlint', 0.9);
-      ctx.shadowBlur = 4;
-      ctx.beginPath();
-      ctx.moveTo(49.5, y + 4); ctx.lineTo(52.5, y + 7.5); ctx.lineTo(49.5, y + 11); ctx.lineTo(46.5, y + 7.5);
-      ctx.closePath();
-      ctx.fillStyle = PALETTE.brassGlint;
-      ctx.fill();
-      ctx.restore();
-      this.hots.push({ x: 44 + dx, y: y + 1, w: 10, h: 10, id: 'initiative', kind: 'button' });
-    }
-    // the Crystal: a click target for "unit or Crystal" cards
-    const bx = 56;
-    const bossOn = this.nextChoices().has(spireId(seat));
-    const low = p.spire <= 5;
-    fillRound(g, bx, y + 1.5, 64, 19, low ? 'emberNight' : 'ink', 0.85, 4);
-    frame(g, bx, y + 1.5, 64, 19, bossOn ? 'brassGlint' : low ? 'ember' : 'crystalDark', 4, bossOn);
-    this.gem(g, bx + 10, y + 11, 7, low);
-    drawText(g, String(p.spire), bx + 22, y + 5, { color: low ? 'emberGlow' : 'steamWhite', face: 'bold', scale: 1.5, shadow: 'ink' });
-    drawText(g, 'Crystal', bx + 22 + textWidth(String(p.spire), 1.5, 'bold') + 3, y + 8, { color: low ? 'emberGlow' : 'crystalBright', scale: 0.85 });
-    this.hots.push({ x: bx, y: y + 1, w: 64, h: 19, id: spireId(seat), kind: 'spire' });
-    const parts: [string, string][] = [['Charge', `${p.charge}/${p.maxCharge}`], ['Reserve', `${p.reserve}`], ['Hand', `${p.hand.length}`], ['Deck', `${p.deck.length}`], ['Scrap', `${p.scrap.length}`]];
-    let ix = 128;
-    for (const [k, val] of parts) {
-      const start = ix;
-      drawText(g, k, ix, y + 2.5, { color: 'ironLight', scale: 0.9 });
-      ix += textWidth(k, 0.9) + 3;
-      drawText(g, val, ix, y + 2.5, { color: k === 'Charge' ? 'crystalBright' : 'steamWhite', face: 'bold', scale: 0.9 });
-      ix += textWidth(val, 0.9, 'bold') + 10;
-      // Deck and Scrap open their viewers for this player
-      if (k === 'Scrap' || k === 'Deck') this.hots.push({ x: start - 2, y: y + 1, w: ix - start - 6, h: 9, id: `${k.toLowerCase()}${seat}`, kind: 'button' });
-    }
-    // campaign Orders (spec 21 R-X6), open information: hover or hold to read them
+    const maxX = HW / 2 - (seat === 0 ? DIAL_GAP : FOE_DIAL.r + 70);
+    // campaign Orders (spec 21 R-X6), open information: hover or hold to read them; drawn first so it always fits
     const orders = p.orders ?? [];
     if (orders.length) {
       const label = `Orders ${orders.length}`;
-      const ow = textWidth(label, 0.9, 'bold') + 8;
-      fillRound(g, ix - 2, y + 1.5, ow, 10, 'brassShadow', 0.8, 3);
-      drawText(g, label, ix + 2, y + 2.5, { color: 'brassGlint', face: 'bold', scale: 0.9 });
-      this.hots.push({ x: ix - 2, y: y + 1, w: ow, h: 10, id: `orders${seat}`, kind: 'orders' });
+      const ow = textWidth(label, 0.85, 'bold') + 12;
+      fillRound(g, x, y, ow, 12, 'brassShadow', 0.8, 6);
+      frame(g, x, y, ow, 12, this.hover?.id === `orders${seat}` ? 'brassGlint' : 'brassDark', 6, false);
+      drawText(g, label, x + 6, y + 2.5, { color: 'brassGlint', face: 'bold', scale: 0.85 });
+      this.hots.push({ x, y, w: ow, h: 12, id: `orders${seat}`, kind: 'orders' });
+      x += ow + 4;
     }
-    // hero progress, open information (R-H3)
-    let hx = 128;
     for (const h of p.heroes) {
       const d = def(h);
       const asc = p.ascended.includes(h);
@@ -798,20 +772,223 @@ export class Match {
       const have = lv ? (lv.who === 'you' ? p.seen[lv.stat] ?? 0 : 0) : 0;
       const words = face(v, seat, h).name.split(',')[0].split(' ');
       const short = (words.length > 2 ? words.slice(1) : words).join(' ');
-      const label = `${short} ${asc ? 'ascended' : lv ? `${Math.min(have, lv.n)}/${lv.n}` : ''}`;
-      drawText(g, label, hx, y + 12.5, { color: asc ? 'brassGlint' : 'steam', scale: 0.9 });
-      this.hots.push({ x: hx, y: y + 11, w: textWidth(label, 0.9), h: 9, id: h, kind: 'hero' });
-      hx += textWidth(label, 0.9) + 12;
+      const label = `${short} ${asc ? 'ascended' : lv ? `${Math.min(have, lv.n)}/${lv.n}` : ''}`.trim();
+      const w = textWidth(label, 0.85) + 12;
+      if (x + w > maxX) break;
+      const hot = this.hover?.id === h;
+      fillRound(g, x, y, w, 12, asc ? 'brassShadow' : 'ink', 0.75, 6);
+      frame(g, x, y, w, 12, hot || asc ? 'brassGlint' : seat === 0 ? 'brassDark' : 'emberDeep', 6, asc);
+      drawText(g, label, x + 6, y + 2.5, { color: asc ? 'brassGlint' : 'steam', scale: 0.85 });
+      this.hots.push({ x, y, w, h: 12, id: h, kind: 'hero' });
+      x += w + 4;
     }
-    if (seat === 0) {
-      const mw = button(g, 'MENU', HW - 6 - (textWidth('MENU', 1, 'display') + 16), y + 3, { h: 15 });
-      const mx = HW - 6 - mw;
-      this.hots.push({ x: mx, y: y + 3, w: mw, h: 15, id: 'menu', kind: 'button' });
-      const lw = textWidth('LOG', 1, 'display') + 16;
-      const lx = mx - 6 - lw;
-      button(g, 'LOG', lx, y + 3, { h: 15 });
-      this.hots.push({ x: lx, y: y + 3, w: lw, h: 15, id: 'log', kind: 'button' });
+    void right;
+  }
+
+  /** Charge and Reserve a card in my hand would spend: a tactic spends Reserve first, then Charge (R-C2). */
+  private costPreview(v: GameState): { charge: number; reserve: number } | null {
+    const iid = this.drag?.iid ?? this.armed?.iid ?? (this.hover?.kind === 'hand' && !this.down?.touch ? this.hover.id : null);
+    if (!iid) return null;
+    const h = v.players[0].hand.find((x) => x.iid === iid);
+    if (!h) return null;
+    const cost = costOf(this.s, 0, h.card);
+    const p = v.players[0];
+    if (def(h.card).type === 'glyph') {
+      const r = Math.min(p.reserve, cost);
+      return { reserve: r, charge: Math.min(p.charge, cost - r) };
     }
+    return { reserve: 0, charge: Math.min(p.charge, cost) };
+  }
+
+  /** Segment levels shown on each dial, easing toward the engine's numbers so spends drain and refills light up. */
+  private seg: number[][] = [Array(LIMITS.maxCharge).fill(-1), Array(LIMITS.maxCharge).fill(-1)];
+  private res: number[][] = [Array(LIMITS.reserve).fill(-1), Array(LIMITS.reserve).fill(-1)];
+  private shownSpire: number[] = [-1, -1];
+  private hubFlash: number[] = [0, 0];
+
+  /**
+   * A player's dial (PLAN D37). Hub: the Crystal (its number; ember at 5 or less; the target for Crystal cards).
+   * Outer ring: ten Charge segments (lit = left this round, dim = spent, dark = not yet unlocked, R-C1).
+   * Inner ring: three Reserve arcs (R-C4). A brass clock hand beside the dial marks the Initiative.
+   */
+  private drawDial(g: Gfx, v: GameState, seat: Seat, t: number): void {
+    const p = v.players[seat];
+    const D = seat === 0 ? MY_DIAL : FOE_DIAL;
+    const cx = HW / 2, cy = D.y, r = D.r;
+    const ctx = g.ctx;
+    const foe = seat === 1;
+    const preview = seat === 0 ? this.costPreview(v) : null;
+    const pulse = 0.5 + 0.5 * Math.sin(t / 4);
+    // backing disc and brass rim
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 8, 0, Math.PI * 2);
+    ctx.fillStyle = PALETTE.ironNight;
+    ctx.fill();
+    ctx.restore();
+    const rim = ctx.createLinearGradient(0, cy - r - 8, 0, cy + r + 8);
+    rim.addColorStop(0, PALETTE.brassGlint);
+    rim.addColorStop(0.5, PALETTE.brass);
+    rim.addColorStop(1, PALETTE.brassDark);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = rim;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 8, 0, Math.PI * 2);
+    ctx.stroke();
+    // Charge: ten segments, easing toward lit (1), spent (0.35) or locked (0)
+    const n = LIMITS.maxCharge;
+    const lit: Ink = foe ? 'emberGlow' : 'brassLight';
+    for (let i = 0; i < n; i++) {
+      const target = i < p.charge ? 1 : i < p.maxCharge ? 0.35 : 0;
+      const cur = this.seg[seat][i] < 0 ? target : this.seg[seat][i];
+      const next = Math.abs(target - cur) < 0.02 ? target : cur + (target - cur) * 0.14;
+      const a0 = -Math.PI / 2 + (i * 2 * Math.PI) / n + 0.07, a1 = a0 + (2 * Math.PI) / n - 0.14;
+      if (cur > 0.9 && target < 0.5) {
+        // a spent segment lets off a puff of sparks
+        this.fx.burst(cx + Math.cos((a0 + a1) / 2) * r, cy + Math.sin((a0 + a1) / 2) * r, [lit, 'steamWhite'], 6, t, { speed: 1.6, life: 18, size: 1.4 });
+      } else if (cur >= 0 && cur < 0.5 && target === 1 && this.seg[seat][i] >= 0) {
+        this.fx.burst(cx + Math.cos((a0 + a1) / 2) * r, cy + Math.sin((a0 + a1) / 2) * r, [lit], 4, t + i * 2, { speed: 1, life: 16, size: 1.2 });
+      }
+      this.seg[seat][i] = next;
+      const spend = preview && i >= p.charge - preview.charge && i < p.charge;
+      ctx.save();
+      ctx.lineCap = 'butt';
+      ctx.lineWidth = foe ? 7 : 8;
+      if (next <= 0.01) ctx.strokeStyle = PALETTE.ironDark;
+      else if (next < 0.6) ctx.strokeStyle = rgba('brassShadow', 1);
+      else ctx.strokeStyle = PALETTE[lit];
+      if (spend) ctx.strokeStyle = rgba('steamWhite', 0.55 + 0.45 * pulse);
+      if (next >= 0.6 || spend) {
+        ctx.shadowColor = rgba(spend ? 'steamWhite' : lit, 0.9);
+        ctx.shadowBlur = 6;
+      }
+      ctx.globalAlpha = next <= 0.01 ? 1 : Math.max(0.55, Math.min(1, next));
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, a0, a1);
+      ctx.stroke();
+      ctx.restore();
+      if (next > 0.01 && next < 0.6) {
+        ctx.save();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = rgba('brass', 0.55);
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + (foe ? 3.5 : 4), a0, a1);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+    // Reserve: three arcs inside the Charge ring
+    const rr = r - (foe ? 7 : 8);
+    for (let i = 0; i < LIMITS.reserve; i++) {
+      const target = i < p.reserve ? 1 : 0;
+      const cur = this.res[seat][i] < 0 ? target : this.res[seat][i];
+      const next = Math.abs(target - cur) < 0.02 ? target : cur + (target - cur) * 0.1;
+      const a0 = -Math.PI / 2 + (i * 2 * Math.PI) / 3 + 0.16, a1 = a0 + (2 * Math.PI) / 3 - 0.32;
+      if (cur < 0.5 && target === 1 && this.res[seat][i] >= 0) {
+        this.fx.rise(cx + Math.cos((a0 + a1) / 2) * rr, cy + Math.sin((a0 + a1) / 2) * rr, [foe ? 'emberBright' : 'crystalBright'], 5, t, 8);
+      }
+      this.res[seat][i] = next;
+      const spend = preview && i >= p.reserve - preview.reserve && i < p.reserve;
+      ctx.save();
+      ctx.lineWidth = foe ? 3.5 : 4;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = PALETTE.ironDark;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rr, a0, a1);
+      ctx.stroke();
+      if (next > 0.02 || spend) {
+        const ink: Ink = foe ? 'emberBright' : 'crystalBright';
+        ctx.strokeStyle = spend ? rgba('steamWhite', 0.55 + 0.45 * pulse) : rgba(ink, Math.min(1, next));
+        ctx.shadowColor = rgba(spend ? 'steamWhite' : ink, 0.9);
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(cx, cy, rr, a0, a0 + (a1 - a0) * (spend ? 1 : next));
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    // the Crystal at the hub
+    const hr = rr - (foe ? 5 : 6);
+    if (this.shownSpire[seat] >= 0 && p.spire < this.shownSpire[seat]) this.hubFlash[seat] = 1;
+    this.shownSpire[seat] = p.spire;
+    this.hubFlash[seat] *= 0.9;
+    const low = p.spire <= 5;
+    const ramp: [Ink, Ink, Ink] = foe || low ? ['emberGlow', 'ember', 'emberNight'] : ['crystalWhite', 'crystal', 'crystalDeep'];
+    ctx.save();
+    ctx.shadowColor = rgba(ramp[1], low ? 0.6 + 0.4 * pulse : 0.8);
+    ctx.shadowBlur = low ? 8 + 8 * pulse : 8;
+    const hg = ctx.createRadialGradient(cx - hr * 0.35, cy - hr * 0.4, hr * 0.1, cx, cy, hr);
+    hg.addColorStop(0, PALETTE[ramp[0]]);
+    hg.addColorStop(0.5, PALETTE[ramp[1]]);
+    hg.addColorStop(1, PALETTE[ramp[2]]);
+    ctx.beginPath();
+    ctx.arc(cx, cy, hr, 0, Math.PI * 2);
+    ctx.fillStyle = hg;
+    ctx.fill();
+    ctx.restore();
+    if (this.hubFlash[seat] > 0.02) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = rgba('steamWhite', this.hubFlash[seat] * 0.7);
+      ctx.beginPath();
+      ctx.arc(cx, cy, hr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.fillStyle = rgba('steamWhite', 0.3);
+    ctx.beginPath();
+    ctx.ellipse(cx - hr * 0.3, cy - hr * 0.45, hr * 0.34, hr * 0.16, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+    const shake = this.hubFlash[seat] > 0.2 ? Math.sin(t * 2) * 2 * this.hubFlash[seat] : 0;
+    drawTextCentred(g, String(p.spire), cx + shake, cy - (foe ? 8 : 10), { color: 'steamWhite', face: 'bold', scale: foe ? 1.55 : 1.85, outline: 'ink' });
+    drawTextCentred(g, `${p.charge}/${p.maxCharge}`, cx, cy + (foe ? 4 : 5), { color: foe ? 'emberGlow' : 'brassGlint', face: 'bold', scale: 0.8, outline: 'ink' });
+    // a target for "unit or Crystal" cards
+    const on = this.nextChoices().has(spireId(seat));
+    if (on) frame(g, cx - r - 9, cy - r - 9, 2 * r + 18, 2 * r + 18, 'brassGlint', r + 9, true);
+    this.hots.push({ x: cx - r - 8, y: cy - r - 8, w: 2 * r + 16, h: 2 * r + 16, id: spireId(seat), kind: 'spire' });
+    // the Initiative: a brass clock hand on the dial's left shoulder, pointing at the hub
+    if (v.initiative === seat) {
+      const a = Math.PI + (foe ? -0.55 : 0.55);
+      const hx = cx + Math.cos(a) * (r + 17), hy = cy + Math.sin(a) * (r + 17);
+      ctx.save();
+      ctx.translate(hx, hy);
+      ctx.rotate(a - Math.PI / 2);
+      ctx.shadowColor = rgba('brassGlint', 0.9);
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(0, 9); ctx.lineTo(4.5, -1); ctx.lineTo(0, -6); ctx.lineTo(-4.5, -1);
+      ctx.closePath();
+      ctx.fillStyle = PALETTE.brassGlint;
+      ctx.fill();
+      ctx.restore();
+      this.hots.push({ x: hx - 7, y: hy - 7, w: 14, h: 14, id: 'initiative', kind: 'button' });
+    }
+  }
+
+  /** A dial explained, for a mouse over it or a held finger: every number on it, from the engine. */
+  private drawDialInfo(g: Gfx, v: GameState, seat: Seat): void {
+    const p = v.players[seat];
+    const rows: [string, string][] = [
+      ['Crystal', `${p.spire} of ${LIMITS.spire}`],
+      ['Charge', `${p.charge} left of ${p.maxCharge} (rises by 1 a round, up to ${LIMITS.maxCharge})`],
+      ['Reserve', `${p.reserve} of ${LIMITS.reserve} (unspent Charge kept from last round; tactics spend it first)`],
+      ['Hand', String(p.hand.length)], ['Deck', String(p.deck.length)], ['Scrap', String(p.scrap.length)],
+    ];
+    if (v.initiative === seat) rows.push(['Initiative', 'acts first this round']);
+    const w = 250;
+    const lines = rows.flatMap(([k, val]) => wrapPx(val, w - 70, 0.9).map((l, i) => [i === 0 ? k : '', l] as [string, string]));
+    const h = 24 + lines.length * 10 + 4;
+    const x = Math.round(HW / 2 + (seat === 0 ? MY_DIAL.r : FOE_DIAL.r) + 18);
+    const y = seat === 0 ? MY_DIAL.y - h + 10 : FOE_DIAL.y - 10;
+    panel(g, Math.min(x, HW - w - 4), y, w, h, { tone: 'dark' });
+    const px = Math.min(x, HW - w - 4);
+    drawText(g, seat === 0 ? 'YOUR CRYSTAL' : "THE FOE'S CRYSTAL", px + 8, y + 7, { color: seat === 0 ? 'brassGlint' : 'emberGlow', face: 'display' });
+    lines.forEach(([k, val], i) => {
+      if (k) drawText(g, k, px + 8, y + 22 + i * 10, { color: 'ironLight', scale: 0.9 });
+      drawText(g, val, px + 64, y + 22 + i * 10, { color: 'steamWhite', scale: 0.9 });
+    });
   }
 
   private unitTile(g: Gfx, v: GameState, u: Unit, x: number, y: number, t: number, role: string): void {
@@ -980,10 +1157,10 @@ export class Match {
     ctx.fillRect(0, top, HW, h);
     const pr = this.note || this.prompt();
     const lines = wrapPx(pr, HW - 16, 1, 'bold').slice(0, 2);
-    const py = lines.length > 1 ? MID_Y + 8 : MID_Y + 12;
+    const py = lines.length > 1 ? MID_Y + 2 : MID_Y + 6;
     lines.forEach((l, i) => drawTextCentred(g, l, HW / 2, py + i * 10, { color: this.note ? 'emberGlow' : 'brassGlint', face: 'bold', shadow: 'ink' }));
     // the stack as a row of chips, newest first; the round when it is empty
-    const rowY = MID_Y + 30;
+    const rowY = MID_Y + 22;
     const btnW = this.buttons().reduce((a, b) => a + textWidth(b.label, 1, 'display') + 28, 0);
     const maxX = HW - 8 - btnW - 6;
     let sx = 8;
@@ -1022,48 +1199,82 @@ export class Match {
     void t;
   }
 
-  /** The foe's hand as small card backs, centred, so its size can be seen at a glance; its piles sit at the right. */
+  /** The foe's hand as card backs to the left of its dial; its Deck and Scrap at the top right. */
   private drawFoeHand(g: Gfx, v: GameState): void {
     const p = v.players[1];
     const n = p.hand.length;
-    const bw = 12, bh = 16;
-    const dx = n > 1 ? Math.min(bw + 3, 200 / (n - 1)) : 0;
+    const bw = 13, bh = 18;
+    const right = HW / 2 - FOE_DIAL.r - 26;
+    const dx = n > 1 ? Math.min(bw + 2, 140 / (n - 1)) : 0;
     const total = n ? bw + (n - 1) * dx : 0;
-    let x = HW / 2 - total / 2;
-    const y = FOE_HAND_Y + 1;
+    const y = 4;
+    let x = right - total;
     for (let i = 0; i < n; i++) {
       this.cardBack(g, x, y, bw, bh);
       x += dx;
     }
-    if (n === 0) drawTextCentred(g, 'no cards in hand', HW / 2, y + 4, { color: 'ironLight', scale: 0.85 });
-    else drawText(g, String(n), HW / 2 + total / 2 + 5, y + 3.5, { color: 'emberGlow', face: 'bold' });
-    // the foe's Deck and Scrap, small, at the right
+    drawTextCentred(g, n ? String(n) : '0', right + 9, y + 4, { color: 'emberGlow', face: 'bold', outline: 'ink' });
+    // the foe's Deck and Scrap, small, at the top right
     let rx = HW - 6;
     for (const [id, label, count] of [['scrap1', 'Scrap', p.scrap.length], ['deck1', 'Deck', p.deck.length]] as const) {
-      const w = textWidth(`${label} ${count}`, 0.9, 'bold') + 24;
+      const w = 30, h = 38;
       rx -= w;
-      const hot = this.hover?.id === id;
-      fillRound(g, rx, y - 1, w, bh + 2, hot ? 'emberNight' : 'ink', 0.8, 3);
-      frame(g, rx, y - 1, w, bh + 2, hot ? 'emberGlow' : 'emberDeep', 3);
-      if (label === 'Deck') this.cardBack(g, rx + 3, y + 1, 9, 12);
-      else this.cardFace(g, rx + 3, y + 1, 9, 12);
-      drawText(g, `${label} ${count}`, rx + 16, y + 4, { color: 'steamWhite', face: 'bold', scale: 0.9 });
-      this.hots.push({ x: rx, y: y - 1, w, h: bh + 2, id, kind: 'button' });
-      rx -= 6;
+      this.pile(g, rx, y + 2, w, h, id === 'scrap1' ? p.scrap[p.scrap.length - 1] ?? null : null, count, label, id, id === 'deck1');
+      rx -= 10;
     }
   }
 
+  /**
+   * A pile: a little stack of cards with its count, its name under it, a click target. The Deck shows backs; the
+   * Scrap shows the face of its newest card (open information).
+   */
+  private pile(g: Gfx, x: number, y: number, w: number, h: number, topCard: string | null, count: number, label: string, id: string, back: boolean): void {
+    const hot = this.hover?.id === id;
+    const layers = Math.min(3, count);
+    for (let i = layers - 1; i >= 0; i--) {
+      const ox = x + i * 2, oy = y - i * 2;
+      if (back) this.cardBack(g, ox, oy, w - 4, h - 4, id.endsWith('1'));
+      else if (i === 0 && topCard) {
+        const art = cardArt(topCard, false);
+        fillRound(g, ox, oy, w - 4, h - 4, 'ironNight', 1, 3);
+        if (art) {
+          const un = clipRound(g, ox + 1, oy + 1, w - 6, h - 6, 2.5);
+          const k = Math.max((w - 6) / 64, (h - 6) / 48);
+          const sw = (w - 6) / k, sh = (h - 6) / k;
+          drawPic(g, art, ox + 1, oy + 1, w - 6, h - 6, { x: (64 - sw) / 2, y: (48 - sh) / 2, w: sw, h: sh });
+          un();
+        }
+        g.wash(ox, oy, w - 4, h - 4, 'ink', 0.35);
+        frame(g, ox, oy, w - 4, h - 4, 'ironLight', 3);
+      } else this.cardFace(g, ox, oy, w - 4, h - 4);
+    }
+    if (count === 0) {
+      fillRound(g, x, y, w - 4, h - 4, 'ink', 0.45, 3);
+      g.ctx.save();
+      g.ctx.setLineDash([3, 3]);
+      frame(g, x + 0.5, y + 0.5, w - 5, h - 5, 'brassDark', 3);
+      g.ctx.restore();
+    }
+    if (hot) frame(g, x - 2, y - 6, w + 2, h + 6, 'brassGlint', 4, true);
+    const cx = x + (w - 4) / 2;
+    const big = w > 36;
+    fillRound(g, cx - (big ? 13 : 10), y + h / 2 - (big ? 12 : 9), big ? 26 : 20, big ? 15 : 12, 'ink', 0.8, 4);
+    drawTextCentred(g, String(count), cx, y + h / 2 - (big ? 10 : 7.5), { color: 'steamWhite', face: 'bold', scale: big ? 1.2 : 0.95 });
+    drawTextCentred(g, label.toUpperCase(), cx, y + h + (big ? 2 : 0), { color: hot ? 'brassGlint' : 'ironLight', face: 'display', scale: big ? 0.85 : 0.7, shadow: 'ink' });
+    this.hots.push({ x: x - 2, y: y - 6, w: w + 2, h: h + (big ? 18 : 14), id, kind: 'button' });
+  }
+
   /** A face-down card: iron with an ember border and a small crystal in the middle. */
-  private cardBack(g: Gfx, x: number, y: number, w: number, h: number): void {
+  private cardBack(g: Gfx, x: number, y: number, w: number, h: number, foe = true): void {
     const ctx = g.ctx;
     ctx.save();
     ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
     ctx.shadowBlur = 2;
-    fillRound(g, x, y, w, h, 'emberNight', 0.97, 2);
+    fillRound(g, x, y, w, h, foe ? 'emberNight' : 'ironNight', 0.97, 2);
     ctx.restore();
-    frame(g, x, y, w, h, 'emberDeep', 2);
-    frame(g, x + 1.5, y + 1.5, w - 3, h - 3, 'brassShadow', 1.5);
-    this.gem(g, x + w / 2, y + h / 2, Math.min(w, h) * 0.28, false);
+    frame(g, x, y, w, h, foe ? 'emberDeep' : 'brassDark', 2);
+    frame(g, x + 1.5, y + 1.5, w - 3, h - 3, foe ? 'brassShadow' : 'crystalDeep', 1.5);
+    this.gem(g, x + w / 2, y + h / 2, Math.min(w, h) * 0.28, foe);
   }
 
   /** A face-up pile marker (the Scrap): a pale card with lines of text. */
@@ -1073,42 +1284,18 @@ export class Match {
     for (let i = 0; i < 3; i++) g.rect(x + 2, y + 3 + i * (h / 4), w - 4, 1, 'ironNight');
   }
 
-  /** My Deck (left of the hand) and Scrap (right of it), each a little stack with its count; click to look inside. */
+  /** My Deck at the far left of the hand row and my Scrap at the far right (PLAN D37); click to look inside. */
   private drawPiles(g: Gfx, v: GameState): void {
     const p = v.players[0];
-    const y = HAND_Y + (CARD.h - PILE.h) / 2 - 4;
-    const piles: [string, string, number, number, boolean][] = [
-      ['deck0', 'DECK', p.deck.length, 6, true],
-      ['scrap0', 'SCRAP', p.scrap.length, HW - 6 - PILE.w, false],
-    ];
-    for (const [id, label, count, x, back] of piles) {
-      const hot = this.hover?.id === id;
-      const layers = Math.min(3, count);
-      for (let i = layers - 1; i >= 0; i--) {
-        const ox = x + i * 2, oy = y - i * 2;
-        if (back) this.cardBack(g, ox, oy, PILE.w - 4, PILE.h - 4);
-        else this.cardFace(g, ox, oy, PILE.w - 4, PILE.h - 4);
-      }
-      if (count === 0) {
-        fillRound(g, x, y, PILE.w - 4, PILE.h - 4, 'ink', 0.45, 3);
-        g.ctx.save();
-        g.ctx.setLineDash([3, 3]);
-        frame(g, x + 0.5, y + 0.5, PILE.w - 5, PILE.h - 5, 'brassDark', 3);
-        g.ctx.restore();
-      }
-      if (hot) frame(g, x - 2, y - 6, PILE.w + 2, PILE.h + 6, 'brassGlint', 4, true);
-      const cx = x + (PILE.w - 4) / 2;
-      fillRound(g, cx - 13, y + PILE.h / 2 - 12, 26, 15, 'ink', 0.8, 4);
-      drawTextCentred(g, String(count), cx, y + PILE.h / 2 - 10, { color: 'steamWhite', face: 'bold', scale: 1.2 });
-      drawTextCentred(g, label, cx, y + PILE.h + 2, { color: hot ? 'brassGlint' : 'ironLight', face: 'display', scale: 0.85, shadow: 'ink' });
-      this.hots.push({ x: x - 2, y: y - 6, w: PILE.w + 2, h: PILE.h + 18, id, kind: 'button' });
-    }
+    const y = HAND_Y + 12;
+    this.pile(g, 6, y, PILE.w, PILE.h, null, p.deck.length, 'Deck', 'deck0', true);
+    this.pile(g, HW - 6 - PILE.w, y, PILE.w, PILE.h, p.scrap[p.scrap.length - 1] ?? null, p.scrap.length, 'Scrap', 'scrap0', false);
   }
 
   private drawHand(g: Gfx, v: GameState, _t: number): void {
     const p = v.players[0];
     const acts = this.acts();
-    const cg = cardGeo(p.hand.length);
+    const cg = handGeo(p.hand.length);
     const cw = cg.w;
     // the card under the pointer (or the armed one) is drawn last, lifted, so an overlapped hand can still be read
     const top = p.hand.findIndex((h) => h.iid === (this.armed?.iid ?? (this.hover?.kind === 'hand' ? this.hover.id : '')));
@@ -1116,7 +1303,7 @@ export class Match {
     if (top >= 0) { order.splice(top, 1); order.push(top); }
     for (const i of order) {
       const h = p.hand[i];
-      const x = Math.round(cg.x0 + i * cg.dx);
+      const x = cg.xs[i];
       const armed = this.armed?.iid === h.iid;
       if (this.drag?.iid === h.iid) {
         // its place in the hand stays marked while it is carried
@@ -1133,7 +1320,7 @@ export class Match {
       this.handCard(g, v, h.card, x, y, cw, edge, armed, marked);
       this.hots.push({ x, y, w: cw, h: CARD.h, id: h.iid, kind: 'hand' });
     }
-    if (p.hand.length === 0) drawTextCentred(g, 'Your hand is empty', HW / 2, HAND_Y + 40, { color: 'ironLight' });
+    if (p.hand.length === 0) drawTextCentred(g, 'Your hand is empty', HW / 4 + 20, HAND_Y + 40, { color: 'ironLight' });
   }
 
   /** One hand card's face at x, y (in the hand, or carried by a drag). */
@@ -1205,7 +1392,7 @@ export class Match {
       const h = this.hit(dg.x, dg.y);
       if (h && this.nextChoices().has(h.id)) frame(g, h.x - 2, h.y - 2, h.w + 4, h.h + 4, 'crystalBright', 5, true);
     }
-    const cw = cardGeo(v.players[0].hand.length).w;
+    const cw = handGeo(v.players[0].hand.length).w;
     const k = overHand ? 1 : 1.1;
     g.ctx.save();
     g.ctx.translate(dg.x, dg.y);
@@ -1226,7 +1413,7 @@ export class Match {
     for (const b of [...btns].reverse()) {
       const w = bw(b);
       x -= w;
-      const y = over ? 226 : MID_Y + 29;
+      const y = over ? 226 : MID_Y + 21;
       button(g, b.label, x, y, { w, h: 17, state: b.enabled ? (this.hover?.id === b.id ? 'hot' : 'on') : 'off' });
       if (b.enabled) this.hots.push({ x, y, w, h: 17, id: b.id, kind: 'button' });
       x -= 8;
@@ -1271,6 +1458,7 @@ export class Match {
       cardId = h.id;
       seat = v.players[0].heroes.includes(h.id) ? 0 : 1;
     }
+    if (h.kind === 'spire') { this.drawDialInfo(g, v, h.id === spireId(0) ? 0 : 1); return; }
     if (!cardId || cardId === '?') { this.zoom = { key: '', k: 0 }; return; }
     const d = def(cardId);
     const f = face(v, seat, cardId);
@@ -1382,7 +1570,7 @@ export class Match {
       ctx.restore();
     };
     const defender: Seat = c.attacker === 0 ? 1 : 0;
-    const crystal: [number, number] = [66, defender === 0 ? MY_BAR_Y + 12 : 12];
+    const crystal: [number, number] = this.crystalAt(defender);
     for (const pr of c.pairs) {
       const a = this.pos.get(pr.att);
       if (!a) continue;
@@ -1393,11 +1581,11 @@ export class Match {
 
   /** Where a player's cards come from: the middle of their hand. */
   private sideOrigin(seat: Seat): Pt {
-    return seat === 0 ? [HW / 2, HAND_Y + 30] : [HW / 2, FOE_HAND_Y + 8];
+    return seat === 0 ? [HW / 4, HAND_Y + 40] : [HW / 2 - FOE_DIAL.r - 60, 14];
   }
 
   private crystalAt(seat: Seat | undefined): Pt {
-    return [66, seat === 0 ? MY_BAR_Y + 12 : 12];
+    return [HW / 2, seat === 0 ? MY_DIAL.y : FOE_DIAL.y];
   }
 
   /**
@@ -1667,7 +1855,7 @@ export class Match {
   private drawDrawer(g: Gfx, v: GameState): void {
     const w = drawerW();
     const ease = 1 - (1 - this.drawerT) ** 3;
-    const x = Math.round(HW - w * ease), y = FOE_HAND_Y, h = HH - y - 4;
+    const x = Math.round(HW - w * ease), y = 24, h = HH - y - 4;
     g.wash(0, 0, x, HH, 'ink', 0.25 * ease);
     panel(g, x, y, w + 6, h, { tone: 'dark' });
     this.hots.push({ x, y, w, h, id: 'drawer-bg', kind: 'button' });

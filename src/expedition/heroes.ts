@@ -11,7 +11,8 @@ export interface RunHero {
   starter: Record<string, number>;
   /** R-E12: the hero bundle draws from these. */
   pool: string[];
-  /** R-E13: rank 3, rank 5 and rank 8 unlocks. */
+  /** R-E13: the Order every run with this hero starts with (rank 1), then the rank 3, 5 and 8 unlocks. */
+  innateOrder: string;
   signatureOrder: string;
   signatureFitting: string;
   masteryOrder: string;
@@ -22,16 +23,16 @@ export const HEROES: RunHero[] = [
     id: 'prism-tamsin', faction: 'prism',
     plan: 'Fields a wall of small soldiers and keeps building them up.',
     starter: {
-      'prism-tamsin': 3, 'prism-facet-initiate': 2, 'prism-lampkeeper': 2, 'prism-shield-sergeant': 2, 'prism-lock-shields': 2,
-      'prism-rampart-herald': 2, 'prism-chorus-warden': 1, 'prism-sentinel-lens': 2, 'prism-tier-rally': 2, 'prism-crystal-bulwark': 2,
-      'prism-tierguard': 2, 'prism-vault-captain': 2,
+      'prism-tamsin': 3, 'prism-lampkeeper': 2, 'prism-lock-shields': 2, 'prism-rampart-herald': 2, 'prism-chorus-warden': 2,
+      'prism-sentinel-lens': 2, 'prism-tier-rally': 2, 'prism-crystal-bulwark': 2, 'prism-tierguard': 2, 'prism-vault-captain': 2,
+      'prism-aegis-colossus': 2, 'prism-lightwall-matron': 1,
     },
     pool: [
       'prism-grand-muster', 'prism-lens-battery', 'prism-cohort-drillmaster', 'prism-shoulder-to-shoulder', 'prism-choir-of-facets',
-      'prism-muster-bell', 'prism-gilded-phalanx', 'prism-lightwall-matron', 'prism-aegis-colossus', 'prism-call-out', 'prism-crystal-dawn',
+      'prism-muster-bell', 'prism-gilded-phalanx', 'prism-shield-sergeant', 'prism-facet-initiate', 'prism-call-out', 'prism-crystal-dawn',
       'prism-pane-mender',
     ],
-    signatureOrder: 'sig-drill-square', signatureFitting: 'sig-bastion-plate', masteryOrder: 'mst-muster-call',
+    innateOrder: 'inn-muster-drums', signatureOrder: 'sig-drill-square', signatureFitting: 'sig-bastion-plate', masteryOrder: 'mst-shield-wall',
   },
   {
     id: 'ember-crucible', faction: 'ember',
@@ -44,22 +45,22 @@ export const HEROES: RunHero[] = [
       'ember-crucibleherald', 'ember-cinderhail', 'ember-moltenwarden', 'ember-rivethurler', 'ember-blastminer', 'ember-heatlance',
       'ember-ventburst', 'ember-flarebot', 'ember-pitpromoter', 'ember-overpressure', 'ember-firestorm', 'ember-foundrytitan',
     ],
-    signatureOrder: 'sig-kindled-sparks', signatureFitting: 'sig-choir-bell', masteryOrder: 'mst-choir-fire',
+    innateOrder: 'inn-cinder-psalm', signatureOrder: 'sig-kindled-sparks', signatureFitting: 'sig-choir-bell', masteryOrder: 'mst-choir-fire',
   },
   {
     id: 'tide-maren', faction: 'tide',
     plan: 'Plays a stream of cheap tactics, freezing and drawing as she goes.',
     starter: {
-      'tide-maren': 3, 'tide-wardtender': 2, 'tide-reedmarshheron': 2, 'tide-heldbreath': 2, 'tide-mooringline': 2,
-      'tide-lockkeeper': 2, 'tide-stillwaterbailiff': 2, 'tide-pearlsentinel': 2, 'tide-sluicegatebehemoth': 2, 'tide-mirroreel': 2,
-      'tide-siltnewt': 2, 'tide-frostmeremagistrate': 1,
+      'tide-maren': 3, 'tide-mirroreel': 2, 'tide-wardtender': 2, 'tide-reedmarshheron': 2, 'tide-heldbreath': 2,
+      'tide-sluiceclose': 2, 'tide-lockkeeper': 2, 'tide-stillwaterbailiff': 2, 'tide-pearlsentinel': 2, 'tide-sluicegatebehemoth': 2,
+      'tide-backwash': 2, 'tide-floodwallcolossus': 1,
     },
     pool: [
-      'tide-rifflethestacks', 'tide-backwash', 'tide-unwrite', 'tide-sluiceclose', 'tide-glassarchivist', 'tide-hushwateradept',
+      'tide-rifflethestacks', 'tide-mooringline', 'tide-unwrite', 'tide-frostmeremagistrate', 'tide-glassarchivist', 'tide-hushwateradept',
       'tide-weirgolem', 'tide-tidemarkreader', 'tide-backflowlancer', 'tide-deepwateroracle', 'tide-ripplescribe',
       'tide-sluicesweep',
     ],
-    signatureOrder: 'sig-tide-charts', signatureFitting: 'sig-captains-ward', masteryOrder: 'mst-quick-hands',
+    innateOrder: 'inn-becalmed', signatureOrder: 'sig-harbor-wards', signatureFitting: 'sig-captains-ward', masteryOrder: 'mst-quick-hands',
   },
   {
     id: 'coil-aruvi', faction: 'coil',
@@ -72,7 +73,7 @@ export const HEROES: RunHero[] = [
       'coil-behemoth', 'coil-horncrown', 'coil-domewyrm', 'coil-bramblehulk', 'coil-transplant', 'coil-grafting', 'coil-overgrowth',
       'coil-sap-surge', 'coil-verdant-surge', 'coil-ridge-howler', 'coil-canopy-rampage', 'coil-bristle',
     ],
-    signatureOrder: 'sig-deep-roots', signatureFitting: 'sig-heartwood', masteryOrder: 'mst-old-growth',
+    innateOrder: 'inn-root-song', signatureOrder: 'sig-deep-roots', signatureFitting: 'sig-heartwood', masteryOrder: 'mst-old-growth',
   },
   {
     id: 'storm-jax', faction: 'storm',
@@ -85,7 +86,7 @@ export const HEROES: RunHero[] = [
       'storm-thunderkite', 'storm-reroute', 'storm-mastlookout', 'storm-gyrekite', 'storm-closeechelon', 'storm-breakneck',
       'storm-skyraid', 'storm-tempestliner', 'storm-railmarshal', 'storm-dispatcher', 'storm-updraft', 'storm-doubledeparture',
     ],
-    signatureOrder: 'sig-tailwind-orders', signatureFitting: 'sig-racing-harness', masteryOrder: 'mst-first-blood',
+    innateOrder: 'inn-head-start', signatureOrder: 'sig-tailwind-orders', signatureFitting: 'sig-racing-harness', masteryOrder: 'mst-first-blood',
   },
   {
     id: 'under-penn', faction: 'under',
@@ -99,7 +100,7 @@ export const HEROES: RunHero[] = [
       'under-chainoverload', 'under-taplinecolossus', 'under-vaultpawnbroker', 'under-leechoverseer', 'under-hostiletakeover',
       'under-grudgekeeper',
     ],
-    signatureOrder: 'sig-ledger-ink', signatureFitting: 'sig-ledger-seal', masteryOrder: 'mst-bleed-ledger',
+    innateOrder: 'inn-collections', signatureOrder: 'sig-ledger-ink', signatureFitting: 'sig-ledger-seal', masteryOrder: 'mst-bleed-ledger',
   },
 ];
 
@@ -129,7 +130,7 @@ export function rankOf(xp: number): number {
 /** What each rank unlocks, in the words the hero screen prints. */
 export function rankUnlock(h: RunHero, rank: number, names: { order: (id: string) => string; fitting: (id: string) => string }): string {
   switch (rank) {
-    case 1: return 'Starter deck';
+    case 1: return `Starter deck and the innate Order ${names.order(h.innateOrder)}`;
     case 2: return 'Start every run with 15 scrip';
     case 3: return `Signature Order: ${names.order(h.signatureOrder)}`;
     case 4: return 'Rest stops repair 3 more';

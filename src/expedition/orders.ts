@@ -2,7 +2,7 @@
 // Run-level Orders (`run`) change the march itself rather than the battles; the engine never sees them.
 import type { Order } from '../engine/types';
 
-export type Rarity = 'common' | 'rare' | 'signature' | 'foe';
+export type Rarity = 'common' | 'rare' | 'innate' | 'signature' | 'foe';
 
 export interface RunOrder extends Order {
   rarity: Rarity;
@@ -46,17 +46,31 @@ export const ORDERS: RunOrder[] = [
   { id: 'sapper-teams', name: 'Sapper Teams', rarity: 'rare', text: 'Dawn: deal 1 to the strongest enemy unit.',
     abilities: [{ on: 'dawn', ops: [{ op: 'damage', to: 'strongestEnemy', n: 1 }] }] },
 
+  // ---------- hero innate Orders: every run with that hero starts with one (R-E13 rank 1) ----------
+  { id: 'inn-muster-drums', name: 'Muster Drums', rarity: 'innate', text: 'Start of battle: summon two 1|1 Conscripts.',
+    abilities: [{ on: 'start', ops: [{ op: 'summon', card: 'prism-tier-recruit', n: 2 }] }] },
+  { id: 'inn-cinder-psalm', name: 'Cinder Psalm', rarity: 'innate', text: 'Dusk: if an ally was destroyed this round, deal 1 to the enemy Crystal.',
+    abilities: [{ on: 'dusk', cond: { c: 'seenRound', stat: 'alliesDied', gte: 1 }, ops: [{ op: 'damage', to: 'enemySpire', n: 1 }] }] },
+  { id: 'inn-becalmed', name: 'Becalmed', rarity: 'innate', text: 'Dawn: put the strongest enemy unit in Stasis. Dusk: deal 1 to the enemy Crystal.',
+    abilities: [{ on: 'dawn', ops: [{ op: 'stasis', to: 'strongestEnemy' }] }, { on: 'dusk', ops: [{ op: 'damage', to: 'enemySpire', n: 1 }] }] },
+  { id: 'inn-root-song', name: 'Root Song', rarity: 'innate', text: 'Your units with 5 or more power have +0|+1.',
+    auras: [{ to: 'allies', filter: { minPower: 5 }, health: 1 }] },
+  { id: 'inn-head-start', name: 'Head Start', rarity: 'innate', text: 'Start of battle: deal 1 to the enemy Crystal.',
+    abilities: [{ on: 'start', ops: [{ op: 'damage', to: 'enemySpire', n: 1 }] }] },
+  { id: 'inn-collections', name: 'Collections', rarity: 'innate', text: 'Start of battle: drain 1 from the enemy Crystal.',
+    abilities: [{ on: 'start', ops: [{ op: 'drain', to: 'enemySpire', n: 1 }] }] },
+
   // ---------- hero signature and mastery Orders (R-E13 ranks 3 and 8) ----------
   { id: 'sig-drill-square', name: 'Drill Square', rarity: 'signature', text: 'Your units with 2 or less power have +0|+1.',
     auras: [{ to: 'allies', filter: { maxPower: 2 }, health: 1 }] },
-  { id: 'mst-muster-call', name: 'Muster Call', rarity: 'signature', text: 'Start of battle: summon two 1|1 Conscripts.',
-    abilities: [{ on: 'start', ops: [{ op: 'summon', card: 'prism-tier-recruit', n: 2 }] }] },
+  { id: 'mst-shield-wall', name: 'Shield Wall', rarity: 'signature', text: 'Dusk: give every ally +0|+1.',
+    abilities: [{ on: 'dusk', ops: [{ op: 'buff', to: 'allies', health: 1 }] }] },
   { id: 'sig-kindled-sparks', name: 'Kindled Sparks', rarity: 'signature', text: 'Start of battle: summon a Votive Spark.',
     abilities: [{ on: 'start', ops: [{ op: 'summon', card: 'ember-sparkbot' }] }] },
   { id: 'mst-choir-fire', name: 'Choir Fire', rarity: 'signature', text: 'Start of battle: raise your maximum Charge by 1.',
     abilities: [{ on: 'start', ops: [{ op: 'maxCharge', n: 1 }, { op: 'charge', n: 1 }] }] },
-  { id: 'sig-tide-charts', name: 'Tide Charts', rarity: 'signature', text: 'Start of battle: draw 1.',
-    abilities: [{ on: 'start', ops: [{ op: 'draw', n: 1 }] }] },
+  { id: 'sig-harbor-wards', name: 'Harbor Wards', rarity: 'signature', text: 'Your units have +0|+1.',
+    auras: [{ to: 'allies', health: 1 }] },
   { id: 'mst-quick-hands', name: 'Quick Hands', rarity: 'signature', text: 'Your tactics cost 1 less.',
     costAuras: [{ type: 'glyph', n: -1 }] },
   { id: 'sig-deep-roots', name: 'Deep Roots', rarity: 'signature', text: 'Start of battle: raise your maximum Charge by 1.',
