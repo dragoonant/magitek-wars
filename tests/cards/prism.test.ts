@@ -36,10 +36,10 @@ describe('prism heroes', () => {
     expect(y.dmg).toBe(2); // 1 + (2 - 1 Plated)
   });
 
-  it('prism-ysolde: ascends on 2 ally survivals; herself Ward, other allies Ward and +1|+1, Plated, Dusk repair', () => {
+  it('prism-ysolde: ascends on 3 ally survivals; herself Ward, other allies Ward and +1|+1, Plated, Dusk repair', () => {
     const s = board({ hand: BOLTS, line: [['prism-ysolde', 'zz-grunt'], ['zz-grunt']] });
     s.players[0].heroes = ['prism-ysolde'];
-    s.players[0].seen.allySurvivals = 2;
+    s.players[0].seen.allySurvivals = 3;
     pass(s); pass(s);
     expect(s.players[0].ascended).toContain('prism-ysolde');
     const y = unit(s, 0, 'prism-ysolde'), g = unit(s, 0, 'zz-grunt');
@@ -83,15 +83,15 @@ describe('prism heroes', () => {
     expect(st(s, o).keywords).toEqual(expect.arrayContaining(['spotter', 'plated']));
     bolt(s, o.iid);
     expect(o.dmg).toBe(1); // Plated
-    expect(st(s, o).power).toBe(6);
+    expect(st(s, o).power).toBe(5);
     expect(unit(s, 1, 'zz-ogre').dmg).toBe(2);
     expect(unit(s, 1, 'zz-grunt').dmg).toBe(0);
     expect(unit(s, 1, 'zz-wall').dmg).toBe(0);
     bolt(s, o.iid);
-    expect(st(s, o).power).toBe(7);
+    expect(st(s, o).power).toBe(6);
     expect(unit(s, 1, 'zz-ogre').dmg).toBe(4);
     // lethal damage does not trigger it
-    o.dmg = 7;
+    o.dmg = 6; // 1 health left
     bolt(s, o.iid);
     expect(s.players[0].line.length).toBe(0);
     expect(unit(s, 1, 'zz-ogre').dmg).toBe(4);
@@ -120,6 +120,10 @@ describe('prism units', () => {
     expect(u.dmg).toBe(1);
     bolt(s, unit(s, 0, 'zz-wall').iid);
     expect(unit(s, 0, 'zz-wall').dmg).toBe(2); // control: unplated
+    const t = board({ hand: [['zz-bolt', 'zz-bolt'], []], line: [['prism-glasswarden'], []] });
+    bolt(t, unit(t, 0, 'prism-glasswarden').iid);
+    bolt(t, unit(t, 0, 'prism-glasswarden').iid);
+    expect(t.players[0].line.length).toBe(0); // 1|2: two Plated hits of 1 destroy it (BALANCE B-6)
   });
 
   it('prism-lampkeeper: Spotter blocks Aerial; Dusk repairs the ally with the lowest power by 1, nobody else', () => {
@@ -260,7 +264,7 @@ describe('prism units', () => {
     expect(st(s, unit(s, 0, 'zz-grunt'))).toMatchObject({ power: 3, health: 2 });
     expect(st(s, unit(s, 1, 'zz-grunt'))).toMatchObject({ power: 2, health: 2 });
     const c = unit(s, 0, 'prism-vault-captain');
-    expect(st(s, c)).toMatchObject({ power: 2, health: 4 });
+    expect(st(s, c)).toMatchObject({ power: 2, health: 3 });
     bolt(s, c.iid);
     expect(c.dmg).toBe(1);
   });
@@ -553,7 +557,7 @@ describe('prism units (First Light additions)', () => {
     play(s, 'prism-glasswarden');
     pass(s);
     play(s, 'prism-crystal-bulwark');
-    expect(st(s, unit(s, 0, 'prism-glasswarden'))).toMatchObject({ power: 1, health: 4 });
+    expect(st(s, unit(s, 0, 'prism-glasswarden'))).toMatchObject({ power: 1, health: 3 });
     expect(st(s, unit(s, 0, 'prism-crystal-bulwark'))).toMatchObject({ power: 2, health: 4 });
     expect(st(s, unit(s, 0, 'prism-shieldline-cadet'))).toMatchObject({ power: 1, health: 1 });
     expect(s.players[0].seen.buffsGiven).toBe(1);

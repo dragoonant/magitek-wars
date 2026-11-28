@@ -14,6 +14,7 @@ import { FACTION_INFO } from '../data/decks';
 import { cardArt, emblem, portrait } from '../match/art';
 import { HH, HW, Match } from '../match/board';
 import { Session } from '../match/session';
+import { bigCard, cardGrid, confirmCard, grouped, scrollButtons } from '../cardgrid';
 import {
   ACT_NAMES, FLOORS, LEADS, MIN_DECK, REST_REPAIR, SUPPLY_REPAIR, SUPPLY_REPAIR_PRICE, buy, choices, enter, finishBattle,
   leaveSupply, newRun, rest, takeReward, chooseEvent, removeForEvent, FACTION_NAMES, type MapNode, type RunState,
@@ -72,6 +73,12 @@ export class RunScreen {
   note = '';
   private deckOpen = false;
   private removing = false;
+  /** Scroll of the deck grid, in rows. */
+  private gridScroll = 0;
+  private gridMax = 0;
+  /** A picked card waiting for the player to confirm it (PLAN D29), or a card opened for a closer look. */
+  private confirm: { kind: 'cut' | 'evcut' | 'take' | 'buy'; id: string } | null = null;
+  private peek: string | null = null;
   private confirmAbandon = false;
   private foeDeckOpen = false;
   private hots: Hot[] = [];
@@ -157,23 +164,63 @@ export class RunScreen {
       return;
     }
     if (code === 'Escape') {
-      if (this.deckOpen || this.removing) { this.deckOpen = false; this.removing = false; }
+      if (this.confirm || this.peek) { this.confirm = null; this.peek = null; }
+      else if (this.deckOpen || this.removing) { this.deckOpen = false; this.removing = false; }
       else this.exit = true;
     }
   }
 
   pointerMove(x: number, y: number): void {
     if (this.match) { this.match.pointerMove(x, y); return; }
-    this.hover = this.hots.find((h) => x >= h.x && y >= h.y && x < h.x + h.w && y < h.y + h.h)?.id ?? null;
+    this.hover = this.hit(x, y)?.id ?? null;
+  }
+
+  /** The topmost hot under the pointer: overlays are drawn, and so pushed, after what they cover. */
+  private hit(x: number, y: number): Hot | undefined {
+    for (let i = this.hots.length - 1; i >= 0; i--) {
+      const h = this.hots[i];
+      if (x >= h.x && y >= h.y && x < h.x + h.w && y < h.y + h.h) return h;
+    }
+    return undefined;
+  }
+
+  wheel(dy: number): void {
+    if (this.match) return;
+    if (this.deckOpen || this.removing || this.run?.phase === 'eventRemove') {
+      this.gridScroll = Math.max(0, Math.min(this.gridMax, this.gridScroll + Math.sign(dy)));
+    }
   }
 
   pointerDown(x: number, y: number): void {
     if (this.match) { this.match.pointerDown(x, y); return; }
-    const h = this.hots.find((r) => x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h);
+    const h = this.hit(x, y);
     if (!h) return;
     this.note = '';
     const [k, v] = h.id.split('|');
     const r = this.run;
+    // a pick waiting for confirmation, or a closer look at a card
+    if (this.peek) { this.peek = null; return; }
+    if (this.confirm) {
+      const c = this.confirm;
+      if (k === 'confirm-no') this.confirm = null;
+      if (k !== 'confirm-yes' || !r) return;
+      this.confirm = null;
+      if (c.kind === 'cut') { rest(r, { kind: 'remove', card: c.id }); this.removing = false; }
+      else if (c.kind === 'evcut') removeForEvent(r, c.id);
+      else if (c.kind === 'take') takeReward(r, c.id);
+      else {
+        const why = buy(r, c.id);
+        if (why) this.note = why;
+      }
+      this.save();
+      return;
+    }
+    if (k === 'grid-up') { this.gridScroll = Math.max(0, this.gridScroll - 1); return; }
+    if (k === 'grid-down') { this.gridScroll = Math.min(this.gridMax, this.gridScroll + 1); return; }
+    if (k === 'deck-bg') return;
+    if (k === 'look') { this.peek = v; return; }
+    if (k === 'cutpick') { this.confirm = { kind: 'cut', id: v }; return; }
+    if (k === 'evpick') { this.confirm = { kind: 'evcut', id: v }; return; }
     if (k === 'title') { this.exit = true; return; }
     if (k === 'faction') {
       this.run = newRun(v as FactionId, (Math.random() * 0x7fffffff) >>> 0);
@@ -181,7 +228,7 @@ export class RunScreen {
       return;
     }
     if (!r) return;
-    if (k === 'deck') { this.deckOpen = !this.deckOpen; return; }
+    if (k === 'deck') { this.deckOpen = !this.deckOpen; this.gridScroll = 0; return; }
     if (k === 'close') { this.deckOpen = false; this.removing = false; return; }
     if (k === 'abandon') { this.confirmAbandon = true; return; }
     if (k === 'abandon-yes') { clearRun(); this.run = null; this.confirmAbandon = false; return; }
@@ -201,18 +248,14 @@ export class RunScreen {
       this.save();
       return;
     }
-    if (k === 'evcut') {
-      removeForEvent(r, v);
-      this.save();
-      return;
-    }
-    if (k === 'take') { takeReward(r, v === '-' ? null : v); this.save(); return; }
+    if (k === 'take' && v !== '-') { this.confirm = { kind: 'take', id: v }; return; }
+    if (k === 'take') { takeReward(r, null); this.save(); return; }
     if (k === 'repair') { rest(r, { kind: 'repair' }); this.save(); return; }
-    if (k === 'remove') { this.removing = true; return; }
-    if (k === 'cut') {
-      rest(r, { kind: 'remove', card: v });
-      this.removing = false;
-      this.save();
+    if (k === 'remove') { this.removing = true; this.gridScroll = 0; return; }
+    if (k === 'buy' && v !== 'repair') {
+      const price = r.shop?.cards.find((x) => x.id === v)?.price ?? 0;
+      if (r.scrip < price) { this.note = `Needs ${price} scrip.`; return; }
+      this.confirm = { kind: 'buy', id: v };
       return;
     }
     if (k === 'buy') {
@@ -247,6 +290,13 @@ export class RunScreen {
       if (r.phase === 'battle') this.drawBriefing(g, r);
     }
     if (this.deckOpen || this.removing || r.phase === 'eventRemove') this.drawDeck(g, r);
+    if (this.confirm) this.drawConfirm(g, r);
+    else if (this.peek) {
+      g.wash(0, 0, HW, HH, 'ink', 0.55);
+      this.hots.push({ x: 0, y: 0, w: HW, h: HH, id: 'peek-bg' });
+      bigCard(g, this.peek, face(null, 0, this.peek), HW / 2 - 90, 60, 180);
+      drawTextCentred(g, 'Tap anywhere to close', HW / 2, HH - 20, { color: 'steam' });
+    }
     if (this.note) {
       const ctx = g.ctx;
       const gr = ctx.createLinearGradient(0, HH - 18, 0, HH);
@@ -499,25 +549,39 @@ export class RunScreen {
     this.button(g, 'LEAVE THE DEPOT', 492 - 10 - (textWidth('LEAVE THE DEPOT', 1, 'display') + 16), 392, 'leave');
   }
 
+  /** The deck as cards (PLAN D29): to look through, or to pick the card to remove (then confirmed). */
   private drawDeck(g: Gfx, r: RunState): void {
-    panel(g, 6, 30, 340, 410);
+    this.hots.push({ x: 0, y: 0, w: HW, h: HH, id: 'deck-bg' });
+    g.wash(0, 0, HW, HH, 'ink', 0.35);
+    panel(g, 6, 26, 500, 416);
     const cutting = this.removing || r.phase === 'eventRemove';
-    drawText(g, cutting ? 'CLICK A CARD TO REMOVE IT' : `YOUR DECK: ${r.deck.length} CARDS`, 16, 40, { color: cutting ? 'emberGlow' : 'brassGlint', face: 'display' });
-    rule(g, 12, 51, 328);
-    const counts = new Map<string, number>();
-    for (const id of r.deck) counts.set(id, (counts.get(id) ?? 0) + 1);
-    const ids = [...counts.keys()].sort((a, b) => def(a).cost - def(b).cost || a.localeCompare(b));
-    ids.forEach((id, i) => {
-      const x = 16 + Math.floor(i / 36) * 166, y = 56 + (i % 36) * 10;
-      const hot = r.phase === 'eventRemove' ? `evcut|${id}` : this.removing ? `cut|${id}` : `none|${id}`;
-      if (this.hover === hot && cutting) highlight(g, x - 3, y - 1.5, 164, 10, 'ember');
-      drawText(g, String(def(id).cost), x, y, { color: 'crystalBright', face: 'bold', scale: 0.95 });
-      const n = `×${counts.get(id)}`;
-      drawText(g, fitText(face(null, 0, id).name, 128, 0.95), x + 10, y, { color: def(id).type === 'hero' ? 'brassLight' : 'steamWhite', scale: 0.95 });
-      drawText(g, n, x + 158 - textWidth(n, 0.95), y, { color: 'ironLight', scale: 0.95 });
-      if (cutting) this.hots.push({ x: x - 2, y: y - 1, w: 164, h: 9, id: hot });
-    });
-    if (r.phase !== 'eventRemove') this.button(g, 'CLOSE', 280, 420, 'close');
+    const head = cutting ? 'CHOOSE A CARD TO REMOVE' : `YOUR DECK: ${r.deck.length} CARDS`;
+    drawText(g, head, 18, 36, { color: cutting ? 'emberGlow' : 'brassGlint', face: 'display', scale: 1.2 });
+    const sub = cutting ? `You will be asked to confirm. Your deck has ${r.deck.length} cards.` : 'Click a card to see it up close.';
+    drawText(g, sub, 18, 50, { color: 'steam', scale: 0.95 });
+    rule(g, 12, 62, 488);
+    const prefix = r.phase === 'eventRemove' ? 'evpick|' : this.removing ? 'cutpick|' : 'look|';
+    const res = cardGrid(g, grouped(r.deck, (id) => face(null, 0, id)), (id) => face(null, 0, id), 14, 70, 434, 336, this.gridScroll, this.hover, prefix, this.hots);
+    this.gridScroll = res.scroll;
+    this.gridMax = res.maxScroll;
+    scrollButtons(g, 454, 72, 330, res.scroll, res.maxScroll, this.hover, this.hots);
+    if (r.phase !== 'eventRemove') this.button(g, cutting ? 'KEEP MY DECK' : 'CLOSE', 506 - 14 - (textWidth(cutting ? 'KEEP MY DECK' : 'CLOSE', 1, 'display') + 16), 420, 'close');
+  }
+
+  /** The picked card, large, with the question; nothing happens until the player says yes. */
+  private drawConfirm(g: Gfx, r: RunState): void {
+    const c = this.confirm!;
+    const f = face(null, 0, c.id);
+    const copies = r.deck.filter((x) => x === c.id).length;
+    if (c.kind === 'cut' || c.kind === 'evcut') {
+      const left = copies > 1 ? `You have ${copies} copies; ${copies - 1} will stay.` : 'It is your only copy.';
+      confirmCard(g, HW, HH, c.id, f, `Remove ${f.name} from your deck?`, `${left} Your deck will have ${r.deck.length - 1} cards.`, 'REMOVE IT', true, this.hover, this.hots);
+    } else if (c.kind === 'take') {
+      confirmCard(g, HW, HH, c.id, f, `Take ${f.name} into your deck?`, `${copies ? `You already have ${copies}. ` : ''}Your deck will have ${r.deck.length + 1} cards.`, 'TAKE IT', false, this.hover, this.hots);
+    } else {
+      const price = r.shop?.cards.find((x) => x.id === c.id)?.price ?? 0;
+      confirmCard(g, HW, HH, c.id, f, `Buy ${f.name} for ${price} scrip?`, `You have ${r.scrip} scrip; ${r.scrip - price} will be left.${copies ? ` You already have ${copies}.` : ''}`, 'BUY IT', false, this.hover, this.hots);
+    }
   }
 
   private drawEvent(g: Gfx, r: RunState): void {

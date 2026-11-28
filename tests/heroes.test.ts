@@ -27,16 +27,16 @@ describe('heroes', () => {
     expect(s.priority).toBe(0);
   });
 
-  it('prism-ysolde: Dusk repair; ascends on 2 ally survivals; aura +1|+1 and Ward for all', () => {
+  it('prism-ysolde: Dusk repair; ascends on 3 ally survivals; aura +1|+1 and Ward for all', () => {
     const s = board({ line: [['prism-ysolde', 'zz-ogre'], []] });
     s.players[0].heroes = ['prism-ysolde'];
     const o = unit(s, 0, 'zz-ogre');
     o.dmg = 2;
-    s.players[0].seen.allySurvivals = 1;
+    s.players[0].seen.allySurvivals = 2;
     pass(s); pass(s);
     expect(o.dmg).toBe(1);
     expect(isAscended(s, 0, 'prism-ysolde')).toBe(false);
-    s.players[0].seen.allySurvivals = 2;
+    s.players[0].seen.allySurvivals = 3;
     pass(s); pass(s);
     expect(isAscended(s, 0, 'prism-ysolde')).toBe(true);
     expect(st(s, o)).toMatchObject({ power: 6, health: 6 });
@@ -58,7 +58,7 @@ describe('heroes', () => {
     expect(isAscended(s, 1, 'prism-oren')).toBe(true);
     expect(s.players[1].spire).toBe(14);
     expect(o.dmg).toBe(0); // R-H5 repaired on ascending
-    expect(st(s, o).power).toBe(5 + 1);
+    expect(st(s, o).power).toBe(4 + 1);
     expect(st(s, o).keywords).toContain('plated');
   });
 
@@ -85,18 +85,19 @@ describe('heroes', () => {
     expect(s.players[1].spire).toBe(18);
   });
 
-  it('ember-crucible: Dawn Sparkbot; ascends at 10 summons with 2 Slaglings; allies dying burn the Spire', () => {
+  it('ember-crucible: Dawn Sparkbot; ascends at 12 summons with 2 Slaglings; allies dying burn the Spire', () => {
     const s = board({ line: [['ember-crucible'], []] });
     s.players[0].heroes = ['ember-crucible'];
-    s.players[0].seen.unitsSummoned = 8;
-    pass(s); pass(s); // dawn: sparkbot (9)
+    s.players[0].seen.unitsSummoned = 10;
+    pass(s); pass(s); // dawn: sparkbot (11)
     expect(s.players[0].line.map((u) => u.card)).toEqual(['ember-crucible', 'ember-sparkbot']);
-    pass(s); pass(s); // sparkbot dies at dusk, dawn: sparkbot (10) -> ascend -> 2 slaglings
+    pass(s); pass(s); // sparkbot dies at dusk, dawn: sparkbot (12) -> ascend -> 2 slaglings
     expect(isAscended(s, 0, 'ember-crucible')).toBe(true);
     expect(s.players[0].line.map((u) => u.card)).toEqual(['ember-crucible', 'ember-sparkbot', 'ember-slagling', 'ember-slagling']);
     pass(s); pass(s); // three unstable allies die at dusk: 3 damage
     expect(s.players[1].spire).toBe(17);
     expect(st(s, unit(s, 0, 'ember-crucible')).keywords).toContain('pierce');
+    expect(st(s, unit(s, 0, 'ember-crucible'))).toMatchObject({ power: 6, health: 6 });
   });
 
   it('tide-maren: glyphs pump her; ascended she makes glyphs cost 1 less and draws 2', () => {
@@ -151,8 +152,8 @@ describe('heroes', () => {
     pass(s); // defender
     attack(s, [b], [[unit(s, 1, 'zz-wall'), b]]);
     resolveCombat(s);
-    expect(s.players[1].spire).toBe(14 - 2); // 8 power into a 6-health wall, Pierce 2
-    expect(st(s, b)).toMatchObject({ power: 9, health: 9 }); // Strike: +1|+1
+    expect(s.players[1].spire).toBe(14 - 1); // 7 power into a 6-health wall, Pierce 1
+    expect(st(s, b)).toMatchObject({ power: 8, health: 8 }); // Strike: +1|+1
   });
 
   it('under-sable: ascends when 4 allies have died, summons 2 Wire Rats, then drains on each ally death', () => {
@@ -172,10 +173,11 @@ describe('heroes', () => {
     expect(s.players[1].spire).toBe(16);
   });
 
-  it('under-vex: Siphon; ascends at 4 Spire repaired, drains 3 from every enemy, then 2 from the Spire each Dusk', () => {
+  it('under-vex: Siphon; ascends at 5 Spire repaired, drains 3 from every enemy, then 2 from the Spire each Dusk', () => {
     const s = board({ line: [['under-vex'], ['zz-grunt', 'zz-ogre']] });
     s.players[0].heroes = ['under-vex'];
     s.players[0].spire = 5;
+    s.players[0].seen.spireHealed = 1;
     attack(s, [unit(s, 0, 'under-vex')]); // unblocked? defender may block; none assigned
     resolveCombat(s);
     expect(isAscended(s, 0, 'under-vex')).toBe(true);
@@ -231,7 +233,7 @@ describe('heroes', () => {
     s.players[0].heroes = ['coil-brakk'];
     s.players[0].ascended = ['coil-brakk'];
     const b = unit(s, 0, 'coil-brakk');
-    b.dmg = 7; // 1 health left
+    b.dmg = 6; // 1 health left
     attack(s, [b], [[unit(s, 1, 'zz-ogre'), b]]);
     resolveCombat(s);
     expect(s.players[0].line.length).toBe(0);

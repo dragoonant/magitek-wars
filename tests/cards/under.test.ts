@@ -54,14 +54,14 @@ describe('under cards', () => {
     expect(cards(res, 0)).toEqual(['under-vex', 'under-ratwrangler', 'under-wirerat', 'under-wirerat']);
   });
 
-  it('under-pitaccountant: drains 1 when another ally is destroyed; Resonant gives +1|+1', () => {
+  it('under-pitaccountant: deals 1 to the enemy Crystal when another ally is destroyed (no repair); Resonant gives +1|+1', () => {
     const s = board({ hand: [[], ['zz-zap']], line: [['under-pitaccountant', 'zz-grunt', 'under-vex'], []], first: 1 });
     s.players[0].spire = 15;
     unit(s, 0, 'zz-grunt').dmg = 1;
     expect(st(s, unit(s, 0, 'under-pitaccountant'))).toMatchObject({ power: 1, health: 3 });
     play(s, 'zz-zap', [unit(s, 0, 'zz-grunt').iid]);
     expect(s.players[1].spire).toBe(19);
-    expect(s.players[0].spire).toBe(16);
+    expect(s.players[0].spire).toBe(15); // damage, not a drain since BALANCE B-6
     s.players[0].ascended = ['under-vex'];
     expect(st(s, unit(s, 0, 'under-pitaccountant'))).toMatchObject({ power: 2, health: 4 });
   });
@@ -286,10 +286,11 @@ describe('under cards (strict)', () => {
     expect(s.players[1].spire).toBe(16);
     expect(s.players[0].spire).toBe(14);
     expect(isAscended(s, 0, 'under-vex')).toBe(false);
-    // Ascend: Spire 5, nothing repaired yet -> the strike heals 4 (the level) and ascends: 3 drained from a grunt (heals 3, full amount) and from the ogre (3)
+    // Ascend: Spire 5, 1 repaired so far -> the strike heals 4 (5, the level) and ascends: 3 drained from a grunt (heals 3, full amount) and from the ogre (3)
     const a = board({ line: [['under-vex'], ['zz-grunt', 'zz-ogre']] });
     a.players[0].heroes = ['under-vex'];
     a.players[0].spire = 5;
+    a.players[0].seen.spireHealed = 1;
     attack(a, [unit(a, 0, 'under-vex')]);
     resolveCombat(a);
     expect(isAscended(a, 0, 'under-vex')).toBe(true);
@@ -353,19 +354,19 @@ describe('under cards (strict)', () => {
     expect(cards(plain, 0).filter((c) => c === 'under-wirerat').length).toBe(1);
   });
 
-  it('under-pitaccountant: drains 1 for another ally only, never for its own death; Resonant +1|+1 absent without a hero', () => {
+  it('under-pitaccountant: deals 1 for another ally only, never for its own death; Resonant +1|+1 absent without a hero', () => {
     const s = board({ hand: [['zz-zap', 'zz-zap'], []], line: [[], ['under-pitaccountant', 'zz-grunt']] });
     s.players[1].spire = 15;
     unit(s, 1, 'zz-grunt').dmg = 1;
     expect(st(s, unit(s, 1, 'under-pitaccountant'))).toMatchObject({ power: 1, health: 3 });
     play(s, 'zz-zap', [unit(s, 1, 'zz-grunt').iid]);
     expect(s.players[0].spire).toBe(19);
-    expect(s.players[1].spire).toBe(16);
+    expect(s.players[1].spire).toBe(15);
     unit(s, 1, 'under-pitaccountant').dmg = 2;
     play(s, 'zz-zap', [unit(s, 1, 'under-pitaccountant').iid]);
     expect(cards(s, 1)).toEqual([]);
     expect(s.players[0].spire).toBe(19);
-    expect(s.players[1].spire).toBe(16);
+    expect(s.players[1].spire).toBe(15);
   });
 
   it('under-acidlamplighter: Corrosive does not get through a Ward blocker (Ward is spent)', () => {

@@ -110,29 +110,29 @@ describe('coil heroes', () => {
     expect(s.players[0].canAttack).toBe(true); // the banked extra attack
     attack(s, [b]);
     resolveCombat(s);
-    expect(s.players[1].spire).toBe(20 - 8 - 9); // 8 power, then 9 after the first attack's Strike
+    expect(s.players[1].spire).toBe(20 - 7 - 8); // 7 power, then 8 after the first attack's Strike
   });
 
   it('coil-brakk: ascended Pierce, Strike +1|+1 (lasting) and Mend', () => {
     const s = board({ line: [['coil-brakk'], ['zz-filler']] });
     s.players[0].ascended = ['coil-brakk'];
     const b = unit(s, 0, 'coil-brakk');
-    expect(st(s, b)).toMatchObject({ power: 8, health: 8 });
+    expect(st(s, b)).toMatchObject({ power: 7, health: 7 });
     attack(s, [b], [[unit(s, 1, 'zz-filler'), b]]);
     resolveCombat(s);
-    expect(s.players[1].spire).toBe(13); // 8 - 1 = 7 through
-    expect(st(s, b)).toMatchObject({ power: 9, health: 9 });
+    expect(s.players[1].spire).toBe(14); // 7 - 1 = 6 through
+    expect(st(s, b)).toMatchObject({ power: 8, health: 8 });
     b.dmg = 5;
     nextRound(s);
     expect(b.dmg).toBe(0); // Mend
-    expect(st(s, b)).toMatchObject({ power: 9, health: 9 }); // the growth is lasting
+    expect(st(s, b)).toMatchObject({ power: 8, health: 8 }); // the growth is lasting
   });
 
   it('coil-brakk: ascended Strike +1|+1 cannot save a unit that took lethal damage', () => {
     const s = board({ line: [['coil-brakk'], ['zz-ogre']] });
     s.players[0].ascended = ['coil-brakk'];
     const b = unit(s, 0, 'coil-brakk');
-    b.dmg = 7;
+    b.dmg = 6; // 1 health left
     attack(s, [b], [[unit(s, 1, 'zz-ogre'), b]]);
     resolveCombat(s);
     expect(s.players[0].line.length).toBe(0);

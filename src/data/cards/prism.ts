@@ -7,7 +7,7 @@ export const prism: CardDef[] = [
     keywords: ['plated'], tribe: 'warden',
     text: 'Plated. Dusk: repair every ally by 1.',
     abilities: [{ on: 'dusk', ops: [{ op: 'heal', to: 'allies', n: 1 }] }],
-    level: { who: 'you', stat: 'allySurvivals', n: 2, text: 'Your units have survived damage 2+ times' },
+    level: { who: 'you', stat: 'allySurvivals', n: 3, text: 'Your units have survived damage 3+ times' },
     ascended: {
       name: 'Venn, Master of the Works', power: 3, health: 5, keywords: ['plated'],
       text: 'Plated. Other allies have +1|+1. Dusk: repair every ally by 1. Ascend: give every ally Ward.',
@@ -25,7 +25,7 @@ export const prism: CardDef[] = [
     abilities: [{ on: 'survive', ops: [{ op: 'buff', to: 'self', power: 1 }] }],
     level: { who: 'you', stat: 'allySurvivals', n: 3, text: 'Your units have survived damage 3+ times' },
     ascended: {
-      name: 'Maudrey Hale, the Unbowed', power: 5, health: 8, keywords: ['spotter', 'plated'],
+      name: 'Maudrey Hale, the Unbowed', power: 4, health: 7, keywords: ['spotter', 'plated'],
       text: 'Spotter, Plated. When I survive damage, I get +1|+0 and deal 2 to the strongest enemy (highest power). Ascend: repair your Crystal by 4.',
       abilities: [
         { on: 'survive', ops: [{ op: 'buff', to: 'self', power: 1 }, { op: 'damage', to: 'strongestEnemy', n: 2 }] },
@@ -35,7 +35,7 @@ export const prism: CardDef[] = [
   },
   // ---------- units ----------
   {
-    id: 'prism-glasswarden', name: 'Ironclad Sentry', faction: 'prism', type: 'unit', cost: 1, power: 1, health: 3,
+    id: 'prism-glasswarden', name: 'Ironclad Sentry', faction: 'prism', type: 'unit', cost: 1, power: 1, health: 2,
     keywords: ['plated'], tribe: 'warden', text: 'Plated.',
   },
   {
@@ -85,7 +85,7 @@ export const prism: CardDef[] = [
     keywords: ['plated', 'dueler'], tribe: 'construct', text: 'Plated, Dueler.',
   },
   {
-    id: 'prism-vault-captain', name: 'Legion Captain', faction: 'prism', type: 'unit', cost: 4, power: 2, health: 4,
+    id: 'prism-vault-captain', name: 'Legion Captain', faction: 'prism', type: 'unit', cost: 4, power: 2, health: 3,
     keywords: ['plated'], tribe: 'warden', text: 'Plated. Other allies have +1|+0.',
     auras: [{ to: 'otherAllies', power: 1 }],
   },

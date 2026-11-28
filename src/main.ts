@@ -357,6 +357,7 @@ canvas.addEventListener('wheel', (e) => {
     lm.wheel(e.deltaY, ...logical(e as unknown as PointerEvent));
     return;
   }
+  if (screen === 'run' && run) { e.preventDefault(); run.wheel(e.deltaY); return; }
   if (screen !== 'decks' || !builder) return;
   e.preventDefault();
   builder.wheel(e.deltaY, ...logical(e as unknown as PointerEvent));

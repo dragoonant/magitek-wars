@@ -615,7 +615,7 @@ describe('storm cards', () => {
   it('storm-aeriecarrier: Deploy gives Aerial allies (itself included) +1|+1, ground allies nothing', () => {
     const s = board({ hand: [['storm-aeriecarrier'], []], line: [['zz-aerial', 'zz-grunt'], []] });
     play(s, 'storm-aeriecarrier');
-    expect(st(s, unit(s, 0, 'storm-aeriecarrier'))).toMatchObject({ power: 6, health: 5 });
+    expect(st(s, unit(s, 0, 'storm-aeriecarrier'))).toMatchObject({ power: 5, health: 5 });
     expect(st(s, unit(s, 0, 'zz-aerial'))).toMatchObject({ power: 4, health: 4 });
     expect(st(s, unit(s, 0, 'zz-grunt'))).toMatchObject({ power: 2, health: 2 });
   });

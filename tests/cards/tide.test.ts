@@ -585,6 +585,7 @@ describe('tide cards (First Light additions)', () => {
     const many = board({ hand: [['tide-marginclerk', 'zz-grunt', 'zz-grunt', 'zz-grunt'], []] });
     play(many, 'tide-marginclerk');
     expect(st(many, unit(many, 0, 'tide-marginclerk'))).toMatchObject({ power: 3, health: 3 });
+    expect(many.players[0].charge).toBe(8); // costs 2 (BALANCE B-6)
   });
 
   it('tide-lockhound: Deploy returns an enemy unit in Stasis only', () => {

@@ -21,7 +21,7 @@ export const coil: CardDef[] = [
     text: 'Pierce.',
     level: { who: 'self', stat: 'damageDealt', n: 6, text: "I've dealt 6+ damage" },
     ascended: {
-      name: 'Hoarhorn Unbowed', power: 8, health: 8, keywords: ['pierce', 'mend'],
+      name: 'Hoarhorn Unbowed', power: 7, health: 7, keywords: ['pierce', 'mend'],
       text: 'Pierce, Mend. Strike: I get +1|+1. Ascend: you get one extra attack: you may attack again this round, banked until used.',
       abilities: [
         { on: 'strike', ops: [{ op: 'buff', to: 'self', power: 1, health: 1 }] },

@@ -18,6 +18,7 @@ import { END_REASONS, KEYWORD_HELP, lineText, targetPrompt } from './text';
 import type { Session } from './session';
 import { playEvent } from '../audio/audio';
 import { Fx, type Pt } from './fx';
+import { bigCard, cardGrid, grouped, scrollButtons, type GridHot, type GridItem } from '../cardgrid';
 
 /**
  * Logical screen size (PLAN D17, D23). The height is fixed at 448; the width follows the window's shape, from 512
@@ -131,6 +132,8 @@ export class Match {
   private inspect: Hot | null = null;
   /** The enlarged card grows from its place: which card it is and how far it has grown. */
   private zoom = { key: '', k: 0 };
+  /** A card opened from a deck or Scrap viewer for a closer look. */
+  private peek: string | null = null;
   /** Set when the player leaves; main.ts returns to the title. */
   exit: 'title' | 'rematch' | null = null;
   /** Called once when the match ends (the roguelike reads the result). */
@@ -230,7 +233,8 @@ export class Match {
     if (this.armed) {
       const cands = this.candidates();
       const exact = cands.some((a) => pathOf(a).length === this.armed!.path.length);
-      out.push({ id: 'play', label: def(this.cardOf(this.armed.iid)).type === 'glyph' ? 'PLAY TACTIC' : 'PLAY UNIT', enabled: exact });
+      const scrapping = this.armed.path.some((p) => p.startsWith('R:'));
+      out.push({ id: 'play', label: def(this.cardOf(this.armed.iid)).type === 'glyph' ? 'PLAY TACTIC' : scrapping ? 'SCRAP AND PLAY' : 'PLAY UNIT', enabled: exact });
       if (acts.some((a) => a.type === 'channel' && a.iid === this.armed!.iid)) out.push({ id: 'channel', label: 'CHANNEL', enabled: true });
       out.push({ id: 'cancel', label: 'CANCEL', enabled: true });
       return out;
@@ -294,6 +298,11 @@ export class Match {
     if (this.armed) {
       const id = this.cardOf(this.armed.iid);
       const next = [...this.nextChoices()];
+      const cut = this.armed.path.find((p) => p.startsWith('R:'));
+      if (next.length === 0 && cut) {
+        const u = this.s.players[0].line.find((x) => x.iid === cut.slice(2));
+        return `Scrap ${u ? this.name(u.card) : 'that unit'} to make room for ${this.name(id)}? It goes to your Scrap.`;
+      }
       if (next.length === 0) return `Play ${this.name(id)}?`;
       if (next.every((x) => x.startsWith('R:'))) return `Your Line is full: choose a unit to scrap for ${this.name(id)}.`;
       const d = def(id);
@@ -322,9 +331,10 @@ export class Match {
     if (id === 'scrap0' || id === 'scrap1') { this.panel = { kind: 'scrap', seat: id === 'scrap0' ? 0 : 1 }; this.scroll = 0; return; }
     if (id === 'deck0' || id === 'deck1') { this.panel = { kind: 'deck', seat: id === 'deck0' ? 0 : 1 }; this.scroll = 0; return; }
     if (id === 'panel-bg') return;
-    if (id === 'panel-close') { this.panel = null; return; }
-    if (id === 'panel-up') { this.scroll += 10; return; }
-    if (id === 'panel-down') { this.scroll = Math.max(0, this.scroll - 10); return; }
+    if (id === 'panel-close') { this.panel = null; this.peek = null; return; }
+    if (id === 'grid-up') { this.scroll = Math.max(0, this.scroll - 1); return; }
+    if (id === 'grid-down') { this.scroll += 1; return; }
+    if (id.startsWith('pgrid|')) { this.peek = this.peek === id.slice(6) ? null : id.slice(6); return; }
     if (this.menu) {
       if (id === 'm-resume') this.menu = false;
       else if (id === 'm-title') { this.menu = false; this.exit = 'title'; }
@@ -378,7 +388,9 @@ export class Match {
     const next = [...this.nextChoices()];
     const pref = this.preferredReplace ? `R:${this.preferredReplace}` : null;
     if (pref && next.length && next.every((x) => x.startsWith('R:')) && next.includes(pref)) this.armed.path.push(pref);
-    if (this.nextChoices().size === 0) this.press('play');
+    // scrapping a unit is confirmed with SCRAP AND PLAY (PLAN D29); anything else plays once complete
+    const last = this.armed.path[this.armed.path.length - 1];
+    if (this.nextChoices().size === 0 && !last?.startsWith('R:')) this.press('play');
   }
 
   private clickObject(id: string): void {
@@ -579,15 +591,15 @@ export class Match {
   /** Mouse wheel: scrolls the log drawer or an open viewer. */
   wheel(dy: number, x: number, _y: number): void {
     const step = Math.sign(dy) * Math.max(1, Math.round(Math.abs(dy) / 30));
-    if (this.panel) this.scroll = Math.max(0, this.scroll - step);
+    if (this.panel) this.scroll = Math.max(0, this.scroll + Math.sign(step));
     else if (this.drawer && x >= HW - drawerW()) this.drawerScroll = Math.max(0, this.drawerScroll - step);
   }
 
   key(code: string): void {
     if (this.panel) {
-      if (code === 'Escape') this.panel = null;
-      else if (code === 'ArrowUp' || code === 'PageUp') this.scroll += code === 'PageUp' ? 20 : 2;
-      else if (code === 'ArrowDown' || code === 'PageDown') this.scroll = Math.max(0, this.scroll - (code === 'PageDown' ? 20 : 2));
+      if (code === 'Escape') { if (this.peek) this.peek = null; else this.panel = null; }
+      else if (code === 'ArrowUp' || code === 'PageUp') this.scroll = Math.max(0, this.scroll - (code === 'PageUp' ? 3 : 1));
+      else if (code === 'ArrowDown' || code === 'PageDown') this.scroll += code === 'PageDown' ? 3 : 1;
       return;
     }
     if (code === 'KeyL') { this.drawer = !this.drawer; this.drawerScroll = 0; return; }
@@ -837,6 +849,10 @@ export class Match {
     if (kws) drawText(g, fitText(kws, sw - 8, 0.85), x + 4, y + artH + 2, { color: 'crystalBright', scale: 0.85 });
     if (role) drawText(g, role, x + 4, y + artH + 12, { color: 'emberGlow', face: 'bold', scale: 0.85 });
     if (u.silenced) drawTextCentred(g, 'silenced', x + sw / 2, y + SLOT.h - 13, { color: 'ironLight', scale: 0.85 });
+    if (this.armed?.path.includes(`R:${u.iid}`)) {
+      g.wash(x + 1, y + 1, sw - 2, SLOT.h - 2, 'emberNight', 0.55);
+      drawTextCentred(g, 'SCRAP', x + sw / 2, y + 30, { color: 'emberGlow', face: 'display', scale: 1.3, outline: 'ink', glow: 'ember' });
+    }
     this.badge(g, x + 10, y + SLOT.h - 10, st.power, 'power');
     this.badge(g, x + sw - 10, y + SLOT.h - 10, st.hp, st.hp < st.health ? 'hurt' : 'health');
     frame(g, x, y, sw, SLOT.h, edge, 4, choosable || role !== '' || this.picked?.iid === u.iid);
@@ -972,7 +988,7 @@ export class Match {
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
         const label = `${it.owner === 0 ? 'You' : 'Foe'}: ${this.name(it.card, it.owner)}`;
-        const w = Math.min(textWidth(label, 1) + 10, 150);
+        const w = Math.min(textWidth(label, 1) + 28, 168);
         const rest = items.length - i - 1;
         if (sx + w > maxX - (rest ? 26 : 0)) {
           drawText(g, `+${items.length - i}`, sx, rowY + 3.5, { color: 'steam', face: 'bold' });
@@ -982,7 +998,14 @@ export class Match {
         if (on) highlight(g, sx, rowY, w, 14, 'brass');
         else fillRound(g, sx, rowY, w, 14, it.owner === 0 ? 'ironNight' : 'emberNight', 0.85, 3);
         frame(g, sx, rowY, w, 14, on ? 'brassGlint' : it.owner === 0 ? 'brassDark' : 'emberDeep', 3);
-        drawText(g, fitText(label, w - 10), sx + 5, rowY + 3.5, { color: on ? 'brassGlint' : 'steamWhite' });
+        // a thumbnail of the card, so a tactic on the stack can be told at a glance
+        const art = cardArt(it.card, false);
+        if (art) {
+          const un = clipRound(g, sx + 2, rowY + 2, 16, 10, 1.5);
+          drawPic(g, art, sx + 2, rowY + 2, 16, 10, { x: 0, y: 4, w: 64, h: 40 });
+          un();
+        }
+        drawText(g, fitText(label, w - 26), sx + 22, rowY + 3.5, { color: on ? 'brassGlint' : 'steamWhite' });
         this.hots.push({ x: sx, y: rowY, w, h: 14, id: it.sid, kind: 'stack' });
         sx += w + 4;
       }
@@ -1571,44 +1594,45 @@ export class Match {
   }
 
   /** The whole log, or a player's Scrap, newest at the bottom; arrows or the buttons scroll. */
+  /** A Deck or Scrap viewer, as cards (PLAN D29). Mine shows what is left, sorted so the draw order stays hidden. */
   private drawPanel(g: Gfx, v: GameState): void {
     const x = 16, y = 30, w = HW - 32, h = HH - 60;
+    this.hots.push({ x: 0, y: 0, w: HW, h: HH, id: 'panel-bg', kind: 'button' });
+    g.wash(0, 0, HW, HH, 'ink', 0.4);
     panel(g, x, y, w, h, { tone: 'dark' });
     const p = this.panel!;
-    this.hots.push({ x: 0, y: 0, w: HW, h: HH, id: 'panel-bg', kind: 'button' });
-    let lines: { text: string; ink: Ink }[];
-    if (p.kind === 'deck' && p.seat === 1) {
-      lines = [{ text: `${v.players[1].deck.length} cards. What is in the foe's deck is hidden.`, ink: 'steam' }];
-    } else if (p.kind === 'deck') {
-      // what is left in my deck, from the full state: contents only, sorted by cost then name, so the order stays hidden
-      const counts = new Map<string, number>();
-      for (const id of this.s.players[0].deck) counts.set(id, (counts.get(id) ?? 0) + 1);
-      const ids = [...counts.keys()].sort((a, b) => def(a).cost - def(b).cost || face(v, 0, a).name.localeCompare(face(v, 0, b).name));
-      lines = ids.map((id): { text: string; ink: Ink } => ({ text: `${counts.get(id)} x ${face(v, 0, id).name} (${def(id).type === 'glyph' ? 'tactic' : def(id).type}, cost ${def(id).cost})`, ink: 'steamWhite' }));
-      if (lines.length === 0) lines = [{ text: 'Your deck is empty.', ink: 'iron' }];
-    } else {
-      const scrap = v.players[p.seat].scrap;
-      lines = scrap.map((id, i): { text: string; ink: Ink } => ({ text: `${i + 1}. ${face(v, p.seat, id).name} (${def(id).type === 'glyph' ? 'tactic' : def(id).type}, cost ${def(id).cost})`, ink: 'steamWhite' }));
-      if (lines.length === 0) lines = [{ text: 'Nothing in the Scrap yet.', ink: 'iron' }];
-    }
+    const faceOf = (id: string) => face(v, p.seat, id);
     const whose = p.seat === 0 ? 'YOUR' : "THE FOE'S";
     const title = p.kind === 'deck' ? `${whose} DECK (${v.players[p.seat].deck.length} LEFT)` : `${whose} SCRAP (${v.players[p.seat].scrap.length})`;
     drawText(g, title, x + 12, y + 9, { color: 'brassGlint', face: 'display', scale: 1.4 });
-    if (p.kind === 'deck' && p.seat === 0) drawText(g, 'sorted by cost; the draw order stays hidden', x + w - 12 - textWidth('sorted by cost; the draw order stays hidden', 0.9), y + 12, { color: 'ironLight', scale: 0.9 });
+    const sub = p.kind === 'deck' && p.seat === 0 ? 'Sorted by cost; the draw order stays hidden. Click a card to see it up close.'
+      : p.kind === 'scrap' ? 'In the order they went there. Click a card to see it up close.' : '';
+    if (sub) drawText(g, sub, x + w - 12 - textWidth(sub, 0.9), y + 12, { color: 'ironLight', scale: 0.9 });
     rule(g, x + 10, y + 24, w - 20);
-    const rows = Math.floor((h - 50) / 10);
-    this.scroll = Math.min(this.scroll, Math.max(0, lines.length - rows));
-    const start = Math.max(0, lines.length - rows - this.scroll);
-    lines.slice(start, start + rows).forEach((l, i) => drawText(g, l.text, x + 12, y + 29 + i * 10, { color: l.ink }));
-    const btn = (label: string, bx: number, id: string) => {
-      const bw = button(g, label, bx, y + h - 21, { h: 15 });
-      this.hots.push({ x: bx, y: y + h - 21, w: bw, h: 15, id, kind: 'button' });
-      return bw;
-    };
-    const ow = btn('OLDER', x + 10, 'panel-up');
-    btn('NEWER', x + 16 + ow, 'panel-down');
-    btn('CLOSE', x + w - 10 - (textWidth('CLOSE', 1, 'display') + 16), 'panel-close');
-    drawText(g, `${start + 1}–${Math.min(lines.length, start + rows)} of ${lines.length}`, x + 150, y + h - 17, { color: 'ironLight' });
+    const gh: GridHot[] = [];
+    if (p.kind === 'deck' && p.seat === 1) {
+      drawTextCentred(g, `${v.players[1].deck.length} cards. What is in the foe's deck is hidden.`, HW / 2, y + 60, { color: 'steam' });
+      this.scroll = 0;
+    } else {
+      let items: GridItem[];
+      if (p.kind === 'deck') items = grouped(this.s.players[0].deck, faceOf);
+      else items = v.players[p.seat].scrap.map((id, i) => ({ id, tag: `#${i + 1}` }));
+      const res = cardGrid(g, items, faceOf, x + 10, y + 32, w - 80, h - 64, this.scroll, this.hover?.id ?? null, 'pgrid|', gh);
+      this.scroll = res.scroll;
+      scrollButtons(g, x + w - 56, y + 34, h - 70, res.scroll, res.maxScroll, this.hover?.id ?? null, gh);
+    }
+    // grid cards with the same id share one hot; a click opens the card
+    for (const q of gh) this.hots.push({ ...q, kind: 'button' });
+    const cw = textWidth('CLOSE', 1, 'display') + 16;
+    button(g, 'CLOSE', x + w - 10 - cw, y + h - 21, { h: 15, state: this.hover?.id === 'panel-close' ? 'hot' : 'on' });
+    this.hots.push({ x: x + w - 10 - cw, y: y + h - 21, w: cw, h: 15, id: 'panel-close', kind: 'button' });
+    // a closer look: on click, or under the mouse
+    const look = this.peek ?? (this.hover?.id.startsWith('pgrid|') && !this.down?.touch ? this.hover.id.slice(6) : null);
+    if (look) {
+      const hv = this.hover?.id.startsWith('pgrid|') ? this.hover : null;
+      const bx = hv && hv.x + hv.w / 2 > HW / 2 ? x + 14 : x + w - 14 - 180;
+      bigCard(g, look, faceOf(look), bx, y + 34, 180);
+    }
   }
 
   /** The log drawer: every card played and every effect, newest at the bottom, sliding in from the right. */
