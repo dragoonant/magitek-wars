@@ -632,7 +632,37 @@ export class Match {
 
   // ---------- drawing (PLAN D25: smooth panels, real type, rounded cards over the battlefield art) ----------
 
-  draw(g: Gfx, t: number): void {
+  /**
+   * Effect time (PLAN D40): it runs with the real frame clock except during a hit pause, when it holds still for a
+   * few frames so a heavy blow lands with weight. Everything on the battle screen is drawn on this time.
+   */
+  private te = -1;
+  private lastReal = -1;
+  private pauses: { at: number; left: number }[] = [];
+  private clock(real: number): number {
+    if (this.te < 0) { this.te = real; this.lastReal = real; return real; }
+    const dt = Math.max(0, Math.min(5, real - this.lastReal));
+    this.lastReal = real;
+    const p = this.pauses.find((q) => q.at <= this.te);
+    if (p) {
+      p.left -= dt;
+      if (p.left <= 0) this.pauses.splice(this.pauses.indexOf(p), 1);
+      this.fx.frozen = true;
+    } else {
+      this.te += dt;
+      this.fx.frozen = false;
+    }
+    return this.te;
+  }
+
+  /** Hold the effects still for a few frames when effect time reaches at. */
+  private hitPause(at: number, frames: number): void {
+    if (this.delay === 0) return; // not in fast self-play
+    this.pauses.push({ at, left: frames });
+  }
+
+  draw(g: Gfx, realT: number): void {
+    const t = this.clock(realT);
     this.hots = [];
     const v = view(this.s, 0);
     const bg = field(FACTIONS.find((f) => f.engine === def(v.players[0].heroes[0] ?? v.players[0].deckList[0]).faction)?.field ?? 'vaskor');
@@ -1715,14 +1745,26 @@ export class Match {
     const pos = (iid?: string): Pt | undefined => (iid ? this.pos.get(iid) : undefined);
     const sg = slotGeo();
     const side = (seat: Seat | undefined): Ink => (seat === 0 ? 'crystalBright' : 'emberGlow');
+    /** Each faction's tactics have their own look (PLAN D40): bolt style, ink and the particles of the cast. */
+    const LOOK: Record<string, { style: BoltStyle; ink: Ink; motes: Ink[] }> = {
+      prism: { style: 'crystal', ink: 'crystalBright', motes: ['crystalWhite', 'crystalBright'] },
+      storm: { style: 'brass', ink: 'brassGlint', motes: ['brassGlint', 'steam'] },
+      coil: { style: 'spore', ink: 'verdigris', motes: ['verdigris', 'moss', 'crystalBright'] },
+      tide: { style: 'wind', ink: 'steamWhite', motes: ['steamWhite', 'crystalWhite'] },
+      ember: { style: 'fire', ink: 'emberBright', motes: ['emberBright', 'emberGlow'] },
+      under: { style: 'shadow', ink: 'duskMid', motes: ['duskMid', 'emberDeep', 'ironLight'] },
+    };
+    const lookOf = (id?: string) => (id && id !== '?' && !id.startsWith('order:') ? LOOK[def(id).faction] : undefined);
     const isTactic = (id?: string): boolean => !!id && id !== '?' && !id.startsWith('order:') && def(id).type === 'glyph';
     /** A tactic's effect travels from its caster's side as a bolt; returns the delay until it lands. */
     const travel = (e: (typeof fresh)[number], to: Pt, ink: Ink, b: number, style: BoltStyle = 'plain'): number => {
       let from: Pt | undefined;
-      if (isTactic(e.via)) from = this.sideOrigin(this.castBy.get(e.via!) ?? (e.seat === 0 ? 1 : 0));
+      let look = undefined as ReturnType<typeof lookOf>;
+      if (isTactic(e.via)) { from = this.sideOrigin(this.castBy.get(e.via!) ?? (e.seat === 0 ? 1 : 0)); look = lookOf(e.via); }
       else if (e.unit && e.unit !== striker) from = pos(e.unit);
       if (!from) return 0;
-      fx.bolt(from, to, ink, b, 14, undefined, style);
+      // a tactic's bolt carries its faction's look; the impact still shows what it did
+      fx.bolt(from, to, look ? look.ink : ink, b, 14, undefined, look ? look.style : style);
       return 14;
     };
     for (const e of fresh) {
@@ -1738,7 +1780,12 @@ export class Match {
           fx.ring(o[0], o[1], side(e.seat), b, 6, 50, 22);
           fx.burst(o[0], o[1], [side(e.seat), 'steamWhite'], 18, b, { speed: 3, life: 26 });
           fx.fly(cardArt(e.card!, false), null, [o[0] - 30, o[1] - 42, 60, 84], [HW / 2 - 45, MID_Y - 62, 90, 126], b, { life: 30, arc: 20, dissolve: true });
-          fx.rune(HW / 2, MID_Y + 20, 70, side(e.seat), b + 10, 40);
+          const look = lookOf(e.card);
+          fx.rune(HW / 2, MID_Y + 20, 70, look?.ink ?? side(e.seat), b + 10, 40);
+          if (look) {
+            fx.burst(HW / 2, MID_Y + 2, look.motes, 26, b + 22, { speed: 2.6, life: 34, size: 1.8, grav: look.style === 'fire' ? -0.05 : 0, shape: look.style === 'brass' ? 'shard' : look.style === 'wind' ? 'spark' : 'dot' });
+            fx.ring(HW / 2, MID_Y + 2, look.ink, b + 22, 10, 80, 26, 3);
+          }
           gap = 16;
           break;
         }
@@ -1778,7 +1825,8 @@ export class Match {
             fx.flash(p[0] - sg.w / 2, p[1] - SLOT.h / 2, sg.w, SLOT.h, 'ember', b, 12);
             if (e.tunit) fx.jolt(e.tunit, 3 + Math.min(4, (e.n ?? 0)), 2, b, 14, 'shake');
             if ((e.n ?? 0) >= 4) {
-              // a heavy blow: the screen flashes and shakes, the number lands bigger
+              // a heavy blow: everything holds still for a moment, then the screen flashes and shakes
+              this.hitPause(b, 5);
               fx.flashScreen('emberGlow', 0.16, b, 6);
               fx.shake(3, b, 14);
               fx.ring(p[0], p[1], 'emberBright', b, 8, 60, 20, 3);
@@ -1796,6 +1844,7 @@ export class Match {
           fx.vignette(e.seat === 1, 'ember', b);
           fx.burst(p[0], p[1], ['crystalWhite', e.seat === 0 ? 'crystalBright' : 'emberGlow'], 14, b, { speed: 3, life: 40, size: 2.6, grav: 0.12, shape: 'shard' });
           fx.flashScreen('ember', (e.n ?? 0) >= 3 ? 0.2 : 0.1, b, 8);
+          if ((e.n ?? 0) >= 3) this.hitPause(b, 6);
           gap = b - (base + d) + 10;
           break;
         case 'heal':
@@ -1907,9 +1956,12 @@ export class Match {
           const x = (u && pos(u.iid)?.[0]) ?? HW / 2;
           fx.column(x, 'brassGlint', b, 60);
           fx.rise(x, (u && pos(u.iid)?.[1]) ?? 200, ['brassGlint', 'brassLight', 'steamWhite'], 30, b, 50);
-          fx.banner('ASCENDED', this.name(e.card!, e.seat ?? 0), 'brassGlint', b + 6, cardArt(e.card!, true), (MID_Y + MY_LINE_Y) / 2 - 4, 70);
-          fx.shake(3, b, 18);
-          gap = 24;
+          // the whole screen gives way to the hero (PLAN D40)
+          fx.flashScreen('brassGlint', 0.45, b + 8, 12);
+          fx.cutIn('ASCENDS', this.name(e.card!, e.seat ?? 0), () => cardArt(e.card!, true, true) ?? cardArt(e.card!, true) ?? cardArt(e.card!, false), e.seat === 0 ? 'brassGlint' : 'emberGlow', b + 10, 100, e.seat === 1);
+          fx.shake(4, b + 10, 22);
+          if (u) fx.flash(x - sg.w / 2, (pos(u.iid)?.[1] ?? 200) - SLOT.h / 2, sg.w, SLOT.h, 'brassGlint', b + 110, 30);
+          gap = 112;
           break;
         }
         case 'negate':

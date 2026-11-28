@@ -13,7 +13,7 @@ export type Pt = [number, number];
 interface Particle { x: number; y: number; vx: number; vy: number; born: number; life: number; ink: Ink; size: number; grav: number; drag: number; shape: 'dot' | 'shard' | 'spark' }
 interface Ring { x: number; y: number; r0: number; r1: number; born: number; life: number; ink: Ink; width: number }
 /** How a bolt looks in flight: fire for harm, crystal for repair, brass for orders and buffs, frost, or shadow. */
-export type BoltStyle = 'fire' | 'crystal' | 'brass' | 'frost' | 'shadow' | 'plain';
+export type BoltStyle = 'fire' | 'crystal' | 'brass' | 'frost' | 'shadow' | 'spore' | 'wind' | 'plain';
 interface Bolt { from: Pt; to: Pt; born: number; life: number; ink: Ink; hit?: () => void; done?: boolean; style: BoltStyle }
 /** A card flying across the board: drawn, created, burned, cast or played. */
 interface FlyCard { img: HTMLImageElement | null; back: 'mine' | 'foe' | null; from: [number, number, number, number]; to: [number, number, number, number]; born: number; life: number; arc: number; spin: number; burn: boolean; dissolve: boolean; land?: () => void; done?: boolean }
@@ -21,6 +21,8 @@ interface FlyCard { img: HTMLImageElement | null; back: 'mine' | 'foe' | null; f
 interface Shard { img: HTMLImageElement; sx: number; sy: number; sw: number; sh: number; x: number; y: number; w: number; h: number; vx: number; vy: number; rot: number; vr: number; born: number; life: number }
 interface Rune { x: number; y: number; r: number; ink: Ink; born: number; life: number }
 interface ScreenFlash { ink: Ink; a: number; born: number; life: number }
+/** A full-screen moment: a hero ascending, shown large over a darkened board. */
+interface CutIn { title: string; sub: string; art: () => HTMLImageElement | null; ink: Ink; born: number; life: number; fromRight: boolean }
 interface Slash { x: number; y: number; born: number; life: number; ink: Ink; angle: number; len: number }
 interface Float { x: number; y: number; text: string; ink: Ink; born: number; scale: number }
 interface Flash { x: number; y: number; w: number; h: number; ink: Ink; born: number; life: number }
@@ -91,6 +93,14 @@ export class Fx {
   private shards: Shard[] = [];
   private runes: Rune[] = [];
   private flashesFull: ScreenFlash[] = [];
+  private cutIns: CutIn[] = [];
+  /** While true (a hit pause), particles and pieces hold still. */
+  frozen = false;
+
+  /** A hero's Ascension across the whole screen (PLAN D40). */
+  cutIn(title: string, sub: string, art: () => HTMLImageElement | null, ink: Ink, born: number, life = 96, fromRight = false): void {
+    this.cutIns.push({ title, sub, art, ink, born, life, fromRight });
+  }
 
   /** A card flying from one rectangle to another (x, y, w, h), face up (img) or as a back; it may burn or dissolve. */
   fly(img: HTMLImageElement | null, back: FlyCard['back'], from: FlyCard['from'], to: FlyCard['to'], born: number, o: { life?: number; arc?: number; spin?: number; burn?: boolean; dissolve?: boolean; land?: () => void } = {}): void {
@@ -352,7 +362,11 @@ export class Fx {
       } else if (b.style === 'crystal') this.burst(hd[0], hd[1], ['crystalWhite', 'crystalBright'], 2, t, { speed: 0.6, life: 20, size: 1.3, grav: 0, shape: 'dot' });
       else if (b.style === 'frost') this.burst(hd[0], hd[1], ['crystalWhite'], 2, t, { speed: 1, life: 18, size: 1.8, grav: 0.04, shape: 'shard' });
       else if (b.style === 'shadow') this.burst(hd[0], hd[1], ['duskMid', 'emberDeep'], 2, t, { speed: 0.5, life: 22, size: 2.4, grav: 0, shape: 'dot' });
-      else if (b.style === 'brass') { if (age % 2 === 0) this.burst(hd[0], hd[1], ['brassGlint'], 1, t, { speed: 1.2, life: 14, size: 1.2 }); }
+      else if (b.style === 'brass') { if (age % 2 === 0) this.burst(hd[0], hd[1], ['brassGlint'], 1, t, { speed: 1.2, life: 14, size: 1.2 }); this.burst(hd[0], hd[1], ['steam'], 1, t, { speed: 0.4, life: 24, size: 3, grav: -0.03, shape: 'dot' }); }
+      else if (b.style === 'spore') this.burst(hd[0], hd[1], ['verdigris', 'moss', 'crystalBright'], 2, t, { speed: 0.7, life: 30, size: 1.8, grav: -0.02, shape: 'dot' });
+      else if (b.style === 'wind') {
+        for (let i = 0; i < 2; i++) this.parts.push({ x: hd[0], y: hd[1] + (this.rnd() - 0.5) * 12, vx: (b.from[0] < b.to[0] ? -1 : 1) * (2 + this.rnd() * 2), vy: (this.rnd() - 0.5) * 0.4, born: t, life: 14, ink: 'steamWhite', size: 1, grav: 0, drag: 0.9, shape: 'spark' });
+      }
       else if (age % 2 === 0) this.burst(hd[0], hd[1], b.ink, 1, t, { speed: 0.5, life: 14, size: 1.2, grav: 0 });
     }
     this.bolts = this.bolts.filter((b) => !b.done);
@@ -457,8 +471,10 @@ export class Fx {
         ctx.drawImage(p.img, p.sx, p.sy, p.sw, p.sh, p.x, p.y, p.w, p.h);
         continue;
       }
-      p.vy += 0.16; p.vx *= 0.99;
-      p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      if (!this.frozen) {
+        p.vy += 0.16; p.vx *= 0.99;
+        p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      }
       ctx.save();
       ctx.globalAlpha = Math.max(0, 1 - age / p.life);
       ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
@@ -477,8 +493,10 @@ export class Fx {
       const age = t - p.born;
       if (age < 0) continue;
       // integrate once per frame drawn; frames and ticks are close enough for an effect
-      p.vx *= p.drag; p.vy = p.vy * p.drag + p.grav;
-      p.x += p.vx; p.y += p.vy;
+      if (!this.frozen) {
+        p.vx *= p.drag; p.vy = p.vy * p.drag + p.grav;
+        p.x += p.vx; p.y += p.vy;
+      }
       const a = 1 - age / p.life;
       ctx.fillStyle = rgba(p.ink, a);
       if (p.shape === 'spark') {
@@ -562,6 +580,79 @@ export class Fx {
         drawTextCentred(g, b.title, w / 2 + slide, y + 8, { color: b.ink, face: 'display', scale: 1.7, glow: b.ink, outline: 'ink' });
       }
       ctx.restore();
+    }
+    // a hero ascending, across the whole screen: dark wash, turning rays, the hero large, the name across a band
+    this.cutIns = this.cutIns.filter((c) => t - c.born < c.life);
+    for (const c of this.cutIns) {
+      const age = t - c.born;
+      if (age < 0) continue;
+      const inK = Math.min(1, age / 10), outK = Math.min(1, (c.life - age) / 14);
+      const a = Math.min(inK, outK);
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.fillStyle = rgba('ink', 0.72);
+      ctx.fillRect(0, 0, w, h);
+      // rays
+      ctx.globalCompositeOperation = 'lighter';
+      const cx = w / 2, cy = h * 0.46;
+      for (let i = 0; i < 14; i++) {
+        const ang = (i * Math.PI) / 7 + age * 0.012;
+        const gr = ctx.createLinearGradient(cx, cy, cx + Math.cos(ang) * w, cy + Math.sin(ang) * w);
+        gr.addColorStop(0, rgba(c.ink, 0.22));
+        gr.addColorStop(1, rgba(c.ink, 0));
+        ctx.fillStyle = gr;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, w, ang - 0.07, ang + 0.07);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+      // the band
+      const slide = (1 - Math.min(1, age / 12)) * (c.fromRight ? 1 : -1) * w * 0.6;
+      const bandY = h * 0.62, bandH = 46;
+      const bg = ctx.createLinearGradient(0, 0, w, 0);
+      bg.addColorStop(0, rgba('ink', 0));
+      bg.addColorStop(0.2, rgba('ink', 0.9));
+      bg.addColorStop(0.8, rgba('ink', 0.9));
+      bg.addColorStop(1, rgba('ink', 0));
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, bandY, w, bandH);
+      ctx.fillStyle = rgba(c.ink, 0.9);
+      ctx.fillRect(0, bandY, w, 2);
+      ctx.fillRect(0, bandY + bandH - 2, w, 2);
+      // the hero, large, sliding in
+      const pic = c.art();
+      if (pic) {
+        const ah = h * 0.5, aw = ah * (4 / 3);
+        const ax = w / 2 - aw / 2 + slide, ay = bandY - ah - 4 + Math.sin(age / 12) * 2;
+        ctx.save();
+        ctx.shadowColor = rgba(c.ink, 0.95);
+        ctx.shadowBlur = 24;
+        fillRound(g, ax - 3, ay - 3, aw + 6, ah + 6, 'ink', 1, 8);
+        ctx.restore();
+        drawPic(g, pic, ax, ay, aw, ah);
+        frame(g, ax - 3, ay - 3, aw + 6, ah + 6, c.ink, 8, true);
+        // a light sweep across the picture
+        const sk = ((age % 50) / 50) * (aw + 80) - 40;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(ax, ay, aw, ah);
+        ctx.clip();
+        ctx.globalCompositeOperation = 'lighter';
+        const sw = ctx.createLinearGradient(ax + sk - 30, 0, ax + sk + 30, 0);
+        sw.addColorStop(0, rgba('steamWhite', 0));
+        sw.addColorStop(0.5, rgba('steamWhite', 0.25));
+        sw.addColorStop(1, rgba('steamWhite', 0));
+        ctx.fillStyle = sw;
+        ctx.fillRect(ax, ay, aw, ah);
+        ctx.restore();
+      }
+      drawTextCentred(g, c.title, w / 2 - slide * 0.5, bandY + 5, { color: c.ink, face: 'display', scale: 2.2, glow: c.ink, outline: 'ink' });
+      drawTextCentred(g, c.sub, w / 2 + slide * 0.5, bandY + 31, { color: 'steamWhite', face: 'bold', scale: 1.1, outline: 'ink' });
+      ctx.restore();
+      if (age === 4 || age === 18) this.burst(w / 2, bandY - h * 0.25, [c.ink, 'steamWhite', 'brassGlint'], 30, t, { speed: 4, life: 40, size: 2, grav: 0.05 });
+      if (age % 3 === 0) this.rise(w / 2 + (this.rnd() - 0.5) * w * 0.6, h, [c.ink, 'steamWhite'], 2, t, 20);
     }
   }
 }

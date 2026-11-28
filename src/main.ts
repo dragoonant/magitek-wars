@@ -449,5 +449,5 @@ requestAnimationFrame(frame);
     return { mode: 'campaign', act: run.run?.act, ...common };
   },
   ui: () => (match ? match.debug() : null),
-  match: () => (match ? { phase: match.session.state.phase, round: match.session.state.round, priority: match.session.state.priority, winner: match.session.state.winner, actions: match.session.actions.length } : null),
+  match: () => (match ? { phase: match.session.state.phase, round: match.session.state.round, priority: match.session.state.priority, winner: match.session.state.winner, actions: match.session.actions.length, ascends: match.session.state.log.filter((e) => e.k === 'ascend').length } : null),
 };
