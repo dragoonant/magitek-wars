@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import '../src/data/cards/index';
 import { canDraw } from '../src/font';
@@ -25,6 +26,16 @@ describe('spec 20 R-R11: events', () => {
   it('every boss introduction is printable, one for each faction', () => {
     expect(Object.keys(BOSS_INTRO).sort()).toEqual(['coil', 'ember', 'prism', 'storm', 'tide', 'under']);
     for (const b of Object.values(BOSS_INTRO)) for (const l of [b.who, ...b.lines]) expect(canDraw(l), l).toBe(true);
+  });
+
+  it('R-R12: a boss introduction shows the portrait of the hero it names, from the boss deck\'s faction', () => {
+    for (const [f, b] of Object.entries(BOSS_INTRO)) {
+      const d = def(b.hero);
+      expect(d.type, b.hero).toBe('hero');
+      expect(d.faction, b.hero).toBe(f);
+      expect(b.who.startsWith(d.name.toUpperCase()), `${b.who} / ${d.name}`).toBe(true);
+      expect(existsSync(`public/art/portraits/${b.hero}.png`), b.hero).toBe(true);
+    }
   });
 
   it('every choice prints the scrip price it charges', () => {

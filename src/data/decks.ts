@@ -52,7 +52,7 @@ export function autoDeck(a: FactionId, b: FactionId): string[] {
 }
 
 /**
- * The first five premades, as autoDeck built them from the original 150-card pool (frozen 2026-11-26, PLAN D26, so that
+ * The first five premades, as autoDeck built them from the original 150-card pool (frozen 2026-11-26, Annals PLAN D26, so that
  * new cards do not change decks players already know).
  */
 const CURVE: { name: string; cards: Record<string, number> }[] = [
@@ -183,7 +183,7 @@ export const HAND_BUILT: HandDeck[] = [
 ];
 
 /**
- * Six premades led by the twelve First Light heroes (PLAN D26), two new heroes each, built from the faction's new cards.
+ * Six premades led by the twelve First Light heroes (Annals PLAN D26), two new heroes each, built from the faction's new cards.
  * Win rates: BALANCE.md B-5.
  */
 export const NEW_HERO_DECKS: HandDeck[] = [

@@ -2,6 +2,7 @@
 
 > Copied from Annals of Scrivenearth at 8b4ebac (PLAN D4). Faction, card and hero names are Annals' until the
 > re-skin (PLAN D12); the rules and numbers carry over as they are.
+> PLAN numbers in the copied text below are Annals' own, not this repo's PLAN.md.
 
 This is an original design, so numbers may change, but only with a measurement written here.
 Method: `npm run sim`, every pairing in both seats, decisive games only, holdout seeds for any change.

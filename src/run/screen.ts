@@ -601,7 +601,7 @@ export class RunScreen {
     const factions = [...new Set(deck.map((id) => def(id).faction))];
     const bossFace = b.kind === 'boss' && !this.foeDeckOpen;
     const intro = b.kind === 'boss' ? BOSS_INTRO[factions[0]] : null;
-    const bossPic = bossFace ? portrait(LEADS[factions[0] as keyof typeof LEADS]) : null;
+    const bossPic = bossFace && intro ? portrait(intro.hero) : null;
     // the buttons sit just under the facts (or under the foe's deck list when it is open)
     const factsY = 104 + (bossPic ? 104 : 0) + (intro ? intro.lines.length * 12 : 0);
     const by = this.foeDeckOpen ? 400 : factsY + 42;

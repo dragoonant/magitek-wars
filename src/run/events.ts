@@ -101,12 +101,13 @@ export function describeCard(id: string): string {
   return def(id).name;
 }
 
-/** Boss introductions (R-R12): the faction's leader in WORLD.md, by the boss deck's faction. */
-export const BOSS_INTRO: Record<string, { who: string; lines: string[] }> = {
-  storm: { who: 'FOREMAN OTTO BRANDT', lines: ['THE PUMPS OF THRUMHOLLOW ANSWER TO THE UNION.', '"YOU WALK OUR RAILS, YOU PAY OUR TOLL."'] },
-  coil: { who: 'SPEAKER ULLA OF THE NINTH ROOT', lines: ['THE ROOTS BENEATH YOU ARE DYING.', '"I HAVE HEARD YOUR CRYSTAL SING FROM A HUNDRED MILES."'] },
-  under: { who: 'MOTHER AGNA VELL', lines: ['A GREEN LANTERN HANGS AT EVERY DOOR YOU PASSED.', '"EVERY HOUSE OWES. NOW, SO DO YOU."'] },
-  tide: { who: 'CAPTAIN DASHA QUILL', lines: ['THE HALCYON DEBT DROPS ITS CABLES OVER THE FLATS.', '"I SOLD THEM YOUR MAP. I KEPT THE BETTER ONE."'] },
-  ember: { who: 'CANTOR EBBE', lines: ['A CHOIR WALKS OUT OF THE FIRE, STILL SINGING.', '"ALL DEBTS ARE PAID IN ASH."'] },
-  prism: { who: 'MARSHAL ILSE CORROW', lines: ['THE STRIDER LEGIONS RING THE GREAT CRYSTAL OF VASKOR.', '"I KEEP A LEDGER OF EVERY TOWN I BURN. ADD YOURS."'] },
+/** Boss introductions (R-R12): a leader from WORLD.md for the boss deck's faction, and that hero's card id, whose
+ *  portrait is shown with the introduction. */
+export const BOSS_INTRO: Record<string, { who: string; hero: string; lines: string[] }> = {
+  storm: { who: 'FOREMAN OTTO BRANDT', hero: 'storm-ness', lines: ['THE PUMPS OF THRUMHOLLOW ANSWER TO THE UNION.', '"YOU WALK OUR RAILS, YOU PAY OUR TOLL."'] },
+  coil: { who: 'SPEAKER ULLA OF THE NINTH ROOT', hero: 'coil-aruvi', lines: ['THE ROOTS BENEATH YOU ARE DYING.', '"I HAVE HEARD YOUR CRYSTAL SING FROM A HUNDRED MILES."'] },
+  under: { who: 'MOTHER AGNA VELL', hero: 'under-penn', lines: ['A GREEN LANTERN HANGS AT EVERY DOOR YOU PASSED.', '"EVERY HOUSE OWES. NOW, SO DO YOU."'] },
+  tide: { who: 'CAPTAIN DASHA QUILL', hero: 'tide-maren', lines: ['THE HALCYON DEBT DROPS ITS CABLES OVER THE FLATS.', '"I SOLD THEM YOUR MAP. I KEPT THE BETTER ONE."'] },
+  ember: { who: 'CANTOR EBBE', hero: 'ember-crucible', lines: ['A CHOIR WALKS OUT OF THE FIRE, STILL SINGING.', '"ALL DEBTS ARE PAID IN ASH."'] },
+  prism: { who: 'MARSHAL ILSE CORROW', hero: 'prism-tamsin', lines: ['THE STRIDER LEGIONS RING THE GREAT CRYSTAL OF VASKOR.', '"I KEEP A LEDGER OF EVERY TOWN I BURN. ADD YOURS."'] },
 };
