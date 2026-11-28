@@ -17,7 +17,7 @@ import { cardArt, field, isMissing } from './art';
 import { END_REASONS, KEYWORD_HELP, lineText, targetPrompt } from './text';
 import type { Session } from './session';
 import { playEvent } from '../audio/audio';
-import { Fx, type Pt } from './fx';
+import { Fx, type BoltStyle, type Pt } from './fx';
 import { bigCard, cardGrid, grouped, scrollButtons, type GridHot, type GridItem } from '../cardgrid';
 
 /**
@@ -121,6 +121,9 @@ export class Match {
   /** Units summoned by a queued event: hidden until their turn, then they fly in from the hand. */
   private arrive = new Map<string, { born: number; seat: Seat }>();
   private seenLog = -1;
+  /** My hand as last seen, and cards still on their way into it (hidden until the frame they land). */
+  private knownHand = new Set<string>();
+  private incoming = new Map<string, number>();
   /**
    * Where each unit sits on its Line, by column. Display only: no rule reads a unit's place (nothing in the engine or
    * the card text names a neighbour), so the player may drop a unit into any open slot. Kept per battle in storage.
@@ -638,6 +641,7 @@ export class Match {
     g.wash(0, 0, HW, HH, 'ink', 0.42);
 
     this.lastT = t;
+    this.fx.ambient(g, t, HW, HH);
     const onLine = new Set([...v.players[0].line, ...v.players[1].line].map((u) => u.iid));
     let pruned = false;
     for (const k of [...this.slots.keys()]) if (!onLine.has(k)) { this.slots.delete(k); pruned = true; }
@@ -937,6 +941,29 @@ export class Match {
       ctx.fill();
       ctx.restore();
     }
+    // cracks: one more for every three points of damage the Crystal has taken
+    const cracks = Math.min(6, Math.floor((LIMITS.spire - p.spire) / 3));
+    if (cracks > 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, hr, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.strokeStyle = rgba('ink', 0.55);
+      ctx.lineWidth = 1;
+      for (let i = 0; i < cracks; i++) {
+        const a = i * 2.3 + seat;
+        let px = cx + Math.cos(a) * hr, py = cy + Math.sin(a) * hr;
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        for (let j = 1; j <= 3; j++) {
+          px += (cx - px) * 0.35 + Math.sin(a * 3 + j) * 3;
+          py += (cy - py) * 0.35 + Math.cos(a * 5 + j) * 3;
+          ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
     ctx.fillStyle = rgba('steamWhite', 0.3);
     ctx.beginPath();
     ctx.ellipse(cx - hr * 0.3, cy - hr * 0.45, hr * 0.34, hr * 0.16, -0.5, 0, Math.PI * 2);
@@ -1027,14 +1054,81 @@ export class Match {
     lg.addColorStop(1, rgba(u.owner === 0 ? 'ironNight' : 'emberNight', 1));
     ctx.fillStyle = lg;
     ctx.fillRect(x + 1, y + artH - 14, sw - 2, 16);
-    if (u.stasis) { g.wash(x + 1, y + 1, sw - 2, artH, 'crystalWhite', 0.55); drawTextCentred(g, 'STASIS', x + sw / 2, y + 28, { color: 'crystalDeep', face: 'display' }); }
+    if (u.stasis) {
+      // frozen: a pale frost over the art with crystal cracks and a few drifting flakes
+      g.wash(x + 1, y + 1, sw - 2, artH, 'crystalWhite', 0.45);
+      ctx.save();
+      ctx.strokeStyle = rgba('crystalWhite', 0.9);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + 6, y + 8); ctx.lineTo(x + sw * 0.4, y + artH * 0.45); ctx.lineTo(x + sw * 0.3, y + artH - 6);
+      ctx.moveTo(x + sw * 0.4, y + artH * 0.45); ctx.lineTo(x + sw - 8, y + artH * 0.3);
+      ctx.moveTo(x + sw * 0.7, y + artH * 0.38); ctx.lineTo(x + sw * 0.8, y + artH - 4);
+      ctx.stroke();
+      for (let i = 0; i < 5; i++) {
+        const fy = y + 4 + ((t * 0.4 + i * 13) % (artH - 8));
+        ctx.fillStyle = rgba('steamWhite', 0.8);
+        ctx.fillRect(x + 6 + ((i * 17) % (sw - 12)), fy, 1.5, 1.5);
+      }
+      ctx.restore();
+      drawTextCentred(g, 'STASIS', x + sw / 2, y + 28, { color: 'crystalDeep', face: 'display' });
+    }
+    if (u.silenced) {
+      // silenced: iron bands across the art
+      ctx.save();
+      ctx.strokeStyle = rgba('ironLight', 0.75);
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x, y + artH * 0.25); ctx.lineTo(x + sw, y + artH * 0.6);
+      ctx.moveTo(x, y + artH * 0.6); ctx.lineTo(x + sw, y + artH * 0.25);
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (u.doomed) g.wash(x + 1, y + 1, sw - 2, SLOT.h - 2, 'emberDeep', 0.25 + 0.15 * Math.sin(t / 3));
+    if (st.keywords.includes('plated' as never)) {
+      // plated: a brass glint that sweeps across now and then
+      const k = ((t + u.iid.length * 37) % 150) / 30;
+      if (k < 1) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const gx = x + (sw + 30) * k - 15;
+        const gr = ctx.createLinearGradient(gx - 12, 0, gx + 12, 0);
+        gr.addColorStop(0, rgba('brassGlint', 0));
+        gr.addColorStop(0.5, rgba('brassGlint', 0.45));
+        gr.addColorStop(1, rgba('brassGlint', 0));
+        ctx.fillStyle = gr;
+        ctx.fillRect(x, y, sw, artH);
+        ctx.restore();
+      }
+    }
     unclip();
     drawText(g, fitText(f.name, sw - 8, 0.95, 'bold'), x + 4, y + 3.5, { color: 'steamWhite', face: 'bold', scale: 0.95, shadow: 'ink' });
-    if (u.ward) frame(g, x + 2, y + 2, sw - 4, artH - 2, 'crystalBright', 3, true);
+    if (u.ward) {
+      // a Ward: a shimmering bubble over the card
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const a = 0.35 + 0.2 * Math.sin(t / 9 + u.iid.length);
+      ctx.strokeStyle = rgba('crystalBright', a + 0.25);
+      ctx.shadowColor = rgba('crystalBright', 0.9);
+      ctx.shadowBlur = 8;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(x + sw / 2, y + SLOT.h / 2, sw / 2 + 3, SLOT.h / 2 + 3, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      const hg = ctx.createRadialGradient(x + sw * 0.3, y + SLOT.h * 0.25, 2, x + sw / 2, y + SLOT.h / 2, sw * 0.8);
+      hg.addColorStop(0, rgba('crystalWhite', 0.22 * a));
+      hg.addColorStop(1, rgba('crystalBright', 0));
+      ctx.fillStyle = hg;
+      ctx.fill();
+      ctx.restore();
+    }
     const kws = st.keywords.map((k) => KEYWORD_HELP[k].name).join(' · ');
     if (kws) drawText(g, fitText(kws, sw - 8, 0.85), x + 4, y + artH + 2, { color: 'crystalBright', scale: 0.85 });
     if (role) drawText(g, role, x + 4, y + artH + 12, { color: 'emberGlow', face: 'bold', scale: 0.85 });
     if (u.silenced) drawTextCentred(g, 'silenced', x + sw / 2, y + SLOT.h - 13, { color: 'ironLight', scale: 0.85 });
+    // attackers smoulder while combat is on
+    if (role.startsWith('Attack') && t % 3 === 0) this.fx.burst(x + 6 + ((t * 7) % (sw - 12)), y + SLOT.h - 4, ['emberBright', 'emberGlow'], 1, t, { speed: 0.5, life: 22, size: 1.4, grav: -0.06 });
     if (this.armed?.path.includes(`R:${u.iid}`)) {
       g.wash(x + 1, y + 1, sw - 2, SLOT.h - 2, 'emberNight', 0.55);
       drawTextCentred(g, 'SCRAP', x + sw / 2, y + 30, { color: 'emberGlow', face: 'display', scale: 1.3, outline: 'ink', glow: 'ember' });
@@ -1134,6 +1228,15 @@ export class Match {
         this.fx.ring(cx, cy, ink, t + 12, 10, 62, 24, 3);
         this.fx.burst(cx, ty + SLOT.h, ['steam', 'steamWhite'], 14, t + 12, { speed: 2.2, life: 26, size: 2.2, grav: -0.02, shape: 'dot', spread: sg.w });
         this.fx.flash(tx, ty, sg.w, SLOT.h, ink, t + 12, 18);
+        this.fx.rune(cx, ty + SLOT.h - 4, sg.w * 0.62, ink, t + 6, 44);
+        if (def(u.card).type === 'hero') {
+          // a hero takes the field: a pillar of light, a gold rune and their name across the board
+          this.fx.column(cx, 'brassGlint', t + 8, 56);
+          this.fx.rune(cx, ty + SLOT.h - 4, sg.w * 0.9, 'brassGlint', t + 10, 56);
+          this.fx.flashScreen('brassGlint', 0.18, t + 12, 10);
+          this.fx.banner(this.name(u.card, seat), seat === 0 ? 'Your hero takes the field' : "The foe's hero takes the field", 'brassGlint', t + 4, cardArt(u.card, false), (MID_Y + MY_LINE_Y) / 2 - 4, 60);
+          this.fx.shake(2.5, t + 12, 14);
+        }
         this.arrive.delete(u.iid);
       }
       const cur = this.at.get(u.iid) ?? [tx, ty];
@@ -1304,6 +1407,11 @@ export class Match {
     for (const i of order) {
       const h = p.hand[i];
       const x = cg.xs[i];
+      const land = this.incoming.get(h.iid);
+      if (land !== undefined) {
+        if (_t < land) continue;
+        this.incoming.delete(h.iid);
+      }
       const armed = this.armed?.iid === h.iid;
       if (this.drag?.iid === h.iid) {
         // its place in the hand stays marked while it is carried
@@ -1596,6 +1704,9 @@ export class Match {
     if (this.seenLog < 0 || this.seenLog > v.log.length) this.seenLog = v.log.length; // a resumed game starts quiet
     const fresh = v.log.slice(this.seenLog);
     this.seenLog = v.log.length;
+    // cards that joined my hand since the last look, in hand order, for the draw effect
+    const newHand = v.players[0].hand.filter((h) => !this.knownHand.has(h.iid)).map((h) => h.iid);
+    this.knownHand = new Set(v.players[0].hand.map((h) => h.iid));
     if (fresh.length === 0) return;
     const fx = this.fx;
     const base = Math.min(Math.max(t, this.fxEnd), t + 90);
@@ -1606,13 +1717,13 @@ export class Match {
     const side = (seat: Seat | undefined): Ink => (seat === 0 ? 'crystalBright' : 'emberGlow');
     const isTactic = (id?: string): boolean => !!id && id !== '?' && !id.startsWith('order:') && def(id).type === 'glyph';
     /** A tactic's effect travels from its caster's side as a bolt; returns the delay until it lands. */
-    const travel = (e: (typeof fresh)[number], to: Pt, ink: Ink, b: number): number => {
+    const travel = (e: (typeof fresh)[number], to: Pt, ink: Ink, b: number, style: BoltStyle = 'plain'): number => {
       let from: Pt | undefined;
       if (isTactic(e.via)) from = this.sideOrigin(this.castBy.get(e.via!) ?? (e.seat === 0 ? 1 : 0));
       else if (e.unit && e.unit !== striker) from = pos(e.unit);
       if (!from) return 0;
-      fx.bolt(from, to, ink, b, 12);
-      return 12;
+      fx.bolt(from, to, ink, b, 14, undefined, style);
+      return 14;
     };
     for (const e of fresh) {
       let b = base + d;
@@ -1626,6 +1737,8 @@ export class Match {
           fx.banner(this.name(e.card!, e.seat ?? 0), e.seat === 0 ? 'You play' : 'The foe plays', side(e.seat), b, cardArt(e.card!, false), (MID_Y + MY_LINE_Y) / 2 - 4, 55);
           fx.ring(o[0], o[1], side(e.seat), b, 6, 50, 22);
           fx.burst(o[0], o[1], [side(e.seat), 'steamWhite'], 18, b, { speed: 3, life: 26 });
+          fx.fly(cardArt(e.card!, false), null, [o[0] - 30, o[1] - 42, 60, 84], [HW / 2 - 45, MID_Y - 62, 90, 126], b, { life: 30, arc: 20, dissolve: true });
+          fx.rune(HW / 2, MID_Y + 20, 70, side(e.seat), b + 10, 40);
           gap = 16;
           break;
         }
@@ -1659,27 +1772,35 @@ export class Match {
         }
         case 'dmg':
           if ((p = pos(e.tunit))) {
-            b += travel(e, p, 'emberBright', b);
+            b += travel(e, p, 'emberBright', b, 'fire');
             fx.float(p[0], p[1], `-${e.n ?? 0}`, 'emberBright', b);
             fx.burst(p[0], p[1], ['ember', 'emberBright'], 12, b, { speed: 2.6, life: 22 });
             fx.flash(p[0] - sg.w / 2, p[1] - SLOT.h / 2, sg.w, SLOT.h, 'ember', b, 12);
-            if (e.tunit) fx.jolt(e.tunit, 3, 2, b, 14, 'shake');
+            if (e.tunit) fx.jolt(e.tunit, 3 + Math.min(4, (e.n ?? 0)), 2, b, 14, 'shake');
+            if ((e.n ?? 0) >= 4) {
+              // a heavy blow: the screen flashes and shakes, the number lands bigger
+              fx.flashScreen('emberGlow', 0.16, b, 6);
+              fx.shake(3, b, 14);
+              fx.ring(p[0], p[1], 'emberBright', b, 8, 60, 20, 3);
+            }
           }
           gap = b - (base + d) + 8;
           break;
         case 'spireDmg':
           p = this.crystalAt(e.seat);
-          b += travel(e, p, 'emberBright', b);
+          b += travel(e, p, 'emberBright', b, 'fire');
           fx.float(p[0] + 18, p[1] + 6, `-${e.n ?? 0}`, 'emberGlow', b, 2.2);
           fx.burst(p[0], p[1], ['ember', 'emberGlow', 'brassGlint'], 24, b, { speed: 3.6, life: 30 });
           fx.ring(p[0], p[1], 'emberGlow', b, 6, 46, 24, 3);
           fx.shake((e.n ?? 0) >= 3 ? 4 : 2.2, b, 16);
           fx.vignette(e.seat === 1, 'ember', b);
+          fx.burst(p[0], p[1], ['crystalWhite', e.seat === 0 ? 'crystalBright' : 'emberGlow'], 14, b, { speed: 3, life: 40, size: 2.6, grav: 0.12, shape: 'shard' });
+          fx.flashScreen('ember', (e.n ?? 0) >= 3 ? 0.2 : 0.1, b, 8);
           gap = b - (base + d) + 10;
           break;
         case 'heal':
           if ((p = pos(e.tunit))) {
-            b += travel(e, p, 'crystalBright', b);
+            b += travel(e, p, 'crystalBright', b, 'crystal');
             fx.float(p[0], p[1], `+${e.n ?? 0}`, 'crystalBright', b);
             fx.rise(p[0], p[1], ['crystalBright', 'crystalWhite'], 12, b, sg.w * 0.8);
             fx.ring(p[0], p[1], 'crystalBright', b, 6, 34, 20, 2);
@@ -1694,7 +1815,7 @@ export class Match {
           break;
         case 'buff':
           if ((p = pos(e.tunit))) {
-            b += travel(e, p, 'brassGlint', b);
+            b += travel(e, p, 'brassGlint', b, 'brass');
             const sign = (n: number | undefined) => `${(n ?? 0) >= 0 ? '+' : ''}${n ?? 0}`;
             fx.float(p[0], p[1] - 10, `${sign(e.n)}|${sign(e.m)}`, 'brassGlint', b);
             fx.ring(p[0], p[1], 'brassGlint', b, 8, 40, 22, 2.5);
@@ -1704,7 +1825,7 @@ export class Match {
           break;
         case 'grant':
           if ((p = pos(e.tunit))) {
-            b += travel(e, p, 'crystalBright', b);
+            b += travel(e, p, 'crystalBright', b, 'brass');
             const kw = (e.s ?? '').split(',')[0] as keyof typeof KEYWORD_HELP;
             fx.ring(p[0], p[1], 'crystalBright', b, 8, 38, 22, 2);
             fx.float(p[0], p[1] - 14, KEYWORD_HELP[kw]?.name ?? '', 'crystalBright', b, 1.2);
@@ -1722,7 +1843,7 @@ export class Match {
           break;
         case 'stasis':
           if ((p = pos(e.tunit))) {
-            b += travel(e, p, 'crystalWhite', b);
+            b += travel(e, p, 'crystalWhite', b, 'frost');
             fx.ring(p[0], p[1], 'crystalWhite', b, 6, 44, 26, 3);
             fx.burst(p[0], p[1], ['crystalWhite', 'crystalBright'], 16, b, { speed: 1.2, life: 36, shape: 'dot', grav: 0.02, spread: 30 });
           }
@@ -1730,7 +1851,7 @@ export class Match {
           break;
         case 'silence':
           if ((p = pos(e.tunit))) {
-            b += travel(e, p, 'ironLight', b);
+            b += travel(e, p, 'ironLight', b, 'shadow');
             fx.ring(p[0], p[1], 'ironLight', b, 40, 8, 18, 2.5);
             fx.float(p[0], p[1] - 14, 'SILENCED', 'ironLight', b, 1.2);
           }
@@ -1738,7 +1859,7 @@ export class Match {
           break;
         case 'destroy':
           if (e.s !== 'replaced' && (p = pos(e.tunit))) {
-            b += travel(e, p, 'emberDeep', b);
+            b += travel(e, p, 'emberDeep', b, 'shadow');
             fx.ring(p[0], p[1], 'emberGlow', b, 44, 6, 16, 3);
           }
           gap = b - (base + d) + 2;
@@ -1752,6 +1873,11 @@ export class Match {
           break;
         case 'die':
           if ((p = pos(e.unit))) {
+            const art = e.card ? cardArt(e.card, false) : null;
+            if (art && art.complete && art.naturalWidth) {
+              // the card breaks: its art falls apart in tumbling pieces
+              fx.shatter(art, [0, 0, art.naturalWidth, art.naturalHeight], p[0] - sg.w / 2 + 1, p[1] - SLOT.h / 2 + 1, sg.w - 2, 62, b, 5, 4, 1.1);
+            }
             fx.burst(p[0], p[1], [e.seat === 0 ? 'iron' : 'emberDeep', 'emberGlow', 'brassLight'], 26, b, { speed: 3.2, life: 42, size: 2.4, grav: 0.14, shape: 'shard', spread: sg.w * 0.6 });
             fx.burst(p[0], p[1], ['steam'], 10, b, { speed: 1.2, life: 40, size: 3, grav: -0.03, shape: 'dot', spread: sg.w * 0.5 });
             fx.flash(p[0] - sg.w / 2, p[1] - SLOT.h / 2, sg.w, SLOT.h, 'emberGlow', b, 20);
@@ -1794,6 +1920,88 @@ export class Match {
           break;
         case 'resolve':
           if (e.card) this.castBy.delete(e.card);
+          break;
+        case 'draw': {
+          // a card flies from the Deck to the hand; mine stays hidden in the hand until it lands
+          const seat = e.seat ?? 0;
+          for (let i = 0; i < (e.n ?? 1); i++) {
+            const bb = b + i * 6;
+            if (seat === 0) {
+              const iid = newHand.shift();
+              const hg = handGeo(v.players[0].hand.length);
+              const idx = iid ? v.players[0].hand.findIndex((h) => h.iid === iid) : -1;
+              const tx = idx >= 0 ? hg.xs[idx] : HW / 4;
+              if (iid) this.incoming.set(iid, bb + 18);
+              fx.fly(null, 'mine', [6, HAND_Y + 12, PILE.w - 4, PILE.h - 4], [tx, HAND_Y, hg.w, CARD.h], bb, { life: 18, arc: 24, spin: 0.2 });
+            } else {
+              fx.fly(null, 'foe', [HW - 76, 6, 26, 34], [HW / 2 - FOE_DIAL.r - 50, 4, 13, 18], bb, { life: 16, arc: 10 });
+            }
+          }
+          gap = 4 + (e.n ?? 1) * 4;
+          break;
+        }
+        case 'burn': {
+          // a card that could not be kept burns away on its way to the Scrap
+          const seat = e.seat ?? 0;
+          const from: [number, number, number, number] = seat === 0 ? [6, HAND_Y + 12, PILE.w - 4, PILE.h - 4] : [HW - 76, 6, 26, 34];
+          const to: [number, number, number, number] = seat === 0 ? [HW / 2 - 40, MID_Y - 30, 80, 110] : [HW / 2 - 30, MID_Y - 50, 60, 84];
+          fx.fly(e.card ? cardArt(e.card, false) : null, null, from, to, b, { life: 34, arc: 20, burn: true });
+          fx.float(to[0] + to[2] / 2, to[1] - 4, 'BURNED', 'emberGlow', b + 20, 1.2);
+          gap = 14;
+          break;
+        }
+        case 'create': {
+          // a new card sparkles into being and joins the hand
+          const seat = e.seat ?? 0;
+          const at: [number, number, number, number] = [HW / 2 - 33, MID_Y - 40, 66, 92];
+          fx.ring(HW / 2, MID_Y + 6, seat === 0 ? 'crystalBright' : 'emberGlow', b, 4, 60, 24, 2.5);
+          fx.burst(HW / 2, MID_Y + 6, ['crystalWhite', 'brassGlint'], 20, b, { speed: 2.4, life: 30, shape: 'dot' });
+          const hg = handGeo(v.players[0].hand.length);
+          fx.fly(e.card ? cardArt(e.card, false) : null, seat === 1 ? 'foe' : null, at, seat === 0 ? [hg.xs[hg.xs.length - 1] ?? HW / 4, HAND_Y, hg.w, CARD.h] : [HW / 2 - FOE_DIAL.r - 50, 4, 13, 18], b + 8, { life: 22, arc: 16 });
+          gap = 10;
+          break;
+        }
+        case 'charge':
+        case 'maxCharge':
+        case 'reserve': {
+          p = this.crystalAt(e.seat);
+          const ink: Ink = e.k === 'reserve' ? (e.seat === 0 ? 'crystalBright' : 'emberBright') : e.seat === 0 ? 'brassGlint' : 'emberGlow';
+          fx.ring(p[0], p[1], ink, b, 10, (e.seat === 0 ? MY_DIAL.r : FOE_DIAL.r) + 22, 22, 2.5);
+          fx.rise(p[0], p[1], [ink, 'steamWhite'], 10, b, 40);
+          gap = 4;
+          break;
+        }
+        case 'rally':
+          // a rally: every unit on that side lifts with a brass ring
+          for (const u of v.players[e.seat ?? 0].line) {
+            if ((p = pos(u.iid))) {
+              fx.ring(p[0], p[1], 'brassGlint', b, 10, 46, 20, 2);
+              fx.jolt(u.iid, 0, e.seat === 0 ? -6 : 6, b, 16, 'lunge');
+            }
+          }
+          fx.banner('RALLY', '', 'brassGlint', b, null, (MID_Y + MY_LINE_Y) / 2 - 2, 30);
+          gap = 10;
+          break;
+        case 'channel':
+          if ((p = pos(e.tunit))) {
+            fx.bolt(this.sideOrigin(e.seat ?? 0), p, 'crystalBright', b, 14, undefined, 'crystal');
+            fx.ring(p[0], p[1], 'crystalBright', b + 14, 8, 46, 22, 2.5);
+            fx.rise(p[0], p[1], ['crystalBright', 'crystalWhite'], 12, b + 14, sg.w * 0.8);
+          }
+          gap = 18;
+          break;
+        case 'over':
+          if (e.seat === 0 || v.winner === 0) {
+            fx.fireworks(HW, HH, b + 10, 12);
+            fx.flashScreen('brassGlint', 0.2, b, 12);
+          } else {
+            // my Crystal breaks
+            p = this.crystalAt(0);
+            fx.burst(p[0], p[1], ['crystalWhite', 'crystalBright', 'crystal'], 40, b, { speed: 4, life: 60, size: 3, grav: 0.14, shape: 'shard' });
+            fx.ring(p[0], p[1], 'crystalBright', b, 10, 120, 40, 4);
+            fx.flashScreen('emberDeep', 0.3, b, 20);
+            fx.shake(6, b, 30);
+          }
           break;
         case 'round':
           if ((e.n ?? 0) > 1) fx.banner(`ROUND ${e.n ?? 0}`, '', 'brassLight', b, null, (MID_Y + MY_LINE_Y) / 2 - 2, 36);

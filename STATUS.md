@@ -29,7 +29,8 @@ roguelike campaign, Hero Expeditions in the shape of Path of Champions, a deck b
   foe's at the top and yours at the bottom with your hand split around it, Deck and Scrap piles at the corners (click
   to see the cards, D29); holding a card pulses what it would spend. Cards are dragged onto any open slot or target,
   enlarge in place on hover or hold, combat shows on the board, the log is a drawer (LOG or L), and effects play from
-  the log (D26). **Clockface not yet play-tested by the owner.** Autosaves after every move;
+  the log (D26, D39: drawn and burned cards fly, tactics dissolve into bolts, units break apart, Crystals crack,
+  statuses show on the cards; the campaign has its own). **Clockface not yet play-tested by the owner.** Autosaves after every move;
   CONTINUE reopens it. `?auto&fast` lets the AI play both seats: all 30 decks played a full battle this way with no
   error.
 - **Deck builder (D19):** build and save decks from the 300 cards with the engine's deck rules; legal decks show up in

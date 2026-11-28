@@ -14,6 +14,7 @@ import { FACTION_INFO } from '../data/decks';
 import { cardArt, emblem, portrait } from '../match/art';
 import { HH, HW, Match } from '../match/board';
 import { Session } from '../match/session';
+import { Fx } from '../match/fx';
 import { cardGrid, confirmCard, grouped, lens, scrollButtons, zoomCard } from '../cardgrid';
 import {
   ACT_NAMES, FLOORS, LEADS, MIN_DECK, REST_REPAIR, SUPPLY_REPAIR, SUPPLY_REPAIR_PRICE, buy, choices, enter, finishBattle,
@@ -79,6 +80,10 @@ export class RunScreen {
   /** A picked card waiting for the player to confirm it (PLAN D29), or a card opened for a closer look. */
   private confirm: { kind: 'cut' | 'evcut' | 'take' | 'buy'; id: string } | null = null;
   private peek: string | null = null;
+  /** Campaign effects (PLAN D39): cards burning away, flying into the deck, scrip and repairs. */
+  private fx = new Fx();
+  private t = 0;
+  private lastPhase = '';
   /** Where cards are drawn, for right-click and touch-hold zoom; topmost last. */
   private spots: { x: number; y: number; w: number; h: number; card: string }[] = [];
   private confirmAbandon = false;
@@ -240,12 +245,29 @@ export class RunScreen {
       if (k === 'confirm-no') this.confirm = null;
       if (k !== 'confirm-yes' || !r) return;
       this.confirm = null;
+      // the confirmed card, where the confirmation showed it
+      const cr: [number, number, number, number] = [(HW - 380) / 2 + 10, 74, 170, 230];
+      const deckBtn: [number, number, number, number] = [352 + 8, 206, 70, 22];
+      const art = cardArt(c.id, false);
       if (c.kind === 'cut') { rest(r, { kind: 'remove', card: c.id }); this.removing = false; }
       else if (c.kind === 'evcut') removeForEvent(r, c.id);
       else if (c.kind === 'take') takeReward(r, c.id);
       else {
         const why = buy(r, c.id);
         if (why) this.note = why;
+        else this.fx.burst(352 + 70, 96, ['brassGlint', 'brassLight'], 22, this.t, { speed: 2.6, life: 30, size: 2.2, grav: 0.1, shape: 'dot' });
+      }
+      if (c.kind === 'cut' || c.kind === 'evcut') {
+        // the removed card burns away
+        this.fx.fly(art, null, cr, [cr[0] + 20, cr[1] - 30, cr[2] - 40, cr[3] - 50], this.t, { life: 48, arc: 0, burn: true });
+        this.fx.float(cr[0] + cr[2] / 2, cr[1] + 40, 'REMOVED', 'emberGlow', this.t + 30, 1.4);
+      } else if (!this.note) {
+        // a new card flies into the deck
+        const t = this.t;
+        this.fx.fly(art, null, cr, deckBtn, t, { life: 28, arc: 50, spin: 0.25, land: () => {
+          this.fx.ring(deckBtn[0] + 35, deckBtn[1] + 11, 'brassGlint', this.t, 6, 46, 22, 2.5);
+          this.fx.burst(deckBtn[0] + 35, deckBtn[1] + 11, ['brassGlint', 'crystalWhite'], 16, this.t, { speed: 2.2, life: 26, shape: 'dot' });
+        } });
       }
       this.save();
       return;
@@ -270,6 +292,8 @@ export class RunScreen {
     if (k === 'abandon-no') { this.confirmAbandon = false; return; }
     if (k === 'newrun') { clearRun(); this.run = null; return; }
     if (k === 'node') {
+      this.fx.ring(h.x + h.w / 2, h.y + h.h / 2, 'brassGlint', this.t, 4, 30, 20, 2.5);
+      this.fx.burst(h.x + h.w / 2, h.y + h.h / 2, ['brassGlint', 'steamWhite'], 12, this.t, { speed: 2, life: 22, shape: 'dot' });
       enter(r, v);
       this.foeDeckOpen = false;
       this.save();
@@ -285,7 +309,7 @@ export class RunScreen {
     }
     if (k === 'take' && v !== '-') { this.confirm = { kind: 'take', id: v }; return; }
     if (k === 'take') { takeReward(r, null); this.save(); return; }
-    if (k === 'repair') { rest(r, { kind: 'repair' }); this.save(); return; }
+    if (k === 'repair') { rest(r, { kind: 'repair' }); this.repairFx(); this.save(); return; }
     if (k === 'remove') { this.removing = true; this.gridScroll = 0; return; }
     if (k === 'buy' && v !== 'repair') {
       const price = r.shop?.cards.find((x) => x.id === v)?.price ?? 0;
@@ -296,6 +320,10 @@ export class RunScreen {
     if (k === 'buy') {
       const why = buy(r, v);
       if (why) this.note = why;
+      else {
+        this.repairFx();
+        this.fx.burst(352 + 70, 96, ['brassGlint', 'brassLight'], 18, this.t, { speed: 2.4, life: 28, size: 2.2, grav: 0.1, shape: 'dot' });
+      }
       this.save();
       return;
     }
@@ -310,7 +338,12 @@ export class RunScreen {
     }
     this.hots = [];
     this.spots = [];
+    this.t = t;
     const r = this.run;
+    if (r && r.phase !== this.lastPhase) {
+      if (this.lastPhase) this.phaseFx(r.phase, t); // a run opened from a save starts quiet
+      this.lastPhase = r.phase;
+    }
     if (!r) {
       this.drawPick(g, t);
       if (this.peek) zoomCard(g, HW, HH, this.peek, (id, a) => this.faceOf(id, a), this.hots);
@@ -332,6 +365,7 @@ export class RunScreen {
     if (this.deckOpen || this.removing || r.phase === 'eventRemove') this.drawDeck(g, r);
     if (this.confirm) this.drawConfirm(g, r);
     if (this.peek) zoomCard(g, HW, HH, this.peek, (id, a) => this.faceOf(id, a), this.hots);
+    this.fx.draw(g, t, HW, HH);
     if (this.note) {
       const ctx = g.ctx;
       const gr = ctx.createLinearGradient(0, HH - 18, 0, HH);
@@ -488,6 +522,36 @@ export class RunScreen {
       }
     }
     if (r.phase === 'map') drawText(g, r.at === null ? 'Choose where to start this act.' : 'Choose the next stop.', 10, 30, { color: 'steam', shadow: 'ink' });
+  }
+
+  /** A repair: crystal motes rise from the Crystal line on the side panel. */
+  private repairFx(): void {
+    this.fx.rise(352 + 70, 84, ['crystalBright', 'crystalWhite'], 18, this.t, 60);
+    this.fx.ring(352 + 70, 84, 'crystalBright', this.t, 4, 40, 22, 2);
+    this.fx.float(352 + 120, 70, 'REPAIRED', 'crystalBright', this.t + 4, 1.2);
+  }
+
+  /** Arriving at a phase: offered cards glint in, a won run ends in fireworks, a lost one in a breaking Crystal. */
+  private phaseFx(phase: string, t: number): void {
+    if (phase === 'reward') {
+      for (let i = 0; i < 3; i++) {
+        const cx = 24 + i * 160 + 76, cy = 80 + 110;
+        this.fx.ring(cx, cy, 'brassGlint', t + i * 8, 10, 90, 30, 2.5);
+        this.fx.rise(cx, cy + 60, ['brassGlint', 'crystalWhite'], 14, t + i * 8, 120);
+      }
+      this.fx.banner('VICTORY', '', 'brassGlint', t, null, 56, 40);
+    } else if (phase === 'won') {
+      this.fx.fireworks(HW, HH, t, 16);
+      this.fx.flashScreen('brassGlint', 0.25, t, 14);
+    } else if (phase === 'lost') {
+      this.fx.burst(HW / 2, HH / 2, ['crystalWhite', 'crystalBright', 'emberGlow'], 50, t, { speed: 4.5, life: 70, size: 3, grav: 0.12, shape: 'shard' });
+      this.fx.flashScreen('emberDeep', 0.35, t, 24);
+      this.fx.shake(6, t, 30);
+    } else if (phase === 'supply') {
+      this.fx.burst(HW / 2, 64, ['brassGlint', 'brassLight'], 16, t, { speed: 2, life: 30, size: 2, grav: 0.08, shape: 'dot' });
+    } else if (phase === 'rest') {
+      this.fx.rise(HW / 2, 200, ['emberGlow', 'brassLight'], 20, t, 200);
+    }
   }
 
   private drawSide(g: Gfx, r: RunState): void {

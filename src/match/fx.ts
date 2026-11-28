@@ -12,7 +12,15 @@ export type Pt = [number, number];
 
 interface Particle { x: number; y: number; vx: number; vy: number; born: number; life: number; ink: Ink; size: number; grav: number; drag: number; shape: 'dot' | 'shard' | 'spark' }
 interface Ring { x: number; y: number; r0: number; r1: number; born: number; life: number; ink: Ink; width: number }
-interface Bolt { from: Pt; to: Pt; born: number; life: number; ink: Ink; hit?: () => void; done?: boolean }
+/** How a bolt looks in flight: fire for harm, crystal for repair, brass for orders and buffs, frost, or shadow. */
+export type BoltStyle = 'fire' | 'crystal' | 'brass' | 'frost' | 'shadow' | 'plain';
+interface Bolt { from: Pt; to: Pt; born: number; life: number; ink: Ink; hit?: () => void; done?: boolean; style: BoltStyle }
+/** A card flying across the board: drawn, created, burned, cast or played. */
+interface FlyCard { img: HTMLImageElement | null; back: 'mine' | 'foe' | null; from: [number, number, number, number]; to: [number, number, number, number]; born: number; life: number; arc: number; spin: number; burn: boolean; dissolve: boolean; land?: () => void; done?: boolean }
+/** A piece of a broken card: a part of its art that tumbles and falls. */
+interface Shard { img: HTMLImageElement; sx: number; sy: number; sw: number; sh: number; x: number; y: number; w: number; h: number; vx: number; vy: number; rot: number; vr: number; born: number; life: number }
+interface Rune { x: number; y: number; r: number; ink: Ink; born: number; life: number }
+interface ScreenFlash { ink: Ink; a: number; born: number; life: number }
 interface Slash { x: number; y: number; born: number; life: number; ink: Ink; angle: number; len: number }
 interface Float { x: number; y: number; text: string; ink: Ink; born: number; scale: number }
 interface Flash { x: number; y: number; w: number; h: number; ink: Ink; born: number; life: number }
@@ -75,8 +83,74 @@ export class Fx {
     this.rings.push({ x, y, r0, r1, born, life, ink, width });
   }
 
-  bolt(from: Pt, to: Pt, ink: Ink, born: number, life = 12, hit?: () => void): void {
-    this.bolts.push({ from, to, born, life, ink, hit });
+  bolt(from: Pt, to: Pt, ink: Ink, born: number, life = 12, hit?: () => void, style: BoltStyle = 'plain'): void {
+    this.bolts.push({ from, to, born, life, ink, hit, style });
+  }
+
+  private cards: FlyCard[] = [];
+  private shards: Shard[] = [];
+  private runes: Rune[] = [];
+  private flashesFull: ScreenFlash[] = [];
+
+  /** A card flying from one rectangle to another (x, y, w, h), face up (img) or as a back; it may burn or dissolve. */
+  fly(img: HTMLImageElement | null, back: FlyCard['back'], from: FlyCard['from'], to: FlyCard['to'], born: number, o: { life?: number; arc?: number; spin?: number; burn?: boolean; dissolve?: boolean; land?: () => void } = {}): void {
+    this.cards.push({ img, back, from, to, born, life: o.life ?? 22, arc: o.arc ?? 30, spin: o.spin ?? 0, burn: !!o.burn, dissolve: !!o.dissolve, land: o.land });
+  }
+
+  /** Break a picture (the part sx, sy, sw, sh of img) drawn at x, y, w, h into tumbling pieces. */
+  shatter(img: HTMLImageElement, src: [number, number, number, number], x: number, y: number, w: number, h: number, born: number, cols = 5, rows = 4, power = 1): void {
+    const [sx, sy, sw, sh] = src;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const px = x + (c * w) / cols, py = y + (r * h) / rows;
+        const dx = px + w / cols / 2 - (x + w / 2), dy = py + h / rows / 2 - (y + h / 2);
+        this.shards.push({
+          img, sx: sx + (c * sw) / cols, sy: sy + (r * sh) / rows, sw: sw / cols, sh: sh / rows, x: px, y: py, w: w / cols, h: h / rows,
+          vx: (dx * 0.06 + (this.rnd() - 0.5) * 2.2) * power, vy: (dy * 0.05 - 1.2 - this.rnd() * 2) * power, rot: 0, vr: (this.rnd() - 0.5) * 0.35,
+          born: born + Math.floor(this.rnd() * 3), life: 46 + this.rnd() * 20,
+        });
+      }
+    }
+  }
+
+  /** A turning circle of runes under a unit as it is deployed. */
+  rune(x: number, y: number, r: number, ink: Ink, born: number, life = 40): void {
+    this.runes.push({ x, y, r, ink, born, life });
+  }
+
+  /** The whole screen lit for a moment: the weight of a big hit. */
+  flashScreen(ink: Ink, a: number, born: number, life = 6): void {
+    this.flashesFull.push({ ink, a, born, life });
+  }
+
+  /** Bursts of light over the board, one after another: a victory. */
+  fireworks(w: number, h: number, born: number, n = 10): void {
+    const inks: Ink[][] = [['brassGlint', 'brassLight'], ['crystalBright', 'crystalWhite'], ['emberGlow', 'emberBright'], ['steamWhite', 'brassGlint']];
+    for (let i = 0; i < n; i++) {
+      const x = w * (0.15 + this.rnd() * 0.7), y = h * (0.12 + this.rnd() * 0.45), b = born + i * 9 + Math.floor(this.rnd() * 5);
+      const ink = inks[i % inks.length];
+      this.bolt([x + (this.rnd() - 0.5) * 60, h], [x, y], ink[0], b, 16, undefined, 'plain');
+      this.burst(x, y, ink, 26, b + 16, { speed: 3.4, life: 46, size: 1.8, grav: 0.05, drag: 0.95 });
+      this.ring(x, y, ink[0], b + 16, 4, 44, 26, 2);
+    }
+  }
+
+  /** Small embers that drift up through the scene, drawn under everything else. */
+  ambient(g: Gfx, t: number, w: number, h: number, ink: Ink = 'emberGlow'): void {
+    const ctx = g.ctx;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 26; i++) {
+      const sp = 0.18 + ((i * 37) % 11) / 40;
+      const x = ((i * 97.3) % w) + Math.sin(t / 60 + i) * 14;
+      const y = h - (((t * sp + i * 53) % (h + 40)));
+      const a = 0.18 + 0.18 * Math.sin(t / 20 + i * 1.7);
+      ctx.fillStyle = rgba(i % 3 === 0 ? 'crystalBright' : ink, a);
+      ctx.beginPath();
+      ctx.arc(x, y, 0.8 + (i % 3) * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   slash(x: number, y: number, ink: Ink, born: number): void {
@@ -153,7 +227,7 @@ export class Fx {
 
   /** Whether anything is still playing (or waiting to play). */
   busy(t: number): boolean {
-    return this.parts.length + this.rings.length + this.bolts.length + this.floats.length > 0 || this.banners.some((b) => t < b.born + b.life);
+    return this.parts.length + this.rings.length + this.bolts.length + this.floats.length + this.cards.length + this.shards.length > 0 || this.banners.some((b) => t < b.born + b.life);
   }
 
   // ---------- drawing ----------
@@ -258,13 +332,28 @@ export class Fx {
       }
       const hd = at(e);
       ctx.shadowColor = rgba(b.ink, 1);
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = b.style === 'plain' ? 10 : 16;
       ctx.fillStyle = rgba('steamWhite', 0.95);
       ctx.beginPath();
-      ctx.arc(hd[0], hd[1], 3, 0, Math.PI * 2);
+      ctx.arc(hd[0], hd[1], b.style === 'plain' ? 3 : 4.5, 0, Math.PI * 2);
       ctx.fill();
+      if (b.style === 'brass') {
+        // a turning cog at the head
+        ctx.translate(hd[0], hd[1]);
+        ctx.rotate(age * 0.5);
+        ctx.strokeStyle = rgba('brassGlint', 0.95);
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 6; i++) { ctx.rotate(Math.PI / 3); ctx.beginPath(); ctx.moveTo(5, 0); ctx.lineTo(8, 0); ctx.stroke(); }
+      }
       ctx.restore();
-      if (age % 2 === 0) this.burst(hd[0], hd[1], b.ink, 1, t, { speed: 0.5, life: 14, size: 1.2, grav: 0 });
+      if (b.style === 'fire') {
+        this.burst(hd[0], hd[1], ['emberBright', 'emberGlow'], 2, t, { speed: 0.8, life: 16, size: 1.6, grav: -0.03 });
+        if (age % 2 === 0) this.burst(hd[0], hd[1], ['steam'], 1, t, { speed: 0.3, life: 26, size: 3, grav: -0.02, shape: 'dot' });
+      } else if (b.style === 'crystal') this.burst(hd[0], hd[1], ['crystalWhite', 'crystalBright'], 2, t, { speed: 0.6, life: 20, size: 1.3, grav: 0, shape: 'dot' });
+      else if (b.style === 'frost') this.burst(hd[0], hd[1], ['crystalWhite'], 2, t, { speed: 1, life: 18, size: 1.8, grav: 0.04, shape: 'shard' });
+      else if (b.style === 'shadow') this.burst(hd[0], hd[1], ['duskMid', 'emberDeep'], 2, t, { speed: 0.5, life: 22, size: 2.4, grav: 0, shape: 'dot' });
+      else if (b.style === 'brass') { if (age % 2 === 0) this.burst(hd[0], hd[1], ['brassGlint'], 1, t, { speed: 1.2, life: 14, size: 1.2 }); }
+      else if (age % 2 === 0) this.burst(hd[0], hd[1], b.ink, 1, t, { speed: 0.5, life: 14, size: 1.2, grav: 0 });
     }
     this.bolts = this.bolts.filter((b) => !b.done);
     // slashes
@@ -286,6 +375,98 @@ export class Fx {
       ctx.moveTo(s.x - dx, s.y - dy);
       ctx.lineTo(s.x - dx + dx * 2 * grow, s.y - dy + dy * 2 * grow);
       ctx.stroke();
+      ctx.restore();
+    }
+    // runes under deployed units
+    this.runes = this.runes.filter((r) => t - r.born < r.life);
+    for (const r of this.runes) {
+      const age = t - r.born;
+      if (age < 0) continue;
+      const k = age / r.life;
+      const a = k < 0.2 ? k / 0.2 : 1 - (k - 0.2) / 0.8;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.translate(r.x, r.y);
+      ctx.scale(1, 0.42);
+      ctx.strokeStyle = rgba(r.ink, 0.85 * a);
+      ctx.shadowColor = rgba(r.ink, 1);
+      ctx.shadowBlur = 8;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 6]);
+      ctx.rotate(age * 0.06);
+      ctx.beginPath(); ctx.arc(0, 0, r.r, 0, Math.PI * 2); ctx.stroke();
+      ctx.rotate(-age * 0.12);
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath(); ctx.arc(0, 0, r.r * 0.72, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      for (let i = 0; i < 8; i++) {
+        ctx.rotate(Math.PI / 4);
+        ctx.fillStyle = rgba(r.ink, 0.9 * a);
+        ctx.beginPath(); ctx.moveTo(r.r * 0.86, 0); ctx.lineTo(r.r * 0.86 + 4, -3); ctx.lineTo(r.r * 0.86 + 8, 0); ctx.lineTo(r.r * 0.86 + 4, 3); ctx.fill();
+      }
+      ctx.restore();
+    }
+    // flying cards
+    for (const c of this.cards) {
+      const age = t - c.born;
+      if (age < 0) continue;
+      if (age >= c.life) { if (!c.done) { c.done = true; c.land?.(); } continue; }
+      const k = age / c.life;
+      const e = 1 - (1 - k) ** 3;
+      const lerp = (a: number, b: number) => a + (b - a) * e;
+      const cx = lerp(c.from[0] + c.from[2] / 2, c.to[0] + c.to[2] / 2);
+      const cy = lerp(c.from[1] + c.from[3] / 2, c.to[1] + c.to[3] / 2) - Math.sin(k * Math.PI) * c.arc;
+      const cw = lerp(c.from[2], c.to[2]), ch = lerp(c.from[3], c.to[3]);
+      const fade = c.burn || c.dissolve ? Math.max(0, 1 - Math.max(0, k - 0.45) / 0.55) : 1;
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.translate(cx, cy);
+      ctx.rotate(Math.sin(k * Math.PI) * c.spin);
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+      ctx.shadowBlur = 8;
+      const bx = -cw / 2, by = -ch / 2;
+      if (c.back) {
+        fillRound(g, bx, by, cw, ch, c.back === 'foe' ? 'emberNight' : 'ironNight', 1, 3);
+        ctx.shadowBlur = 0;
+        frame(g, bx, by, cw, ch, c.back === 'foe' ? 'emberDeep' : 'brassDark', 3);
+        frame(g, bx + 2, by + 2, cw - 4, ch - 4, c.back === 'foe' ? 'brassShadow' : 'crystalDeep', 2);
+      } else {
+        fillRound(g, bx, by, cw, ch, 'ironNight', 1, 3);
+        ctx.shadowBlur = 0;
+        if (c.img) {
+          const ah = ch * 0.6;
+          drawPic(g, c.img, bx + 1, by + 1, cw - 2, ah);
+        }
+        frame(g, bx, by, cw, ch, c.burn ? 'emberBright' : 'brassLight', 3, c.burn || c.dissolve);
+      }
+      if (c.burn && k > 0.35) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = rgba('emberBright', 0.5 * (k - 0.35));
+        ctx.fillRect(bx, by + ch * (1 - (k - 0.35) / 0.65), cw, ch * ((k - 0.35) / 0.65));
+      }
+      ctx.restore();
+      if (c.burn && k > 0.35 && age % 2 === 0) this.burst(cx, cy + ch / 2 - ch * ((k - 0.35) / 0.65), ['emberBright', 'emberGlow', 'steam'], 4, t, { speed: 1.2, life: 26, size: 1.8, grav: -0.05, spread: cw });
+      if (c.dissolve && k > 0.45 && age % 2 === 0) this.burst(cx, cy, ['crystalWhite', 'brassGlint'], 5, t, { speed: 1.6, life: 24, size: 1.4, grav: -0.02, shape: 'dot', spread: cw });
+    }
+    this.cards = this.cards.filter((c) => !c.done);
+    // pieces of broken cards
+    this.shards = this.shards.filter((p) => t - p.born < p.life);
+    for (const p of this.shards) {
+      const age = t - p.born;
+      if (age < 0) {
+        ctx.drawImage(p.img, p.sx, p.sy, p.sw, p.sh, p.x, p.y, p.w, p.h);
+        continue;
+      }
+      p.vy += 0.16; p.vx *= 0.99;
+      p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 1 - age / p.life);
+      ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+      ctx.rotate(p.rot);
+      ctx.drawImage(p.img, p.sx, p.sy, p.sw, p.sh, -p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.strokeStyle = rgba('emberGlow', 0.6 * Math.max(0, 1 - age / 20));
+      ctx.lineWidth = 1;
+      ctx.strokeRect(-p.w / 2, -p.h / 2, p.w, p.h);
       ctx.restore();
     }
     // particles
@@ -328,6 +509,17 @@ export class Fx {
       const fade = Math.max(0, 1 - age / 50);
       const pop = age < 6 ? 1 + (6 - age) * 0.12 : 1;
       drawTextCentred(g, f.text, f.x, f.y - age / 2, { color: f.ink, face: 'bold', outline: 'ink', glow: f.ink, scale: f.scale * pop, alpha: Math.min(1, fade * 1.6) });
+    }
+    // the whole screen lit for a moment
+    this.flashesFull = this.flashesFull.filter((f) => t - f.born < f.life);
+    for (const f of this.flashesFull) {
+      const age = t - f.born;
+      if (age < 0) continue;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = rgba(f.ink, f.a * (1 - age / f.life));
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
     }
     // banners: a card or a moment named across the middle of the board
     this.banners = this.banners.filter((b) => t - b.born < b.life);
