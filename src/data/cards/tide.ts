@@ -212,7 +212,7 @@ export const tide: CardDef[] = [
     abilities: [{ on: 'shatter', ops: [{ op: 'draw', n: 1 }] }],
   },
   {
-    id: 'tide-marginclerk', name: 'Junior Ledger-Hand', faction: 'tide', type: 'unit', cost: 1, power: 1, health: 1, tribe: 'mage',
+    id: 'tide-marginclerk', name: 'Junior Ledger-Hand', faction: 'tide', type: 'unit', cost: 2, power: 1, health: 1, tribe: 'mage',
     text: 'Deploy: I get +1|+1 for each card in your hand, up to +2|+2.',
     abilities: [{
       on: 'deploy',

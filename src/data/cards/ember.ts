@@ -23,9 +23,9 @@ export const ember: CardDef[] = [
     tribe: 'construct',
     text: 'Dawn: summon a Votive Spark.',
     abilities: [{ on: 'dawn', ops: [{ op: 'summon', card: 'ember-sparkbot' }] }],
-    level: { who: 'you', stat: 'unitsSummoned', n: 10, text: "You've summoned 10+ units" },
+    level: { who: 'you', stat: 'unitsSummoned', n: 12, text: "You've summoned 12+ units" },
     ascended: {
-      name: 'Ebbe, the Last Hymn', power: 7, health: 7, keywords: ['pierce'],
+      name: 'Ebbe, the Last Hymn', power: 6, health: 6, keywords: ['pierce'],
       text: 'Pierce. Dawn: summon a Wicker Martyr. When another ally is destroyed, deal 1 to the enemy Boiler. Ascend: summon 2 Wicker Martyrs.',
       abilities: [
         { on: 'dawn', ops: [{ op: 'summon', card: 'ember-slagling' }] },

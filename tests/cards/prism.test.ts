@@ -119,6 +119,10 @@ describe('prism units', () => {
     expect(u.dmg).toBe(1);
     bolt(s, unit(s, 0, 'zz-wall').iid);
     expect(unit(s, 0, 'zz-wall').dmg).toBe(2); // control: unplated
+    const t = board({ hand: [['zz-bolt', 'zz-bolt'], []], line: [['prism-glasswarden'], []] });
+    bolt(t, unit(t, 0, 'prism-glasswarden').iid);
+    bolt(t, unit(t, 0, 'prism-glasswarden').iid);
+    expect(t.players[0].line.length).toBe(0); // 1|2: two Plated hits of 1 destroy it (BALANCE B-6)
   });
 
   it('prism-lampkeeper: Spotter blocks Aerial; Dusk repairs the ally with the lowest power by 1, nobody else', () => {
@@ -259,7 +263,7 @@ describe('prism units', () => {
     expect(st(s, unit(s, 0, 'zz-grunt'))).toMatchObject({ power: 3, health: 2 });
     expect(st(s, unit(s, 1, 'zz-grunt'))).toMatchObject({ power: 2, health: 2 });
     const c = unit(s, 0, 'prism-vault-captain');
-    expect(st(s, c)).toMatchObject({ power: 2, health: 4 });
+    expect(st(s, c)).toMatchObject({ power: 2, health: 3 });
     bolt(s, c.iid);
     expect(c.dmg).toBe(1);
   });
@@ -552,7 +556,7 @@ describe('prism units (First Light additions)', () => {
     play(s, 'prism-glasswarden');
     pass(s);
     play(s, 'prism-crystal-bulwark');
-    expect(st(s, unit(s, 0, 'prism-glasswarden'))).toMatchObject({ power: 1, health: 4 });
+    expect(st(s, unit(s, 0, 'prism-glasswarden'))).toMatchObject({ power: 1, health: 3 });
     expect(st(s, unit(s, 0, 'prism-crystal-bulwark'))).toMatchObject({ power: 2, health: 4 });
     expect(st(s, unit(s, 0, 'prism-shieldline-cadet'))).toMatchObject({ power: 1, health: 1 });
     expect(s.players[0].seen.buffsGiven).toBe(1);

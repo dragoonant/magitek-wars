@@ -35,7 +35,7 @@ export const prism: CardDef[] = [
   },
   // ---------- units ----------
   {
-    id: 'prism-glasswarden', name: 'Ironclad Sentry', faction: 'prism', type: 'unit', cost: 1, power: 1, health: 3,
+    id: 'prism-glasswarden', name: 'Ironclad Sentry', faction: 'prism', type: 'unit', cost: 1, power: 1, health: 2,
     keywords: ['plated'], tribe: 'warden', text: 'Plated.',
   },
   {
@@ -85,7 +85,7 @@ export const prism: CardDef[] = [
     keywords: ['plated', 'dueler'], tribe: 'construct', text: 'Plated, Dueler.',
   },
   {
-    id: 'prism-vault-captain', name: 'Legion Captain', faction: 'prism', type: 'unit', cost: 4, power: 2, health: 4,
+    id: 'prism-vault-captain', name: 'Legion Captain', faction: 'prism', type: 'unit', cost: 4, power: 2, health: 3,
     keywords: ['plated'], tribe: 'warden', text: 'Plated. Other allies have +1|+0.',
     auras: [{ to: 'otherAllies', power: 1 }],
   },

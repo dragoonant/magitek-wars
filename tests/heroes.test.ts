@@ -80,18 +80,19 @@ describe('heroes', () => {
     expect(s.players[1].spire).toBe(18);
   });
 
-  it('ember-crucible: Dawn Sparkbot; ascends at 10 summons with 2 Slaglings; allies dying burn the Spire', () => {
+  it('ember-crucible: Dawn Sparkbot; ascends at 12 summons with 2 Slaglings; allies dying burn the Spire', () => {
     const s = board({ line: [['ember-crucible'], []] });
     s.players[0].heroes = ['ember-crucible'];
-    s.players[0].seen.unitsSummoned = 8;
-    pass(s); pass(s); // dawn: sparkbot (9)
+    s.players[0].seen.unitsSummoned = 10;
+    pass(s); pass(s); // dawn: sparkbot (11)
     expect(s.players[0].line.map((u) => u.card)).toEqual(['ember-crucible', 'ember-sparkbot']);
-    pass(s); pass(s); // sparkbot dies at dusk, dawn: sparkbot (10) -> ascend -> 2 slaglings
+    pass(s); pass(s); // sparkbot dies at dusk, dawn: sparkbot (12) -> ascend -> 2 slaglings
     expect(isAscended(s, 0, 'ember-crucible')).toBe(true);
     expect(s.players[0].line.map((u) => u.card)).toEqual(['ember-crucible', 'ember-sparkbot', 'ember-slagling', 'ember-slagling']);
     pass(s); pass(s); // three unstable allies die at dusk: 3 damage
     expect(s.players[1].spire).toBe(17);
     expect(st(s, unit(s, 0, 'ember-crucible')).keywords).toContain('pierce');
+    expect(st(s, unit(s, 0, 'ember-crucible'))).toMatchObject({ power: 6, health: 6 });
   });
 
   it('tide-maren: glyphs pump her; ascended she makes glyphs cost 1 less and draws 2', () => {

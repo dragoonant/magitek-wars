@@ -1,4 +1,4 @@
-# Status (2026-11-27, morning)
+# Status (2026-11-28)
 
 **Live:** https://dragoonant.github.io/magitek-wars/ is playable: battles against the AI with every deck, a
 campaign run, a deck builder and the card gallery, with music and sound.
@@ -7,8 +7,11 @@ campaign run, a deck builder and the card gallery, with music and sound.
 - Public repo `dragoonant/magitek-wars`; push to `main` runs typecheck, tests and build, then deploys to Pages.
   Licence: all rights reserved (PLAN D19).
 - **Engine (PLAN D4):** Annals of Scrivenearth's engine, AI and card data (300 cards, 24 heroes, 6 factions), copied at
-  8b4ebac, plus one setup field for runs (`startSpire`, R-X3). `npm run gate` passes: 495 tests, the card audit (332
+  8b4ebac, plus one setup field for runs (`startSpire`, R-X3). `npm run gate` passes: 498 tests, the card audit (332
   faces), the mutation pass, the AI bench and the build.
+- **Card value pass (D24, BALANCE B-6):** eight overvalued cards toned down (Ironclad Sentry is 1|2 Plated, Junior
+  Ledger-Hand costs 2, Launch Chief 6, Cantor Ebbe ascends later and smaller, and four more). `tools/cardstats.ts`
+  measures each card's win-rate swing when drawn; premades now 27-73%, campaign bench unchanged.
 - **Re-skin (D12, D16):** every card and hero has its Magitek Wars name and text; the Spire is printed as the Boiler
   and a glyph as a tactic (`docs/RESKIN.md`, audit-checked). Card ids and the spec's internal words are unchanged.
 - **Title (D13):** Vaskor at dusk with the six faction leads; menu CAMPAIGN, QUICK BATTLE, CONTINUE, DECK BUILDER,
@@ -34,7 +37,7 @@ campaign run, a deck builder and the card gallery, with music and sound.
   `feat/flux-studio-lora` of `dragoonant/local-ai-studio` (not merged).
 
 ## Waiting on the owner
-- Listen to the music and effects; play-test the battles, the campaign's difficulty (R-2) and the deck builder.
+- Listen to the music and effects; play-test the B-6 card changes, the battles, the campaign's difficulty (R-2) and the deck builder.
 - Q2 interface concept and Q5 re-skin map (`PLAN.md`), kept as built for now.
 - ElevenLabs: its CLI sign-in needs the owner's approval in the browser before it can replace the local sound.
 - Flux Studio: merge `feat/flux-studio-lora` (fast-forward) and restart the studio.

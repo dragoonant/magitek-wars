@@ -66,8 +66,8 @@ export const under: CardDef[] = [
   },
   {
     id: 'under-pitaccountant', name: 'Pit Tallyman', faction: 'under', type: 'unit', cost: 2, power: 1, health: 3, tribe: 'syndicate',
-    text: 'When another ally is destroyed, drain 1 from the enemy Boiler. Resonant: I have +1|+1.',
-    abilities: [{ on: 'allyDied', ops: [{ op: 'drain', to: 'enemySpire', n: 1 }] }],
+    text: 'When another ally is destroyed, deal 1 damage to the enemy Boiler. Resonant: I have +1|+1.',
+    abilities: [{ on: 'allyDied', ops: [{ op: 'damage', to: 'enemySpire', n: 1 }] }],
     auras: [{ to: 'self', power: 1, health: 1, cond: { c: 'resonant' } }],
   },
   {
@@ -91,7 +91,7 @@ export const under: CardDef[] = [
     abilities: [{ on: 'deploy', targets: [{ what: 'unit', side: 'enemy' }], ops: [{ op: 'drain', to: 'target0', n: 2 }] }],
   },
   {
-    id: 'under-vaultpawnbroker', name: 'Deep Vault Broker', faction: 'under', type: 'unit', cost: 4, power: 3, health: 4, tribe: 'syndicate',
+    id: 'under-vaultpawnbroker', name: 'Deep Vault Broker', faction: 'under', type: 'unit', cost: 4, power: 3, health: 3, tribe: 'syndicate',
     text: 'When an enemy unit is destroyed, drain 1 from the enemy Boiler.',
     abilities: [{ on: 'enemyDied', ops: [{ op: 'drain', to: 'enemySpire', n: 1 }] }],
   },

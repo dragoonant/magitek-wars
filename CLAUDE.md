@@ -33,7 +33,7 @@ any other published game, book or show: no names, characters, places, story, car
   campaign bench; `tools/gate.ts`. `?auto&fast` in the URL lets the AI play both seats of a battle.
 
 ## Commands
-`npm run dev` · `npm test` · `npm run typecheck` · `npm run sim -- --games 100 --a normal --b random` · `npm run gate`
+`npm run dev` · `npm test` · `npm run typecheck` · `npm run sim -- --games 100 --a normal --b random` · `npx tsx tools/cardstats.ts` (per-card value, BALANCE B-6) · `npm run gate`
 
 ## Deploy
 Push to `main` runs the gates and deploys to GitHub Pages (`.github/workflows/deploy.yml`).

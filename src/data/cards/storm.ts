@@ -94,7 +94,7 @@ export const storm: CardDef[] = [
     keywords: ['aerial', 'vanguard'], text: 'Aerial, Vanguard.',
   },
   {
-    id: 'storm-stormcaller', name: 'Launch Chief', faction: 'storm', type: 'unit', cost: 5, power: 4, health: 5, tribe: 'courier',
+    id: 'storm-stormcaller', name: 'Launch Chief', faction: 'storm', type: 'unit', cost: 6, power: 4, health: 5, tribe: 'courier',
     text: 'Assault: attacking allies get +1|+0 and Aerial this round.',
     abilities: [{ on: 'assault', ops: [{ op: 'buff', to: 'attackers', power: 1, dur: 'round' }, { op: 'grant', to: 'attackers', kw: ['aerial'], dur: 'round' }] }],
   },
@@ -255,7 +255,7 @@ export const storm: CardDef[] = [
     abilities: [{ on: 'shatter', ops: [{ op: 'rally' }] }],
   },
   {
-    id: 'storm-aeriecarrier', name: 'Repair Dirigible', faction: 'storm', type: 'unit', cost: 6, power: 5, health: 4, tribe: 'courier',
+    id: 'storm-aeriecarrier', name: 'Repair Dirigible', faction: 'storm', type: 'unit', cost: 6, power: 4, health: 4, tribe: 'courier',
     keywords: ['aerial'], text: 'Aerial. Deploy: Aerial allies get +1|+1.',
     abilities: [{ on: 'deploy', ops: [{ op: 'buff', to: { from: 'allies', filter: { kw: 'aerial' } }, power: 1, health: 1 }] }],
   },
