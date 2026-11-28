@@ -69,7 +69,7 @@ function cardGeo(n: number): { w: number; dx: number; x0: number } {
 /** The log drawer: it slides in from the right over the board. */
 const drawerW = (): number => Math.round(Math.min(340, Math.max(250, HW * 0.4)));
 
-interface Hot { x: number; y: number; w: number; h: number; id: string; kind: 'hand' | 'unit' | 'spire' | 'stack' | 'button' | 'hero' }
+interface Hot { x: number; y: number; w: number; h: number; id: string; kind: 'hand' | 'unit' | 'spire' | 'stack' | 'button' | 'hero' | 'orders' }
 interface Button { id: string; label: string; enabled: boolean }
 
 /** The click path of an action, in the order the player gives it: targets, then the unit to scrap. */
@@ -780,6 +780,15 @@ export class Match {
       // Deck and Scrap open their viewers for this player
       if (k === 'Scrap' || k === 'Deck') this.hots.push({ x: start - 2, y: y + 1, w: ix - start - 6, h: 9, id: `${k.toLowerCase()}${seat}`, kind: 'button' });
     }
+    // campaign Orders (spec 20 R-X6), open information: hover or hold to read them
+    const orders = p.orders ?? [];
+    if (orders.length) {
+      const label = `Orders ${orders.length}`;
+      const ow = textWidth(label, 0.9, 'bold') + 8;
+      fillRound(g, ix - 2, y + 1.5, ow, 10, 'brassShadow', 0.8, 3);
+      drawText(g, label, ix + 2, y + 2.5, { color: 'brassGlint', face: 'bold', scale: 0.9 });
+      this.hots.push({ x: ix - 2, y: y + 1, w: ow, h: 10, id: `orders${seat}`, kind: 'orders' });
+    }
     // hero progress, open information (R-H3)
     let hx = 128;
     for (const h of p.heroes) {
@@ -1228,7 +1237,26 @@ export class Match {
    * The full card, enlarged where it sits: it grows out of the card under the mouse (or under a held finger) and
    * shrinks away when the pointer leaves or the finger lifts. Hand cards grow upward from the hand.
    */
+  /** A side's campaign Orders, each with everything it does (R-X6). */
+  private drawOrders(g: Gfx, v: GameState, seat: Seat): void {
+    const list = v.players[seat].orders ?? [];
+    const w = 230, tw = w - 20;
+    const lines = list.map((o) => wrapPx(o.text, tw, 0.95));
+    const hgt = 24 + lines.reduce((n, l) => n + 12 + l.length * 10 + 4, 0);
+    const x = Math.round(HW / 2 - w / 2), y = seat === 0 ? HH - 60 - hgt : 30;
+    panel(g, x, y, w, hgt, { glow: 'brassGlint', studs: false });
+    drawText(g, seat === 0 ? 'YOUR ORDERS' : "THE FOE'S ORDERS", x + 10, y + 8, { color: seat === 0 ? 'brassGlint' : 'emberGlow', face: 'display' });
+    let ty = y + 22;
+    list.forEach((o, i) => {
+      drawText(g, o.name, x + 10, ty, { color: 'brassLight', face: 'bold' });
+      ty += 12;
+      for (const l of lines[i]) { drawText(g, l, x + 10, ty, { color: 'steamWhite', scale: 0.95 }); ty += 10; }
+      ty += 4;
+    });
+  }
+
   private drawDetail(g: Gfx, v: GameState, h: Hot): void {
+    if (h.kind === 'orders') { this.zoom = { key: '', k: 0 }; this.drawOrders(g, v, h.id === 'orders0' ? 0 : 1); return; }
     let cardId: string | null = null;
     let seat: Seat = 0;
     let unit: Unit | undefined;
@@ -1388,7 +1416,7 @@ export class Match {
     const pos = (iid?: string): Pt | undefined => (iid ? this.pos.get(iid) : undefined);
     const sg = slotGeo();
     const side = (seat: Seat | undefined): Ink => (seat === 0 ? 'crystalBright' : 'emberGlow');
-    const isTactic = (id?: string): boolean => !!id && id !== '?' && def(id).type === 'glyph';
+    const isTactic = (id?: string): boolean => !!id && id !== '?' && !id.startsWith('order:') && def(id).type === 'glyph';
     /** A tactic's effect travels from its caster's side as a bolt; returns the delay until it lands. */
     const travel = (e: (typeof fresh)[number], to: Pt, ink: Ink, b: number): number => {
       let from: Pt | undefined;

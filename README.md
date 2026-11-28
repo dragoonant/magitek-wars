@@ -7,8 +7,9 @@ art direction) is our own; it is not based on any published game.
 **Play:** https://dragoonant.github.io/magitek-wars/
 
 ## What is in it
-- **Campaign:** a roguelike march across three acts: pick a faction, grow one deck through skirmishes, elites, events,
-  rest stops, supply depots and bosses, with a Crystal that carries its damage (`docs/spec/20-roguelike.md`).
+- **Campaign:** lead one of six heroes on handmade expeditions, growing a deck, run-long Orders and card Fittings,
+  recruiting a second hero, against bosses with their own powers; each hero keeps a rank between runs
+  (`docs/spec/20-roguelike.md`).
 - **Quick battle:** any of 24 premade decks, six single-faction decks or your own, against the AI at three levels.
 - **Deck builder** and **card gallery** for all 300 cards and 24 heroes.
 - Art in full detail or as snapped pixel art (ART on the title menu, or P); the interface is drawn smoothly either way.

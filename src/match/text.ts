@@ -14,7 +14,8 @@ function req(id: string | undefined): string {
   if (!id) throw new Error('log line needs a card id');
   return id;
 }
-const via = (e: LogEntry, name: Name): string => (e.via ? ` (${name(e.via)})` : '');
+/** A consequence names its cause: a card, or a campaign Order (R-X6), whose via is "order:<name>". */
+const via = (e: LogEntry, name: Name): string => (!e.via ? '' : e.via.startsWith('order:') ? ` (${e.via.slice(6)})` : ` (${name(e.via)})`);
 function kwNames(list: string | undefined): string {
   if (!list) return 'a keyword';
   return list.split(',').map((k) => KEYWORD_HELP[k as Keyword]?.name ?? k).join(', ');
@@ -43,6 +44,7 @@ export const LOG_LINES: Record<string, LineFn> = {
   grant: (e, n) => `${n(req(e.tcard))} gained ${kwNames(e.s)}${via(e, n)}.`,
   heal: (e, n) => `${n(req(e.tcard))} was repaired by ${e.n ?? 0}${via(e, n)}.`,
   lineFull: (e, n) => `${n(req(e.card))} was lost: ${whose(e.seat)} Line is full.`,
+  order: (e) => `${e.seat === 0 ? 'Your' : "The foe's"} Order ${e.s ?? ''} took effect.`,
   maxCharge: (e, n) => `${e.seat === 0 ? 'Your' : "The foe's"} maximum Charge rose by ${e.n ?? 1}${via(e, n)}.`,
   mulligan: (e) => ((e.n ?? 0) === 0 ? `${who(e.seat)} kept the opening hand.` : `${who(e.seat)} replaced ${e.n} ${plural(e.n, 'card', 'cards')}.`),
   negate: (e, n) => `${n(req(e.card))} was negated${via(e, n)}.`,

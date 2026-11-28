@@ -437,7 +437,7 @@ requestAnimationFrame(frame);
     startBattle(s.decks[mine], s.decks[foe], 'normal');
     return s.decks.length;
   },
-  run: () => (run ? { phase: run.run?.phase ?? 'pick', act: run.run?.act, crystal: run.run?.crystal, deck: run.run?.deck.length, inBattle: !!run.match } : null),
+  run: () => (run ? { phase: run.run?.phase ?? 'pick', expedition: run.run?.expedition, hero: run.run?.hero, crystal: run.run?.crystal, deck: run.run?.deck.length, inBattle: !!run.match } : null),
   ui: () => (match ? match.debug() : null),
   match: () => (match ? { phase: match.session.state.phase, round: match.session.state.round, priority: match.session.state.priority, winner: match.session.state.winner, actions: match.session.actions.length } : null),
 };

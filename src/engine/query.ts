@@ -47,7 +47,7 @@ export function face(s: GameState | null, seat: Seat, cardId: string): Face {
   const d = def(cardId);
   const asc = !!s && d.type === 'hero' && !!d.ascended && isAscended(s, seat, cardId);
   const f: CardFace | CardDef = asc ? d.ascended! : d;
-  return {
+  const out: Face = {
     name: f.name ?? d.name,
     power: f.power ?? 0,
     health: f.health ?? 0,
@@ -58,6 +58,15 @@ export function face(s: GameState | null, seat: Seat, cardId: string): Face {
     text: f.text,
     ascended: asc,
   };
+  // R-X5: a campaign Fitting changes every copy of the card for its side, on both faces of a hero.
+  const fit = s?.players[seat].fittings?.[cardId];
+  if (fit) {
+    out.power += fit.power ?? 0;
+    out.health += fit.health ?? 0;
+    if (fit.kw) out.keywords = [...new Set([...out.keywords, ...fit.kw])];
+    out.text = `${out.text}${out.text ? ' ' : ''}Fitted with ${fit.name}: ${fit.text}.`;
+  }
+  return out;
 }
 
 export function findUnit(s: GameState, iid: string): Unit | undefined {
@@ -106,6 +115,20 @@ export function stats(s: GameState, u: Unit): Stats {
         for (const a of face(s, src.owner, src.card).auras) {
           if (!!a.filter !== filtered) continue;
           if (!auraHits(s, src, a, u, before)) continue;
+          st.power += a.power ?? 0;
+          st.health += a.health ?? 0;
+          if (a.kw) for (const k of a.kw) kws.add(k);
+        }
+      }
+    }
+    // R-X6: Order auras, read like unit auras but from a side rather than a unit
+    for (const seat of [0, 1] as Seat[]) {
+      for (const o of s.players[seat].orders ?? []) {
+        for (const a of o.auras ?? []) {
+          if (!!a.filter !== filtered) continue;
+          if ((a.to === 'allies') !== (u.owner === seat)) continue;
+          if (a.filter && !matches(s, u, a.filter, true, before)) continue;
+          if (a.cond && !evalCond(s, seat, a.cond)) continue;
           st.power += a.power ?? 0;
           st.health += a.health ?? 0;
           if (a.kw) for (const k of a.kw) kws.add(k);
@@ -223,6 +246,15 @@ export function costOf(s: GameState, seat: Seat, cardId: string): number {
       c += ca.n;
     }
   }
+  // R-X6: Order cost changes; R-X5: the card's own Fitting
+  for (const o of s.players[seat].orders ?? []) {
+    for (const ca of o.costAuras ?? []) {
+      if (ca.type !== 'any' && (ca.type === 'glyph') !== (d.type === 'glyph')) continue;
+      if (ca.cond && !evalCond(s, seat, ca.cond)) continue;
+      c += ca.n;
+    }
+  }
+  c += s.players[seat].fittings?.[cardId]?.cost ?? 0;
   return Math.max(0, c);
 }
 

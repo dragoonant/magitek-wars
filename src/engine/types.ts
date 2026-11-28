@@ -299,6 +299,10 @@ export interface PlayerState {
   mulliganed: boolean;
   /** Full deck list, sorted, for the deck viewer (your own only in a view). */
   deckList: string[];
+  /** R-X5: campaign Fittings by card id (public). Absent outside campaign runs. */
+  fittings?: Record<string, Fitting>;
+  /** R-X6: campaign Orders (public). Absent outside campaign runs. */
+  orders?: Order[];
 }
 
 export interface StackItem {
@@ -388,6 +392,48 @@ export interface Setup {
   skipMulligan?: boolean;
   /** R-X3 (spec 20): each side's starting Integrity, 1-20. Omitted = 20. Campaign runs only. */
   startSpire?: [number, number];
+  /** R-X4 to R-X6 (spec 20): each side's campaign gear. Omitted = none. Campaign runs only. */
+  gear?: [Gear, Gear];
+}
+
+/** R-X5: an upgrade on every copy of one card for one side (campaign Fittings). */
+export interface Fitting {
+  name: string;
+  /** Player-facing words, added to the card text, e.g. "+0|+2". */
+  text: string;
+  power?: number;
+  health?: number;
+  kw?: Keyword[];
+  /** Change to the card's cost (negative = cheaper). */
+  cost?: number;
+}
+
+/** R-X6: an Order ability. Runs with no source unit and no chosen targets. */
+export interface OrderAbility {
+  on: 'start' | 'dawn' | 'dusk';
+  ops: Op[];
+  cond?: Cond;
+}
+
+/** R-X6: a power for one side for the whole battle (campaign Orders). */
+export interface Order {
+  id: string;
+  name: string;
+  /** Player-facing words of everything it does. */
+  text: string;
+  /** 'allies' = this side's units, 'enemies' = the other side's. */
+  auras?: Aura[];
+  costAuras?: CostAura[];
+  abilities?: OrderAbility[];
+}
+
+export interface Gear {
+  /** R-X4: one copy of each is placed among the top cards after the shuffle. */
+  early?: string[];
+  /** R-X5: card id -> its Fitting. */
+  fittings?: Record<string, Fitting>;
+  /** R-X6 */
+  orders?: Order[];
 }
 
 export type Action =
@@ -427,4 +473,6 @@ export const LIMITS = {
   openingHand: 4,
   channelCost: 1,
   roundCap: 45,
+  /** R-X4: early cards land among this many top cards. */
+  early: 6,
 } as const;

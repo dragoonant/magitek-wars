@@ -2,8 +2,8 @@
 // nothing when it refuses one. One door per rule: damage(), heal(), summon(), draw(), kill via
 // stateCheck(), stats()/costOf() in query.ts. Rule ids refer to docs/spec/10-rules.md.
 import type {
-  Ability, Action, Amount, CombatPair, GameState, LogEntry, Op, PlayerState, Result, Seat, SeenStat, Sel, Setup,
-  StackItem, Unit, Keyword,
+  Ability, Action, Amount, CombatPair, Fitting, GameState, Gear, LogEntry, Op, Order, OrderAbility, PlayerState, Result, Seat,
+  SeenStat, Sel, Setup, StackItem, Unit, Keyword,
 } from './types';
 import { LIMITS, spireId } from './types';
 import {
@@ -81,6 +81,7 @@ export function createGame(setup: Setup): GameState {
     nextId: 1, winner: null, endReason: null, log: [], acted: [0, 0],
   };
   if (!setup.noShuffle) for (const p of s.players) shuffle(s, p.deck);
+  if (setup.gear) for (const seat of [0, 1] as Seat[]) fitGear(s, seat, setup.gear[seat]);
   // R-G3: the Initiative for round 1 is decided by the seed unless the setup names a seat.
   const first: Seat = setup.first ?? (nextRandom(s) < 0.5 ? 0 : 1);
   s.initiative = other(first); // startRound flips it
@@ -97,6 +98,54 @@ export function createGame(setup: Setup): GameState {
     s.priority = 0;
   }
   return s;
+}
+
+/** Selectors an Order ability cannot use: it has no source unit and chooses no targets (R-X6). */
+const NO_ORDER_SEL = new Set(['self', 'target0', 'target1', 'trigger', 'opposing', 'others']);
+function checkOrderOps(o: Order, ops: Op[]): void {
+  const sel = (x: Sel): void => {
+    if (typeof x === 'object') return sel(x.from);
+    if (NO_ORDER_SEL.has(x)) throw new Error(`order ${o.id}: an order cannot use the selector ${x}`);
+  };
+  for (const op of ops) {
+    if (op.op === 'negate') throw new Error(`order ${o.id}: an order cannot negate`);
+    if ('to' in op) sel(op.to);
+    if (op.op === 'strike') { sel(op.from); sel(op.to); }
+    if (op.op === 'duel') { sel(op.a); sel(op.b); }
+    if (op.op === 'if') { checkOrderOps(o, op.then); checkOrderOps(o, op.else ?? []); }
+  }
+}
+
+/** R-X4 to R-X6: copy a side's campaign gear into the game, refusing anything the engine cannot run. */
+function fitGear(s: GameState, seat: Seat, gear: Gear): void {
+  const p = s.players[seat];
+  for (const id of Object.keys(gear.fittings ?? {})) def(id);
+  for (const o of gear.orders ?? []) {
+    for (const a of o.auras ?? []) if (a.to !== 'allies' && a.to !== 'enemies') throw new Error(`order ${o.id}: an order aura goes to allies or enemies, not ${a.to}`);
+    for (const ab of o.abilities ?? []) checkOrderOps(o, ab.ops);
+  }
+  if (gear.fittings && Object.keys(gear.fittings).length) p.fittings = JSON.parse(JSON.stringify(gear.fittings)) as Record<string, Fitting>;
+  if (gear.orders?.length) p.orders = JSON.parse(JSON.stringify(gear.orders)) as Order[];
+  // R-X4: each early card moves to a seeded place among the top cards (the top is the end of the array).
+  for (const id of gear.early ?? []) {
+    const i = p.deck.lastIndexOf(id);
+    if (i < 0) throw new Error(`early card ${id} is not in the deck`);
+    p.deck.splice(i, 1);
+    const depth = Math.floor(nextRandom(s) * Math.min(LIMITS.early, p.deck.length + 1));
+    p.deck.splice(p.deck.length - depth, 0, id);
+  }
+}
+
+/** R-X6: run one side's Order abilities for a moment of the round. */
+function runOrders(s: GameState, seat: Seat, on: OrderAbility['on']): void {
+  for (const o of s.players[seat].orders ?? []) {
+    for (const ab of o.abilities ?? []) {
+      if (ab.on !== on || over(s)) continue;
+      if (ab.cond && !evalCond(s, seat, ab.cond)) continue;
+      log(s, { k: 'order', seat, s: o.name });
+      runOps(s, { seat, targets: [], via: `order:${o.name}` }, ab.ops);
+    }
+  }
 }
 
 // ---------- doors ----------
@@ -586,6 +635,11 @@ function startRound(s: GameState): void {
   s.priority = s.initiative;
   for (const seat of [s.initiative, other(s.initiative)] as Seat[]) draw(s, seat, 1);
   if (over(s)) return;
+  // R-X6: Orders run before Dawn triggers, the Initiative holder's first; start Orders only in round 1.
+  for (const seat of [s.initiative, other(s.initiative)] as Seat[]) {
+    if (s.round === 1) runOrders(s, seat, 'start');
+    runOrders(s, seat, 'dawn');
+  }
   for (const seat of [s.initiative, other(s.initiative)] as Seat[]) {
     for (const u of s.players[seat].line) {
       if (u.dmg > 0 && stats(s, u).keywords.includes('mend')) healUnit(s, u, u.dmg, u.card); // R-K11
@@ -598,6 +652,7 @@ function startRound(s: GameState): void {
 }
 
 function endRound(s: GameState): void {
+  for (const seat of [s.initiative, other(s.initiative)] as Seat[]) runOrders(s, seat, 'dusk'); // R-X6
   for (const seat of [s.initiative, other(s.initiative)] as Seat[]) {
     for (const u of s.players[seat].line) emit(s, 'dusk', u);
   }
