@@ -3,7 +3,7 @@
 // that asks the player to choose a card shows the cards themselves and confirms the choice before it is made.
 import { drawPic } from './detail';
 import { def, type Face } from './engine/query';
-import { drawText, drawTextCentred, textWidth, wrapPx } from './font';
+import { drawText, drawTextCentred, fitText, textWidth, wrapPx } from './font';
 import type { Gfx } from './gfx';
 import { PALETTE, rgba, type Ink } from './palette';
 import { button, clipRound, fillRound, frame, panel, rule } from './ui';
@@ -205,4 +205,56 @@ export function scrollButtons(g: Gfx, x: number, y: number, h: number, scroll: n
   draw('DOWN', y + h - 18, 'grid-down', scroll < maxScroll);
   drawTextCentred(g, `row ${scroll + 1}`, x + 22, y + h / 2 - 10, { color: 'ironLight', scale: 0.85 });
   drawTextCentred(g, `of ${maxScroll + 1}`, x + 22, y + h / 2, { color: 'ironLight', scale: 0.85 });
+}
+
+// ---------- zoom: every card the player can see can be opened large (owner, 2026-11-28) ----------
+
+/** A small brass lens badge: the visible way to open a card large. Draw it in a card's corner; the caller pushes the
+ *  hot (`zoom|<card id>`), so a click on the lens zooms instead of picking. */
+export function lens(g: Gfx, cx: number, cy: number, hot: boolean, r = 6.5): void {
+  const ctx = g.ctx;
+  ctx.save();
+  ctx.shadowColor = hot ? rgba('brassGlint', 0.9) : 'rgba(0, 0, 0, 0.6)';
+  ctx.shadowBlur = hot ? 6 : 3;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  const gr = ctx.createLinearGradient(cx, cy - r, cx, cy + r);
+  gr.addColorStop(0, PALETTE[hot ? 'brassGlint' : 'brassLight']);
+  gr.addColorStop(1, PALETTE[hot ? 'brass' : 'brassShadow']);
+  ctx.fillStyle = gr;
+  ctx.fill();
+  ctx.restore();
+  // the magnifier: a ring and a handle, in ink
+  ctx.save();
+  ctx.strokeStyle = PALETTE.ink;
+  ctx.lineWidth = r * 0.22;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(cx - r * 0.12, cy - r * 0.12, r * 0.38, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx + r * 0.16, cy + r * 0.16);
+  ctx.lineTo(cx + r * 0.5, cy + r * 0.5);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * A card opened large over a dimmed screen. A hero shows both faces, base and Ascended, side by side.
+ * `faceOf(id, ascended)` gives the face to print (so a run can include its Fittings). The whole screen closes it.
+ */
+export function zoomCard(g: Gfx, sw: number, sh: number, id: string, faceOf: (id: string, ascended: boolean) => Face, hots: GridHot[]): void {
+  g.wash(0, 0, sw, sh, 'ink', 0.6);
+  hots.push({ x: 0, y: 0, w: sw, h: sh, id: 'zoom-bg' });
+  const d = def(id);
+  const both = d.type === 'hero' && !!d.ascended;
+  const w = both ? 176 : 200;
+  if (both) {
+    const gap = 16, x0 = Math.round(sw / 2 - w - gap / 2);
+    drawTextCentred(g, 'HERO', x0 + w / 2, 30, { color: 'brassLight', face: 'display', shadow: 'ink' });
+    drawTextCentred(g, fitText(`Ascended: ${d.level?.text ?? ''}`, w + 40, 0.9, 'bold'), x0 + w + gap + w / 2, 30, { color: 'emberGlow', face: 'bold', scale: 0.9, shadow: 'ink' });
+    bigCard(g, id, faceOf(id, false), x0, 44, w);
+    bigCard(g, id, faceOf(id, true), x0 + w + gap, 44, w, 'emberGlow');
+  } else bigCard(g, id, faceOf(id, false), Math.round(sw / 2 - w / 2), 40, w);
+  drawTextCentred(g, 'Tap anywhere to close', sw / 2, sh - 11, { color: 'steamWhite', shadow: 'ink' });
 }

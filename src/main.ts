@@ -337,7 +337,7 @@ canvas.addEventListener('pointerdown', (e) => {
     hold.timer = window.setTimeout(() => {
       hold.held = true;
       if (screen === 'match') match?.pointerMove(x, y);
-      else if (screen === 'run') run?.pointerMove(x, y);
+      else if (screen === 'run') { run?.pointerMove(x, y); run?.inspect(x, y); } // a held card opens large
       else if (screen === 'decks') builder?.pointerMove(x, y);
     }, 400);
     touchHold = hold;
@@ -349,7 +349,7 @@ function press(x: number, y: number, button: number): void {
   if (screen === 'gallery') gallery.pointerDown(x, y);
   else if (screen === 'setup') setup?.pointerDown(x, y);
   else if (screen === 'match') match?.pointerDown(x, y);
-  else if (screen === 'run') run?.pointerDown(x, y);
+  else if (screen === 'run') run?.pointerDown(x, y, button);
   else if (screen === 'decks') builder?.pointerDown(x, y, button);
   else title.pointerDown(x, y);
   route();

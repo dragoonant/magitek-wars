@@ -43,6 +43,7 @@ roguelike campaign, Hero Expeditions in the shape of Path of Champions, a deck b
   ranks 1-8: starting scrip, a signature Order, better rests, a signature Fitting, an extra Order, better field
   repairs, a mastery Order). Bosses and elites carry their own Orders, shown in the briefing; in battle each side's
   Orders sit on its bar (hover or hold to read). Every hero starts each run with an innate Order. Its own save slot. Balance R-4: on fresh seeds one-star 53% at rank 1, two-star 60% at rank 3, three-star 58% at rank 5.
+- **Zoom (D36):** every card on the Campaign and Expeditions screens opens large from its lens, a right-click or a long press; heroes show both faces.
 - **Look (D25):** the interface no longer looks 8/16-bit: real type (Cinzel headings and buttons, Fira Sans text,
   sentence case), smoked-glass panels in brass frames, brass buttons, rounded card frames with stat badges, a crystal gem
   for each Crystal and painted, darkened battlefields behind the menu screens (`src/ui.ts`, ART-STYLE section 7). The
