@@ -1,4 +1,4 @@
-// The handmade expeditions (spec 20 R-R3, R-R6, R-R14). Every stop, link and foe is fixed; only rewards, events and
+// The handmade expeditions (spec 21 R-E3, R-E6, R-E14). Every stop, link and foe is fixed; only rewards, events and
 // shops are rolled from the run's seed. Places follow docs/WORLD.md.
 import type { FactionId } from '../engine/types';
 import type { Difficulty } from '../ai/ai';
@@ -13,7 +13,7 @@ export interface Foe {
   crystal: number;
   level: Difficulty;
   orders?: string[];
-  /** Boss only: the faction used when the first is the player hero's (R-R6). */
+  /** Boss only: the faction used when the first is the player hero's (R-E6). */
   alt?: FactionId;
 }
 

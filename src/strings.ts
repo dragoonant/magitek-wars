@@ -6,10 +6,11 @@ export const PRESS_START = 'PRESS START';
 export const CREDIT = 'by evilgouki';
 export const VERSION = 'v0.1';
 
-export type MenuId = 'run' | 'new' | 'continue' | 'decks' | 'cards' | 'art' | 'credits';
+export type MenuId = 'run' | 'expedition' | 'new' | 'continue' | 'decks' | 'cards' | 'art' | 'credits';
 
 export const MENU: readonly { id: MenuId; label: string }[] = [
   { id: 'run', label: 'CAMPAIGN' },
+  { id: 'expedition', label: 'EXPEDITIONS' },
   { id: 'new', label: 'QUICK BATTLE' },
   { id: 'continue', label: 'CONTINUE' },
   { id: 'decks', label: 'DECK BUILDER' },
@@ -20,6 +21,7 @@ export const MENU: readonly { id: MenuId; label: string }[] = [
 
 export const DIALOGS: Record<MenuId, readonly string[]> = {
   run: [],
+  expedition: [],
   new: [],
   continue: [],
   decks: [],

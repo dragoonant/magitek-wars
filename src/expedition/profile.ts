@@ -1,4 +1,4 @@
-// The campaign profile (spec 20 R-R13, R-R14, R-R16): each hero's rank XP and the expeditions won, kept between runs.
+// The campaign profile (spec 21 R-E13, R-E14, R-E16): each hero's rank XP and the expeditions won, kept between runs.
 // Pure functions here; the screen reads and writes the browser copy.
 import { HEROES, MAX_RANK, RANK_XP, rankOf } from './heroes';
 import { EXPEDITIONS } from './expeditions';
@@ -45,7 +45,7 @@ export function toNextRank(p: Profile, hero: string): { have: number; need: numb
   return { have: heroXp(p, hero) - RANK_XP[r - 1], need: RANK_XP[r] - RANK_XP[r - 1] };
 }
 
-/** R-R14: the first expedition is open; each later one opens once any hero wins the one before. */
+/** R-E14: the first expedition is open; each later one opens once any hero wins the one before. */
 export function unlocked(p: Profile, expeditionId: string): boolean {
   const i = EXPEDITIONS.findIndex((e) => e.id === expeditionId);
   if (i < 0) throw new Error(`profile: no expedition ${expeditionId}`);

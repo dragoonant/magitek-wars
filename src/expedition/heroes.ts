@@ -1,4 +1,4 @@
-// The campaign's heroes (spec 20 R-R2, R-R9, R-R12, R-R13): the six faction leads of docs/WORLD.md, each with a
+// The campaign's heroes (spec 21 R-E2, R-E9, R-E12, R-E13): the six faction leads of docs/WORLD.md, each with a
 // hand-built starter deck that feeds its level condition, a reward pool, and the unlocks its rank gives.
 import type { FactionId } from '../engine/types';
 
@@ -7,11 +7,11 @@ export interface RunHero {
   faction: FactionId;
   /** One line on how the hero plays, shown on the hero pick. */
   plan: string;
-  /** R-R2: 3 copies of the hero, then 21 cards of its faction. */
+  /** R-E2: 3 copies of the hero, then 21 cards of its faction. */
   starter: Record<string, number>;
-  /** R-R12: the hero bundle draws from these. */
+  /** R-E12: the hero bundle draws from these. */
   pool: string[];
-  /** R-R13: rank 3, rank 5 and rank 8 unlocks. */
+  /** R-E13: rank 3, rank 5 and rank 8 unlocks. */
   signatureOrder: string;
   signatureFitting: string;
   masteryOrder: string;
@@ -109,12 +109,12 @@ export function hero(id: string): RunHero {
   return h;
 }
 
-/** R-R2: the starter as a card list, hero copies first. */
+/** R-E2: the starter as a card list, hero copies first. */
 export function starterList(h: RunHero): string[] {
   return Object.entries(h.starter).flatMap(([id, n]) => Array<string>(n).fill(id));
 }
 
-// ---------- rank (R-R13) ----------
+// ---------- rank (R-E13) ----------
 /** XP needed for ranks 1 to 8. */
 export const RANK_XP = [0, 30, 80, 150, 250, 380, 540, 750];
 export const MAX_RANK = RANK_XP.length;

@@ -10,6 +10,7 @@ import { BattleSetup, type DeckOption } from './match/setup';
 import { Session, readStoredSave, clearSave } from './match/session';
 import type { Difficulty } from './ai/ai';
 import { RunScreen } from './run/screen';
+import { ExpeditionScreen } from './expedition/screen';
 import { DeckBuilder } from './deckbuilder/screen';
 import { isDetail, onDetailChange, setDetail } from './detail';
 import { installAudioUnlock, isMuted, loadSamples, setMusic, setMuted, type MusicMood } from './audio/audio';
@@ -97,7 +98,8 @@ const title = new Title(hasSave);
 const gallery = new Gallery();
 let setup: BattleSetup | null = null;
 let match: Match | null = null;
-let run: RunScreen | null = null;
+/** The roguelike campaign (spec 20) or Hero Expeditions (spec 21): the same screen slot, one at a time. */
+let run: RunScreen | ExpeditionScreen | null = null;
 let builder: DeckBuilder | null = null;
 let lastBattle: { mine: DeckOption; foe: DeckOption; level: Difficulty } | null = null;
 type Screen = 'title' | 'gallery' | 'setup' | 'match' | 'run' | 'decks';
@@ -229,6 +231,9 @@ function route(): void {
       screen = 'decks';
     } else if (o === 'run') {
       run = new RunScreen();
+      screen = 'run';
+    } else if (o === 'expedition') {
+      run = new ExpeditionScreen();
       screen = 'run';
     }
   }
@@ -437,7 +442,12 @@ requestAnimationFrame(frame);
     startBattle(s.decks[mine], s.decks[foe], 'normal');
     return s.decks.length;
   },
-  run: () => (run ? { phase: run.run?.phase ?? 'pick', expedition: run.run?.expedition, hero: run.run?.hero, crystal: run.run?.crystal, deck: run.run?.deck.length, inBattle: !!run.match } : null),
+  run: () => {
+    if (!run) return null;
+    const common = { phase: run.run?.phase ?? 'pick', crystal: run.run?.crystal, deck: run.run?.deck.length, inBattle: !!run.match };
+    if (run instanceof ExpeditionScreen) return { mode: 'expedition', expedition: run.run?.expedition, hero: run.run?.hero, ...common };
+    return { mode: 'campaign', act: run.run?.act, ...common };
+  },
   ui: () => (match ? match.debug() : null),
   match: () => (match ? { phase: match.session.state.phase, round: match.session.state.round, priority: match.session.state.priority, winner: match.session.state.winner, actions: match.session.actions.length } : null),
 };

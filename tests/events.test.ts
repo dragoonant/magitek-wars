@@ -6,7 +6,7 @@ import { BOSS_INTRO, EVENTS, cardFor, eventCrystal } from '../src/run/events';
 import { MIN_DECK, chooseEvent, newRun, removeForEvent, type RunState } from '../src/run/run';
 
 function atEvent(id: string, seed = 4): RunState {
-  const r = newRun('storm-jax', 'thrumhollow', seed);
+  const r = newRun('storm', seed);
   r.phase = 'event';
   r.event = { id, result: [] };
   return r;

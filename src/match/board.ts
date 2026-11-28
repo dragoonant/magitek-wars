@@ -780,7 +780,7 @@ export class Match {
       // Deck and Scrap open their viewers for this player
       if (k === 'Scrap' || k === 'Deck') this.hots.push({ x: start - 2, y: y + 1, w: ix - start - 6, h: 9, id: `${k.toLowerCase()}${seat}`, kind: 'button' });
     }
-    // campaign Orders (spec 20 R-X6), open information: hover or hold to read them
+    // campaign Orders (spec 21 R-X6), open information: hover or hold to read them
     const orders = p.orders ?? [];
     if (orders.length) {
       const label = `Orders ${orders.length}`;

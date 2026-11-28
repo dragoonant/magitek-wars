@@ -1,72 +1,48 @@
-# Magitek Wars: the hero campaign (spec 20)
+# Magitek Wars: the campaign run (spec 20)
 
-The campaign (PLAN D32, replacing D18's map roguelike) follows the shape of Path of Champions: you lead one hero on a
-handmade expedition, grow a deck, an arsenal of Orders and Fittings along the way, and the hero keeps a rank between
-runs. Only the mechanics are borrowed; every name, card, map and word is ours. The battles are the spec 10 battles
-against the AI. Rule ids (R-R...) are cited in code and tests. Ambiguities become `RULING:` lines.
+The roguelike mode (PLAN D18; kept by D33, with the Path of Champions-style mode beside it in spec 21): one run is a march across Ardenmoor with a single growing deck, fighting the card
+battles of spec 10 against the AI. Rule ids (R-R...) are cited in code and tests. Ambiguities become `RULING:` lines.
 
 ## Run (R-R)
-- **R-R1 Start.** The player picks one of the six heroes (the faction leads of WORLD) and an expedition they have
-  unlocked (R-R14). The run has a seed; every random choice in the run comes from it, so a run replays.
-- **R-R2 Starter deck.** Each hero has a hand-built 24-card starter in `src/run/heroes.ts`: 3 copies of the hero and
-  21 cards of the hero's faction that feed the hero's level condition. No tokens. In every battle of the run the
-  player's heroes are drawn early (R-X4).
-- **R-R3 Expeditions.** An expedition is a handmade map in `src/run/expeditions.ts`: stops on rows, each linked to one
-  or two stops on the next row, ending in a boss. The player starts on any stop of the first row, then must follow
-  links. Every battle stop names its foe (R-R6), the same every time the expedition is played.
-- **R-R4 Stop kinds.** **Battle**, **Elite** (a harder battle; its reward adds a Fitting, R-R8), **Boss** (the end),
-  **Rest** (repair the Crystal by 6, or remove one card; never below 12 cards), **Depot** (R-R10), **Event** (R-R11),
-  **Order** (pick 1 of 3 Orders, R-R7), **Cache** (pick 1 of 3 Fittings, R-R8) and **Recruit** (R-R9).
+- **R-R1 Start.** The player picks one of the six factions. The run deck is that faction's starter list (R-R2) and
+  the Crystal starts at 20. The run has a seed; every random choice in the run comes from it, so a run replays.
+- **R-R2 Starter deck.** 24 cards from the chosen faction: 2 copies of its lead hero (the WORLD character), then two
+  copies each of its units with the most power plus health at each cost: 3 at cost 1, 3 at 2, 3 at 3, 2 at 4 (ids break
+  ties; a faction short of units fills with its cheapest other cards). No tokens. (BALANCE R-1.)
+- **R-R3 Map.** Three acts: **Thrumhollow** (act 1), **the Rimeglass Flats** (act 2), **Vaskor** (act 3). Each act is
+  7 floors. Floors 1-6 have 2 to 4 nodes; each node links to 1 or 2 nodes on the next floor, so there is always a path.
+  Floor 7 is the act's boss. The player starts each act choosing any floor-1 node, then must follow links.
+- **R-R4 Node kinds.** **Skirmish** (a battle), **Elite** (a harder battle, better reward; floor 3 and up), **Rest**
+  (repair the Crystal by 6, or remove one card; never below 10 cards), **Supply** (spend scrip on cards or repairs), **Event** (R-R11), **Boss** (floor 7).
+  Floor 1 is always skirmishes; floor 6 always holds at least one Rest.
 - **R-R5 Crystal.** The run's Crystal carries between battles: a battle starts with the run's Crystal for the player
   (cap 20) and ends by writing the player's Crystal back; a won battle then repairs it by 3 (field repairs, cap 20). A
-  run Crystal at 0 ends the run in defeat. RULING: a draw is not a win; it ends the run.
-- **R-R6 Foes.** Each battle stop names its foe: one or two factions, deck size, Crystal, AI level and any Orders. The
-  foe deck is the curve-built deck for those factions (`autoDeck`), with its other cards in an order fixed by the
-  expedition and stop, cut to the deck size; a boss keeps every hero copy, other foes keep one hero (two copies). A
-  boss whose faction is the player hero's uses the expedition's other boss faction.
-- **R-R7 Orders.** An Order is a power for the rest of the run (R-X6): it works in every later battle. Orders are
-  picked 1 of 3 at Order stops and after a boss that is not the last, and bought at Depots. A run never offers an Order
-  it already holds. The catalog is `src/run/orders.ts`; each Order prints everything it does.
-- **R-R8 Fittings.** A Fitting is an upgrade fitted to every copy of one card in the run deck (R-X5): more power or
-  health, a keyword, or a lower cost. A card holds one Fitting; a new one replaces the old. Stat and keyword Fittings go
-  on units and heroes only; a cost Fitting goes on any card that costs 2 or more. Fittings are picked 1 of 3 at Caches
-  and after Elites, and bought at Depots; the player then picks the card. The catalog is `src/run/fittings.ts`.
-- **R-R9 Recruit.** A Recruit stop offers two other heroes (never one already in the run): the one taken joins with two
-  copies of itself and two copies each of the first two cards of its starter. Its faction then joins the reward
-  bundles (R-R12). Only the run's lead hero earns rank (R-R13).
-- **R-R10 Depot.** Offers 3 cards (15 scrip; 30 for a hero), 1 Fitting (25), 1 Order (40) and a repair of 5 (20).
+  run Crystal at 0 ends the run in defeat.
+- **R-R6 Foes.** A skirmish or elite foe uses one or two random factions other than the player's; a boss uses the
+  act's ruling faction (act 1 the Free Gauge, act 2 the Gale Exchange, act 3 the Dominion; the next one on a fixed list
+  when that is the player's own). The foe deck is a random sample of the curve-built deck for those factions
+  (autoDeck), cut to the foe's deck size; a boss keeps every hero copy, other foes keep one hero (two copies). Foe deck size, foe Crystal and AI level rise with act and node kind:
+
+  | | Act 1 | Act 2 | Act 3 |
+  |---|---|---|---|
+  | Skirmish | 20 cards, Crystal 10, Recruit | 24, Crystal 14, Veteran | 28, Crystal 18, Veteran |
+  | Elite | 24, Crystal 14, Veteran | 28, Crystal 18, Veteran | 30, Crystal 20, Marshal |
+  | Boss | 26, Crystal 16, Veteran | 30, 20, Marshal | 34, 20, Marshal |
+
+- **R-R7 Rewards.** Winning a battle gives scrip (skirmish 10, elite 25, boss 50) and a choice of 3 non-hero cards
+  (or none): two from the player's faction, one from any faction. A draw is not a win: it ends the run. Elite and boss offers draw only from
+  cards of cost 3 or more. A run deck may hold any number of copies and any number of factions.
+- **R-R8 Supply.** A Supply node offers 4 cards at 15 scrip each (30 for a hero) and a repair of 5 for 20 scrip.
+- **R-R9 Winning.** Beating the act 3 boss wins the run.
 - **R-R11 Events.** An event stop draws one of the scenes in `src/run/events.ts`: two or three choices, each printing
-  everything it does. A choice with a scrip price is refused without the scrip. An event never takes the Crystal below
-  1 and never removes a card below the 12-card minimum. Random cards are never heroes or tokens.
-- **R-R12 Rewards.** Winning a battle gives scrip (battle 10, elite 25, boss 50), rank XP (R-R13) and a choice of one
-  of three **bundles**, or none: a **hero bundle** from the lead hero's reward pool, a **faction bundle** from the
-  run's factions (the lead's and any recruit's) and a **wild bundle** from any faction. A bundle holds 2 cards after a
-  battle and 3 after an elite or boss; elite and boss bundles draw only cards of cost 3 or more where the pool allows.
-  No bundle holds a hero or a token. A run deck may hold any number of copies.
-- **R-R13 Hero rank.** Each hero keeps XP between runs (the profile, R-R15). A won battle gives 10 XP (elite 20, boss
-  40); winning the expedition gives 30 more per star. XP earned in a lost run is kept. Ranks need 0, 30, 80, 150, 250,
-  380, 540 and 750 XP (rank 1 to 8). Each rank unlocks, for every later run with that hero:
-  2: start with 15 scrip. 3: start with the hero's signature Order. 4: rests repair 3 more. 5: the hero's signature
-  Fitting on the hero card. 6: start with one more Order, picked at random from the common Orders. 7: field repairs
-  2 more. 8: start with the hero's mastery Order.
-- **R-R14 Expeditions unlocked.** The first expedition is open; each later one opens once any hero wins the one before.
-- **R-R15 Briefing.** Before a battle the player sees the foe's name, factions, deck size, Crystal, AI level and
-  Orders, and can look at the foe's whole deck (open information); a boss gets an introduction.
-- **R-R16 Saving.** The run saves after every stop and every battle move (KB rule 22) in its own slot, separate from
-  the single-battle save. The profile saves whenever XP or an unlock changes. A run saved by the old map campaign
-  (D18) cannot continue: the screen says so and offers a new run.
+  everything it does (scrip, Crystal, a random card of a named pool, removing a card of the player's choice). A choice
+  with a scrip price is refused without the scrip. An event never takes the Crystal below 1 and never removes a card
+  below the 10-card minimum. Random cards come from the run's generator and are never heroes or tokens.
+- **R-R12 Briefing.** Before a battle the player sees the foe's name, factions, deck size, Crystal and AI level, and can
+  look at the foe's whole deck (open information); a boss gets an introduction.
+- **R-R10 Saving.** The run saves after every node and every battle move (KB rule 22) in its own slot, separate from
+  the single-battle save.
 
 ## Engine support
 - **R-X3 Starting Crystal.** `Setup.startSpire` (optional) sets each side's starting Integrity, 1 to 20; omitted means
   20 (R-G2). Used by runs only.
-- **R-X4 Early cards.** `Setup.gear[seat].early` lists card ids; after the shuffle, one copy of each is moved to a
-  seeded place among the top 6 cards of that deck. A listed card that is not in the deck is refused at setup.
-- **R-X5 Fittings.** `Setup.gear[seat].fittings` maps a card id to a Fitting. Every copy of that card, in every zone,
-  for that side, has the Fitting: `face` adds its power, health and keywords (both faces of a hero) and adds its words
-  to the card text; `costOf` adds its cost change (never below 0). Fittings are open information.
-- **R-X6 Orders.** `Setup.gear[seat].orders` lists Orders for that side. An Order can hold auras (to that side's units
-  or the other side's, through `stats`), cost changes (through `costOf`) and abilities that run at **start** (round 1,
-  after the mulligan, before Dawn triggers), **dawn** (every round, before Dawn triggers) or **dusk** (every round,
-  before Dusk triggers). The Initiative holder's Orders run first. Order abilities choose no targets and have no
-  source unit, so they may not use `self`, `target0`, `target1`, `trigger`, `opposing` or `others`; such an Order is
-  refused at setup. Each firing is logged with the Order's name. Orders are open information.

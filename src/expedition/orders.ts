@@ -1,4 +1,4 @@
-// The Order catalog (spec 20 R-R7, engine R-X6): powers that last the whole run. Every Order prints everything it does.
+// The Order catalog (spec 21 R-E7, engine R-X6): powers that last the whole run. Every Order prints everything it does.
 // Run-level Orders (`run`) change the march itself rather than the battles; the engine never sees them.
 import type { Order } from '../engine/types';
 
@@ -6,7 +6,7 @@ export type Rarity = 'common' | 'rare' | 'signature' | 'foe';
 
 export interface RunOrder extends Order {
   rarity: Rarity;
-  /** Changes to the march itself (R-R7), read by src/run/run.ts. */
+  /** Changes to the march itself (R-E7), read by src/expedition/run.ts. */
   run?: { battleScrip?: number; fieldRepair?: number };
 }
 
@@ -46,7 +46,7 @@ export const ORDERS: RunOrder[] = [
   { id: 'sapper-teams', name: 'Sapper Teams', rarity: 'rare', text: 'Dawn: deal 1 to the strongest enemy unit.',
     abilities: [{ on: 'dawn', ops: [{ op: 'damage', to: 'strongestEnemy', n: 1 }] }] },
 
-  // ---------- hero signature and mastery Orders (R-R13 ranks 3 and 8) ----------
+  // ---------- hero signature and mastery Orders (R-E13 ranks 3 and 8) ----------
   { id: 'sig-drill-square', name: 'Drill Square', rarity: 'signature', text: 'Your units with 2 or less power have +0|+1.',
     auras: [{ to: 'allies', filter: { maxPower: 2 }, health: 1 }] },
   { id: 'mst-muster-call', name: 'Muster Call', rarity: 'signature', text: 'Start of battle: summon two 1|1 Conscripts.',
@@ -72,7 +72,7 @@ export const ORDERS: RunOrder[] = [
   { id: 'mst-bleed-ledger', name: 'Bleed Ledger', rarity: 'signature', text: 'Start of battle: drain 3 from the enemy Crystal.',
     abilities: [{ on: 'start', ops: [{ op: 'drain', to: 'enemySpire', n: 3 }] }] },
 
-  // ---------- foe Orders (bosses and elites, R-R6) ----------
+  // ---------- foe Orders (bosses and elites, R-E6) ----------
   { id: 'foe-banner', name: "Warlord's Banner", rarity: 'foe', text: 'Your units have +1|+0.',
     auras: [{ to: 'allies', power: 1 }] },
   { id: 'foe-bulwark', name: 'Bulwark Drill', rarity: 'foe', text: 'Your units have +0|+1.',
@@ -95,5 +95,5 @@ export function order(id: string): RunOrder {
   return o;
 }
 
-/** Orders the march can offer (R-R7): common and rare, never signature or foe Orders. */
+/** Orders the march can offer (R-E7): common and rare, never signature or foe Orders. */
 export const OFFERABLE = ORDERS.filter((o) => o.rarity === 'common' || o.rarity === 'rare').map((o) => o.id);

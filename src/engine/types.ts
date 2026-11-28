@@ -392,7 +392,7 @@ export interface Setup {
   skipMulligan?: boolean;
   /** R-X3 (spec 20): each side's starting Integrity, 1-20. Omitted = 20. Campaign runs only. */
   startSpire?: [number, number];
-  /** R-X4 to R-X6 (spec 20): each side's campaign gear. Omitted = none. Campaign runs only. */
+  /** R-X4 to R-X6 (spec 21): each side's campaign gear. Omitted = none. Campaign runs only. */
   gear?: [Gear, Gear];
 }
 

@@ -27,10 +27,11 @@ any other published game, book or show: no names, characters, places, story, car
 ## Layout
 - `src/engine/` rules (`types.ts` is the contract), `src/data/cards/` one file per faction, `src/ai/`,
   `src/deckbuilder/`; screens: `src/main.ts` (one 512 x 448 canvas), `title.ts`, `scene.ts`, `gallery.ts`,
-  `src/match/` (battle screen, deck select, session, log text), `src/run/` (campaign rules and screens, spec 20).
+  `src/match/` (battle screen, deck select, session, log text), `src/run/` (campaign rules and screens, spec 20),
+  `src/expedition/` (Hero Expeditions, the Path of Champions-style mode, spec 21).
 - Card names and words follow `docs/RESKIN.md` (Crystal, tactic); art pipeline in `tools/art/`, LoRA in `tools/lora/`.
 - `tests/` Vitest (rule-id tests, one behaviour test per card and hero); `tools/sim.ts` arena; `tools/runsim.ts`
-  campaign bench; `tools/gate.ts`. `?auto&fast` in the URL lets the AI play both seats of a battle.
+  campaign bench; `tools/expsim.ts` Expeditions bench; `tools/gate.ts`. `?auto&fast` in the URL lets the AI play both seats of a battle.
 
 ## Commands
 `npm run dev` · `npm test` · `npm run typecheck` · `npm run sim -- --games 100 --a normal --b random` · `npx tsx tools/cardstats.ts` (per-card value, BALANCE B-6) · `npx tsx tools/tourney.ts` (premade band, PLAN D31) · `npm run gate`

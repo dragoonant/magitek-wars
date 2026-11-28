@@ -1,77 +1,69 @@
-// The hero campaign (docs/spec/20-roguelike.md, PLAN D32). Pure data and rules: no DOM, no storage. Everything random
-// comes from the run's own seeded generator, stored in the run, so a run replays from its seed (R-R1).
-import type { FactionId, Fitting, Order, Seat, Setup } from '../engine/types';
+// The campaign run (docs/spec/20-roguelike.md, PLAN D18). Pure data and rules: no DOM. Everything random comes from
+// the run's own seeded generator, stored in the run, so a run replays from its seed (R-R1).
+import type { FactionId, Seat, Setup } from '../engine/types';
 import { LIMITS } from '../engine/types';
 import { def } from '../engine/query';
 import { autoDeck, collectible } from '../data/decks';
 import type { Difficulty } from '../ai/ai';
 import { EVENTS, cardFor, eventCrystal } from './events';
-import { HEROES, RANK_FIELD, RANK_REST, RANK_SCRIP, XP, hero, starterList } from './heroes';
-import { ORDERS, OFFERABLE, order, type RunOrder } from './orders';
-import { OFFERABLE_FITTINGS, canFit, engineFitting, fitting } from './fittings';
-import { expedition, stopOf, type Expedition, type Foe, type Stop, type StopKind } from './expeditions';
 
-export type BattleKind = 'battle' | 'elite' | 'boss';
-export interface Battle { setup: Setup; foeName: string; level: Difficulty; kind: BattleKind; orders: string[]; faction: FactionId }
-export interface Offer { bundles: string[][]; scrip: number; xp: number }
-export interface Shop {
-  cards: { id: string; price: number; sold: boolean }[];
-  fitting: { id: string; price: number; sold: boolean };
-  order: { id: string; price: number; sold: boolean } | null;
-  repairSold: boolean;
-}
-export type PickKind = 'order' | 'fitting' | 'recruit';
-export interface Pick { kind: PickKind; options: string[] }
+export type NodeKind = 'skirmish' | 'elite' | 'rest' | 'supply' | 'event' | 'boss';
+export interface MapNode { id: string; floor: number; kind: NodeKind; links: string[] }
+export interface ActMap { act: number; floors: MapNode[][] }
 
-export type RunPhase = 'map' | 'battle' | 'reward' | 'pick' | 'fit' | 'rest' | 'depot' | 'event' | 'eventRemove' | 'won' | 'lost';
+export interface Offer { cards: string[]; scrip: number }
+export interface Shop { cards: { id: string; price: number; sold: boolean }[]; repairSold: boolean }
+export interface Battle { setup: Setup; foeName: string; level: Difficulty; kind: NodeKind }
+
+export type RunPhase = 'map' | 'battle' | 'reward' | 'rest' | 'supply' | 'event' | 'eventRemove' | 'won' | 'lost';
 
 export interface RunState {
-  v: 2;
+  v: 1;
   seed: number;
   rng: number;
-  /** The lead hero's card id (R-R1). */
-  hero: string;
   faction: FactionId;
-  expedition: string;
-  /** The lead's rank when the run began: its unlocks apply to the whole run (R-R13). */
-  rank: number;
   deck: string[];
   crystal: number;
   scrip: number;
-  /** Order ids, in the order gained (R-R7). */
-  orders: string[];
-  /** Card id -> Fitting id (R-R8). */
-  fittings: Record<string, string>;
-  /** Heroes who joined at Recruit stops (R-R9). */
-  recruits: string[];
-  /** Stop the player stands on (null before the first). */
+  act: number;
+  map: ActMap;
+  /** Node the player stands on (null at the start of an act). */
   at: string | null;
-  visited: string[];
   phase: RunPhase;
   battle: Battle | null;
   offer: Offer | null;
   shop: Shop | null;
-  pick: Pick | null;
-  /** A Fitting waiting for its card, and where to go after (R-R8). */
-  fitWith: { id: string; back: 'map' | 'depot' } | null;
+  /** The event at this stop (R-R11), and what its last choice gave. */
   event?: { id: string; result: string[] } | null;
-  /** Rank XP earned this run, and how much of it the profile already holds (R-R13). */
-  xp: number;
-  xpBanked: number;
+  /** Battles won, for the end screen. */
   wins: number;
   log: string[];
 }
 
-export const MIN_DECK = 12;
+export const ACTS = 3;
+export const FLOORS = 7;
+export const ACT_NAMES = ['THRUMHOLLOW', 'THE RIMEGLASS FLATS', 'VASKOR'];
+/** Each faction's lead, the WORLD.md character (R-R2). */
+export const LEADS: Record<FactionId, string> = {
+  prism: 'prism-tamsin', ember: 'ember-crucible', tide: 'tide-maren', coil: 'coil-aruvi', storm: 'storm-jax', under: 'under-penn',
+};
+/** The faction that rules each act's boss fight, with fallbacks when it is the player's own (R-R6). */
+const BOSS_FACTIONS: FactionId[][] = [['storm', 'coil', 'under'], ['tide', 'ember', 'coil'], ['prism', 'under', 'ember']];
+const ALL: FactionId[] = ['prism', 'ember', 'tide', 'coil', 'storm', 'under'];
+
+/** R-R6 table: [deck size, foe Crystal, AI level] by act (0-2) and kind. */
+const FOES: Record<'skirmish' | 'elite' | 'boss', [number, number, Difficulty][]> = {
+  skirmish: [[20, 10, 'easy'], [24, 14, 'normal'], [28, 18, 'normal']],
+  elite: [[24, 14, 'normal'], [28, 18, 'normal'], [30, 20, 'hard']],
+  boss: [[26, 16, 'normal'], [30, 20, 'hard'], [34, 20, 'hard']],
+};
+const SCRIP: Record<'skirmish' | 'elite' | 'boss', number> = { skirmish: 10, elite: 25, boss: 50 };
 export const REST_REPAIR = 6;
 /** R-R5 field repairs after every won battle (BALANCE R-2). */
 export const FIELD_REPAIR = 3;
-export const DEPOT = { card: 15, hero: 30, fitting: 25, order: 40, repair: 5, repairPrice: 20 } as const;
-const SCRIP: Record<BattleKind, number> = { battle: 10, elite: 25, boss: 50 };
-
-export const FACTION_NAMES: Record<FactionId, string> = {
-  prism: 'Dominion', ember: 'Ashen Choir', tide: 'Gale Exchange', coil: 'Sedgekin', storm: 'Free Gauge', under: 'Blackwick',
-};
+export const SUPPLY_REPAIR = 5;
+export const SUPPLY_REPAIR_PRICE = 20;
+export const MIN_DECK = 10;
 
 // ---------- random ----------
 function next(r: RunState): number {
@@ -82,387 +74,260 @@ function next(r: RunState): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 const int = (r: RunState, n: number): number => Math.floor(next(r) * n);
-function shuffled<T>(rand: () => number, list: T[]): T[] {
+function pick<T>(r: RunState, list: T[]): T {
+  if (list.length === 0) throw new Error('run: pick from an empty list');
+  return list[int(r, list.length)];
+}
+function shuffled<T>(r: RunState, list: T[]): T[] {
   const a = [...list];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
+    const j = int(r, i + 1);
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
 }
-const rr = (r: RunState) => () => next(r);
 
-/** A generator fixed by a name, so a stop's foe deck is the same every time (R-R6). */
-function fixedRandom(name: string): () => number {
-  let h = 2166136261;
-  for (let i = 0; i < name.length; i++) h = Math.imul(h ^ name.charCodeAt(i), 16777619) >>> 0;
-  let a = h || 1;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+// ---------- decks ----------
+const byCost = (a: string, b: string) => def(a).cost - def(b).cost || a.localeCompare(b);
 
-// ---------- the run's numbers ----------
-const runOrders = (r: RunState): RunOrder[] => r.orders.map(order);
-export function fieldRepair(r: RunState): number {
-  return FIELD_REPAIR + (r.rank >= 7 ? RANK_FIELD : 0) + runOrders(r).reduce((n, o) => n + (o.run?.fieldRepair ?? 0), 0);
-}
-export function restRepair(r: RunState): number {
-  return REST_REPAIR + (r.rank >= 4 ? RANK_REST : 0);
-}
-export function battleScrip(r: RunState, kind: BattleKind): number {
-  return SCRIP[kind] + runOrders(r).reduce((n, o) => n + (o.run?.battleScrip ?? 0), 0);
-}
-/** Every hero in the run: the lead, then recruits. */
-export const runHeroes = (r: RunState): string[] => [r.hero, ...r.recruits];
-/** The factions the faction bundle draws from (R-R12). */
-export const runFactions = (r: RunState): FactionId[] => [...new Set(runHeroes(r).map((h) => hero(h).faction))];
+/** Cards per Charge cost in the starter (R-R2, BALANCE R-1): 3 at 1, 3 at 2, 3 at 3, 2 at 4, two copies each. */
+const STARTER_CURVE: [number, number][] = [[1, 3], [2, 3], [3, 3], [4, 2]];
+export const STARTER_SIZE = 24;
 
-// ---------- start (R-R1, R-R2, R-R13) ----------
-export function newRun(heroId: string, expeditionId: string, seed: number, rank = 1): RunState {
-  const h = hero(heroId);
-  expedition(expeditionId);
-  const r: RunState = {
-    v: 2, seed, rng: seed >>> 0 || 1, hero: h.id, faction: h.faction, expedition: expeditionId, rank,
-    deck: starterList(h), crystal: LIMITS.spire, scrip: 0, orders: [], fittings: {}, recruits: [],
-    at: null, visited: [], phase: 'map', battle: null, offer: null, shop: null, pick: null, fitWith: null, event: null,
-    xp: 0, xpBanked: 0, wins: 0, log: [],
-  };
-  if (rank >= 2) r.scrip += RANK_SCRIP;
-  if (rank >= 3) r.orders.push(h.signatureOrder);
-  if (rank >= 5) r.fittings[h.id] = h.signatureFitting;
-  if (rank >= 6) {
-    const commons = ORDERS.filter((o) => o.rarity === 'common' && !r.orders.includes(o.id));
-    r.orders.push(commons[int(r, commons.length)].id);
+/** R-R2: two copies of the lead, then along the curve the units with the most power plus health, two each. */
+export function starterDeck(f: FactionId): string[] {
+  const lead = LEADS[f];
+  const deck = [lead, lead];
+  const units = collectible().filter((c) => c.faction === f && c.type === 'unit');
+  for (const [cost, n] of STARTER_CURVE) {
+    const best = units.filter((c) => c.cost === cost)
+      .sort((a, b) => (b.power ?? 0) + (b.health ?? 0) - ((a.power ?? 0) + (a.health ?? 0)) || a.id.localeCompare(b.id))
+      .slice(0, n);
+    for (const c of best) deck.push(c.id, c.id);
   }
-  if (rank >= 8) r.orders.push(h.masteryOrder);
-  r.log.push(`${def(h.id).name} sets out on ${expedition(expeditionId).name}.`);
+  // a faction short of units at some cost fills up with its cheapest remaining cards (still deterministic)
+  const rest = collectible().filter((c) => c.faction === f && c.type !== 'hero' && !deck.includes(c.id)).map((c) => c.id).sort(byCost);
+  for (const id of rest) {
+    if (deck.length >= STARTER_SIZE) break;
+    deck.push(id, id);
+  }
+  return deck.slice(0, STARTER_SIZE);
+}
+
+/** R-R6: a random sample of a curve-built deck from the given factions. Bosses keep every hero copy; patrols and
+ *  elites keep one hero, two copies (BALANCE R-1). */
+function foeDeck(r: RunState, a: FactionId, b: FactionId, size: number, boss: boolean): string[] {
+  const full = autoDeck(a, b);
+  const allHeroes = full.filter((id) => def(id).type === 'hero');
+  const one = allHeroes[0];
+  const heroes = boss ? allHeroes : one ? [one, one] : [];
+  const rest = shuffled(r, full.filter((id) => def(id).type !== 'hero'));
+  return [...heroes, ...rest].slice(0, size);
+}
+
+// ---------- map ----------
+/** R-R3/R-R4: floors 1-6 of 2-4 nodes, every node reachable, floor 7 the boss. */
+export function makeMap(r: RunState, act: number): ActMap {
+  const floors: MapNode[][] = [];
+  for (let f = 1; f < FLOORS; f++) {
+    const n = 2 + int(r, 3);
+    const row: MapNode[] = [];
+    for (let i = 0; i < n; i++) {
+      let kind: NodeKind = 'skirmish';
+      if (f > 1) {
+        const x = next(r);
+        kind = x < 0.42 ? 'skirmish' : x < 0.56 && f > 2 ? 'elite' : x < 0.7 ? 'rest' : x < 0.84 ? 'supply' : 'event';
+      }
+      row.push({ id: `a${act}f${f}n${i}`, floor: f, kind, links: [] });
+    }
+    if (f === FLOORS - 1 && !row.some((x) => x.kind === 'rest')) row[int(r, row.length)].kind = 'rest';
+    floors.push(row);
+  }
+  floors.push([{ id: `a${act}f${FLOORS}n0`, floor: FLOORS, kind: 'boss', links: [] }]);
+  for (let f = 0; f < floors.length - 1; f++) {
+    const cur = floors[f], nxt = floors[f + 1];
+    cur.forEach((node, i) => {
+      // the node "below" in proportion, and sometimes one beside it
+      const j = Math.min(nxt.length - 1, Math.round((i * (nxt.length - 1)) / Math.max(1, cur.length - 1)));
+      node.links = [nxt[j].id];
+      const k = j + (next(r) < 0.5 ? -1 : 1);
+      if (k >= 0 && k < nxt.length && next(r) < 0.6) node.links.push(nxt[k].id);
+    });
+    // every next-floor node has a way in
+    for (const target of nxt) {
+      if (!cur.some((c) => c.links.includes(target.id))) {
+        const nearest = cur[Math.min(cur.length - 1, Math.round((nxt.indexOf(target) * (cur.length - 1)) / Math.max(1, nxt.length - 1)))];
+        nearest.links.push(target.id);
+      }
+    }
+  }
+  return { act, floors };
+}
+
+export function node(r: RunState, id: string): MapNode {
+  for (const row of r.map.floors) for (const n of row) if (n.id === id) return n;
+  throw new Error(`run: no node ${id}`);
+}
+
+/** Nodes the player may move to now (R-R3). */
+export function choices(r: RunState): MapNode[] {
+  if (r.phase !== 'map') return [];
+  if (r.at === null) return r.map.floors[0];
+  const here = node(r, r.at);
+  return here.links.map((id) => node(r, id));
+}
+
+// ---------- run ----------
+export function newRun(faction: FactionId, seed: number): RunState {
+  const r: RunState = {
+    v: 1, seed, rng: seed >>> 0 || 1, faction, deck: starterDeck(faction), crystal: LIMITS.spire, scrip: 0, act: 1,
+    map: { act: 1, floors: [] }, at: null, phase: 'map', battle: null, offer: null, shop: null, wins: 0, log: [],
+  };
+  r.map = makeMap(r, 1);
+  r.log.push(`The march begins in ${ACT_NAMES[0]}.`);
   return r;
 }
 
-export const exp = (r: RunState): Expedition => expedition(r.expedition);
-export const stop = (r: RunState, id: string): Stop => stopOf(exp(r), id);
-
-/** Stops the player may move to now (R-R3). */
-export function choices(r: RunState): Stop[] {
-  if (r.phase !== 'map') return [];
-  if (r.at === null) return exp(r).stops.filter((s) => s.row === 0);
-  return stop(r, r.at).to.map((id) => stop(r, id));
-}
-
-// ---------- foes (R-R6) ----------
-export function foeFaction(r: RunState, foe: Foe, kind: StopKind): [FactionId, FactionId] {
-  const [a, b] = [foe.factions[0], foe.factions[1] ?? foe.factions[0]];
-  if (kind === 'boss' && a === r.faction) {
-    if (!foe.alt) throw new Error(`run: boss ${foe.name} needs an alt faction`);
-    return [foe.alt, foe.alt];
+function foeFor(r: RunState, kind: 'skirmish' | 'elite' | 'boss'): Battle {
+  const act = r.act - 1;
+  const [size, foeCrystal, level] = FOES[kind][act];
+  let a: FactionId, b: FactionId;
+  if (kind === 'boss') {
+    a = BOSS_FACTIONS[act].find((f) => f !== r.faction)!;
+    b = a;
+  } else {
+    const others = ALL.filter((f) => f !== r.faction);
+    a = pick(r, others);
+    b = next(r) < 0.5 ? a : pick(r, others);
   }
-  return [a, b];
+  const deck = foeDeck(r, a, b, size, kind === 'boss');
+  const seed = int(r, 0x7fffffff);
+  const setup: Setup = { seed, decks: [[...r.deck], deck], startSpire: [r.crystal, foeCrystal] };
+  const names = [...new Set([a, b])].map((f) => FACTION_NAMES[f]);
+  const foeName = kind === 'boss' ? `${FACTION_NAMES[a]} warlord` : `${names.join(' and ')} ${kind === 'elite' ? 'elite' : 'patrol'}`;
+  return { setup, foeName, level, kind };
 }
 
-export function foeDeck(r: RunState, s: Stop): string[] {
-  const foe = s.foe!;
-  const [a, b] = foeFaction(r, foe, s.kind);
-  const full = autoDeck(a, b);
-  const heroes = full.filter((id) => def(id).type === 'hero');
-  const keep = s.kind === 'boss' ? heroes : heroes.length ? [heroes[0], heroes[0]] : [];
-  const rest = shuffled(fixedRandom(`${r.expedition}:${s.id}:${a}:${b}`), full.filter((id) => def(id).type !== 'hero'));
-  return [...keep, ...rest].slice(0, foe.size);
-}
-
-/** The boss is named for the faction it fields (R-R6): its alt faction brings that faction's leader. */
-export function foeName(r: RunState, s: Stop): string {
-  return s.kind === 'boss' ? bossName(r.faction, s.foe!) : s.foe!.name;
-}
-
-/** The boss a hero of this faction meets (R-R6): the alt faction's leader when the boss would be the hero's own. */
-export function bossName(heroFaction: FactionId, foe: Foe): string {
-  return foe.factions[0] === heroFaction && foe.alt ? BOSS_NAMES[foe.alt] : foe.name;
-}
-const BOSS_NAMES: Record<FactionId, string> = {
-  storm: 'Foreman Otto Brandt', coil: 'Speaker Ulla of the Ninth Root', under: 'Mother Agna Vell', tide: 'Captain Dasha Quill',
-  ember: 'Cantor Ebbe', prism: 'Marshal Ilse Corrow',
+export const FACTION_NAMES: Record<FactionId, string> = {
+  prism: 'Dominion', ember: 'Ashen Choir', tide: 'Gale Exchange', coil: 'Sedgekin', storm: 'Free Gauge', under: 'Blackwick',
 };
 
-const engineOrder = (o: RunOrder): Order => ({
-  id: o.id, name: o.name, text: o.text,
-  ...(o.auras ? { auras: o.auras } : {}), ...(o.costAuras ? { costAuras: o.costAuras } : {}), ...(o.abilities ? { abilities: o.abilities } : {}),
-});
-
-/** The run's Fittings as the engine reads them (R-X5): only cards still in the deck. */
-export function deckFittings(r: RunState): Record<string, Fitting> {
-  const out: Record<string, Fitting> = {};
-  for (const [card, fit] of Object.entries(r.fittings)) if (r.deck.includes(card)) out[card] = engineFitting(fit);
-  return out;
-}
-
-/** The engine setup for a stop's battle: both decks, both Crystals, both sides' gear (R-X3 to R-X6). */
-function battleFor(r: RunState, s: Stop): Battle {
-  const foe = s.foe!;
-  const deck = foeDeck(r, s);
-  const fits = deckFittings(r);
-  const early = runHeroes(r).filter((h) => r.deck.includes(h));
-  const setup: Setup = {
-    seed: int(r, 0x7fffffff), decks: [[...r.deck], deck], startSpire: [r.crystal, foe.crystal],
-    gear: [
-      { early, fittings: fits, orders: runOrders(r).filter((o) => o.auras || o.costAuras || o.abilities).map(engineOrder) },
-      { orders: (foe.orders ?? []).map((id) => engineOrder(order(id))) },
-    ],
-  };
-  return { setup, foeName: foeName(r, s), level: foe.level, kind: s.kind as BattleKind, orders: foe.orders ?? [], faction: foeFaction(r, foe, s.kind)[0] };
-}
-
-// ---------- moving (R-R3, R-R4) ----------
+/** Move to a node and start what it holds (R-R4). */
 export function enter(r: RunState, id: string): void {
-  if (!choices(r).some((s) => s.id === id)) throw new Error(`run: ${id} is not reachable from here`);
+  if (!choices(r).some((n) => n.id === id)) throw new Error(`run: ${id} is not reachable from here`);
   r.at = id;
-  r.visited.push(id);
-  const s = stop(r, id);
-  const row = `Stop ${s.row + 1}`;
-  if (s.kind === 'battle' || s.kind === 'elite' || s.kind === 'boss') {
-    r.battle = battleFor(r, s);
+  const n = node(r, id);
+  if (n.kind === 'skirmish' || n.kind === 'elite' || n.kind === 'boss') {
+    r.battle = foeFor(r, n.kind);
     r.phase = 'battle';
-    r.log.push(`${row}: battle with ${r.battle.foeName}.`);
-  } else if (s.kind === 'rest') {
+    r.log.push(`Floor ${n.floor}: battle with a ${r.battle.foeName}.`);
+  } else if (n.kind === 'rest') {
     r.phase = 'rest';
-    r.log.push(`${row}: a rest stop.`);
-  } else if (s.kind === 'event') {
+    r.log.push(`Floor ${n.floor}: a rest stop.`);
+  } else if (n.kind === 'event') {
     const ev = EVENTS[int(r, EVENTS.length)];
     r.event = { id: ev.id, result: [] };
     r.phase = 'event';
-    r.log.push(`${row}: ${ev.title.toLowerCase()}.`);
-  } else if (s.kind === 'depot') {
-    r.shop = makeShop(r);
-    r.phase = 'depot';
-    r.log.push(`${row}: a supply depot.`);
-  } else if (s.kind === 'order') {
-    r.pick = { kind: 'order', options: orderChoices(r, 3) };
-    r.phase = 'pick';
-    r.log.push(`${row}: a command post.`);
-  } else if (s.kind === 'cache') {
-    r.pick = { kind: 'fitting', options: fittingChoices(r, 3) };
-    r.phase = 'pick';
-    r.log.push(`${row}: a parts cache.`);
+    r.log.push(`Floor ${n.floor}: ${ev.title.toLowerCase()}.`);
   } else {
-    const open = HEROES.map((h) => h.id).filter((h) => !runHeroes(r).includes(h));
-    r.pick = { kind: 'recruit', options: shuffled(rr(r), open).slice(0, 2) };
-    r.phase = 'pick';
-    r.log.push(`${row}: a recruiting post.`);
+    r.shop = makeShop(r);
+    r.phase = 'supply';
+    r.log.push(`Floor ${n.floor}: a supply depot.`);
   }
 }
 
-function afterStop(r: RunState): void {
-  r.phase = 'map';
+function rewardPool(faction: FactionId | null, minCost: number): string[] {
+  return collectible().filter((c) => c.type !== 'hero' && (faction === null || c.faction === faction) && c.cost >= minCost).map((c) => c.id);
 }
 
-// ---------- battles and rewards (R-R5, R-R12, R-R13) ----------
-function cardPool(factions: FactionId[] | null, minCost: number, ids?: string[]): string[] {
-  const all = ids ? ids.map(def) : collectible();
-  return all.filter((c) => c.type !== 'hero' && !c.token && (factions === null || factions.includes(c.faction)) && c.cost >= minCost).map((c) => c.id);
-}
-function bundle(r: RunState, pool: string[], fallback: string[], n: number, avoid: Set<string>): string[] {
-  const fresh = (list: string[]) => shuffled(rr(r), list.filter((id) => !avoid.has(id)));
-  const out = fresh(pool).slice(0, n);
-  for (const id of fresh(fallback)) if (out.length < n && !out.includes(id)) out.push(id);
-  for (const id of out) avoid.add(id);
-  return out;
-}
-
+/** R-R5/R-R7: the battle is over; write the Crystal back and offer the reward. */
 export function finishBattle(r: RunState, winner: Seat | 'draw' | null, myCrystal: number): void {
   if (r.phase !== 'battle' || !r.battle) throw new Error('run: no battle to finish');
-  const kind = r.battle.kind;
+  const kind = r.battle.kind as 'skirmish' | 'elite' | 'boss';
   r.crystal = Math.max(0, Math.min(LIMITS.spire, myCrystal));
   r.battle = null;
   if (winner !== 0 || r.crystal <= 0) {
+    // RULING: a draw is not a win; the run ends as a defeat.
     r.phase = 'lost';
-    r.log.push(winner === 'draw' ? 'The battle ended in a draw: the expedition is over.' : 'The Crystal fell: the expedition is over.');
+    r.log.push(winner === 'draw' ? 'The battle ended in a draw: the march is over.' : 'The Crystal fell: the march is over.');
     return;
   }
   r.wins += 1;
-  const xp = XP[kind];
-  r.xp += xp;
-  r.crystal = Math.min(LIMITS.spire, r.crystal + fieldRepair(r));
-  if (kind === 'boss') {
-    const bonus = XP.perStar * exp(r).stars;
-    r.xp += bonus;
+  r.crystal = Math.min(LIMITS.spire, r.crystal + FIELD_REPAIR);
+  if (kind === 'boss' && r.act === ACTS) {
     r.phase = 'won';
-    r.log.push(`${exp(r).name} is won. ${def(r.hero).name} earns ${xp + bonus} rank XP for the final battle.`);
+    r.log.push('Vaskor has fallen silent. The march is won.');
     return;
   }
-  const n = kind === 'battle' ? 2 : 3;
-  const min = kind === 'battle' ? 0 : 3;
-  const avoid = new Set<string>();
-  const h = hero(r.hero);
-  const bundles = [
-    bundle(r, cardPool(null, min, h.pool), cardPool(null, 0, h.pool), n, avoid),
-    bundle(r, cardPool(runFactions(r), min), cardPool(runFactions(r), 0), n, avoid),
-    bundle(r, cardPool(null, min), cardPool(null, 0), n, avoid),
-  ];
-  const scrip = battleScrip(r, kind);
-  r.scrip += scrip;
-  r.offer = { bundles, scrip, xp };
+  const min = kind === 'skirmish' ? 0 : 3;
+  const mine = shuffled(r, rewardPool(r.faction, min)).slice(0, 2);
+  const any = shuffled(r, rewardPool(null, min).filter((id) => !mine.includes(id)));
+  r.offer = { cards: [...mine, any[0]], scrip: SCRIP[kind] };
+  r.scrip += SCRIP[kind];
   r.phase = 'reward';
 }
 
-/** Take one bundle by index, or none (R-R12). After an elite, a Fitting pick follows (R-R8). */
-export function takeReward(r: RunState, index: number | null): void {
+/** Take one offered card, or none (R-R7). After a boss, the next act begins. */
+export function takeReward(r: RunState, card: string | null): void {
   if (r.phase !== 'reward' || !r.offer) throw new Error('run: no reward to take');
-  if (index !== null) {
-    const b = r.offer.bundles[index];
-    if (!b) throw new Error(`run: no bundle ${index}`);
-    r.deck.push(...b);
-    r.log.push(`Took ${b.map((id) => def(id).name).join(' and ')}.`);
-  } else r.log.push('Took no cards.');
-  r.offer = null;
-  const here = r.at ? stop(r, r.at) : null;
-  if (here?.kind === 'elite') {
-    r.pick = { kind: 'fitting', options: fittingChoices(r, 3) };
-    r.phase = 'pick';
-  } else afterStop(r);
-}
-
-// ---------- Orders, Fittings, Recruits (R-R7 to R-R9) ----------
-function orderChoices(r: RunState, n: number): string[] {
-  return shuffled(rr(r), OFFERABLE.filter((id) => !r.orders.includes(id))).slice(0, n);
-}
-function fittingChoices(r: RunState, n: number): string[] {
-  return shuffled(rr(r), [...OFFERABLE_FITTINGS]).slice(0, n);
-}
-
-/** Cards in the deck a Fitting can go on (R-R8). */
-export function fitTargets(r: RunState, fitId: string): string[] {
-  return [...new Set(r.deck)].filter((id) => canFit(fitId, id));
-}
-
-/** Take one of the offered options, or none. A Fitting then waits for its card (phase 'fit'). */
-export function choosePick(r: RunState, option: string | null): void {
-  if (r.phase !== 'pick' || !r.pick) throw new Error('run: nothing to pick');
-  const p = r.pick;
-  if (option !== null && !p.options.includes(option)) throw new Error(`run: ${option} was not offered`);
-  r.pick = null;
-  if (option === null) {
-    r.log.push(p.kind === 'recruit' ? 'Nobody joined.' : `Took no ${p.kind === 'order' ? 'Order' : 'Fitting'}.`);
-    afterStop(r);
-    return;
-  }
-  if (p.kind === 'order') {
-    r.orders.push(option);
-    r.log.push(`New Order: ${order(option).name}.`);
-    afterStop(r);
-  } else if (p.kind === 'fitting') {
-    r.fitWith = { id: option, back: 'map' };
-    r.phase = 'fit';
-  } else {
-    const h = hero(option);
-    const support = Object.keys(h.starter).filter((id) => id !== h.id).slice(0, 2);
-    r.recruits.push(h.id);
-    r.deck.push(h.id, h.id, ...support.flatMap((id) => [id, id]));
-    r.log.push(`${def(h.id).name} joins the expedition.`);
-    afterStop(r);
-  }
-}
-
-/** Fit the waiting Fitting on a card (all copies), or give it up. A card's old Fitting is replaced (R-R8). */
-export function fit(r: RunState, card: string | null): void {
-  if (r.phase !== 'fit' || !r.fitWith) throw new Error('run: no Fitting waiting');
-  const { id, back } = r.fitWith;
   if (card !== null) {
-    if (!r.deck.includes(card)) throw new Error(`run: ${card} is not in the deck`);
-    if (!canFit(id, card)) throw new Error(`run: ${fitting(id).name} cannot go on ${card}`);
-    r.fittings[card] = id;
-    r.log.push(`Fitted ${def(card).name} with ${fitting(id).name}.`);
-  } else r.log.push(`Left ${fitting(id).name} behind.`);
-  r.fitWith = null;
-  r.phase = back === 'depot' ? 'depot' : 'map';
+    if (!r.offer.cards.includes(card)) throw new Error(`run: ${card} was not offered`);
+    r.deck.push(card);
+    r.log.push(`Took ${def(card).name}.`);
+  } else r.log.push('Took no card.');
+  r.offer = null;
+  afterNode(r);
 }
 
-// ---------- rest, depot, events ----------
-/** RULING: the lead hero cannot be removed from its own expedition. */
-function whyNotRemove(r: RunState, card: string): string | null {
-  if (r.deck.length <= MIN_DECK) return `The deck cannot go below ${MIN_DECK} cards.`;
-  if (card === r.hero) return 'Your lead hero stays with the expedition.';
-  if (!r.deck.includes(card)) return 'That card is not in the deck.';
-  return null;
-}
-export const canRemove = (r: RunState, card: string): boolean => whyNotRemove(r, card) === null;
-
-function removeCard(r: RunState, card: string): void {
-  const why = whyNotRemove(r, card);
-  if (why) throw new Error(`run: ${why}`);
-  r.deck.splice(r.deck.indexOf(card), 1);
-  if (!r.deck.includes(card)) delete r.fittings[card];
+function afterNode(r: RunState): void {
+  const here = r.at ? node(r, r.at) : null;
+  if (here?.kind === 'boss') {
+    r.act += 1;
+    r.map = makeMap(r, r.act);
+    r.at = null;
+    r.log.push(`Act ${r.act}: ${ACT_NAMES[r.act - 1]}.`);
+  }
+  r.phase = 'map';
 }
 
-/** R-R4 Rest: repair, or remove one card. */
+/** R-R4 Rest: repair, or remove one card (the deck never drops below MIN_DECK). */
 export function rest(r: RunState, choice: { kind: 'repair' } | { kind: 'remove'; card: string }): void {
   if (r.phase !== 'rest') throw new Error('run: not at a rest stop');
   if (choice.kind === 'repair') {
     const before = r.crystal;
-    r.crystal = Math.min(LIMITS.spire, r.crystal + restRepair(r));
+    r.crystal = Math.min(LIMITS.spire, r.crystal + REST_REPAIR);
     r.log.push(`Repaired the Crystal by ${r.crystal - before}.`);
   } else {
-    removeCard(r, choice.card);
+    // RULING: removal is refused below MIN_DECK cards, so a run can never draw out on its first rounds.
+    if (r.deck.length <= MIN_DECK) throw new Error(`run: the deck cannot go below ${MIN_DECK} cards`);
+    const i = r.deck.indexOf(choice.card);
+    if (i < 0) throw new Error(`run: ${choice.card} is not in the deck`);
+    r.deck.splice(i, 1);
     r.log.push(`Removed ${def(choice.card).name}.`);
   }
-  afterStop(r);
+  afterNode(r);
 }
 
 function makeShop(r: RunState): Shop {
-  const mine = shuffled(rr(r), cardPool(runFactions(r), 0)).slice(0, 2);
-  const any = shuffled(rr(r), collectible().filter((c) => !c.token && !mine.includes(c.id)).map((c) => c.id)).slice(0, 1);
-  const cards = [...mine, ...any].map((id) => ({ id, price: def(id).type === 'hero' ? DEPOT.hero : DEPOT.card, sold: false }));
-  const ord = orderChoices(r, 1)[0];
-  return {
-    cards, fitting: { id: fittingChoices(r, 1)[0], price: DEPOT.fitting, sold: false },
-    order: ord ? { id: ord, price: DEPOT.order, sold: false } : null, repairSold: false,
-  };
+  const mine = shuffled(r, collectible().filter((c) => c.faction === r.faction).map((c) => c.id)).slice(0, 2);
+  const any = shuffled(r, collectible().map((c) => c.id).filter((id) => !mine.includes(id))).slice(0, 2);
+  return { cards: [...mine, ...any].map((id) => ({ id, price: def(id).type === 'hero' ? 30 : 15, sold: false })), repairSold: false };
 }
 
-/** R-R10: buy 'card:<id>', 'fitting', 'order' or 'repair'. Returns why it was refused, or null. */
+/** R-R8 Supply: buy a card or the repair. Refused (with a reason) when scrip is short or it is sold. */
 export function buy(r: RunState, what: string): string | null {
-  if (r.phase !== 'depot' || !r.shop) throw new Error('run: not at a supply depot');
-  const sh = r.shop;
-  const pay = (price: number): string | null => (r.scrip < price ? `Needs ${price} scrip.` : null);
+  if (r.phase !== 'supply' || !r.shop) throw new Error('run: not at a supply depot');
   if (what === 'repair') {
-    if (sh.repairSold) return 'The repair is already used.';
-    const why = pay(DEPOT.repairPrice);
-    if (why) return why;
-    r.scrip -= DEPOT.repairPrice;
-    r.crystal = Math.min(LIMITS.spire, r.crystal + DEPOT.repair);
-    sh.repairSold = true;
-    r.log.push(`Bought a repair.`);
+    if (r.shop.repairSold) return 'The repair is already used.';
+    if (r.scrip < SUPPLY_REPAIR_PRICE) return `Needs ${SUPPLY_REPAIR_PRICE} scrip.`;
+    r.scrip -= SUPPLY_REPAIR_PRICE;
+    r.crystal = Math.min(LIMITS.spire, r.crystal + SUPPLY_REPAIR);
+    r.shop.repairSold = true;
     return null;
   }
-  if (what === 'order') {
-    if (!sh.order || sh.order.sold) return 'That Order is not for sale.';
-    const why = pay(sh.order.price);
-    if (why) return why;
-    r.scrip -= sh.order.price;
-    sh.order.sold = true;
-    r.orders.push(sh.order.id);
-    r.log.push(`Bought the Order ${order(sh.order.id).name}.`);
-    return null;
-  }
-  if (what === 'fitting') {
-    if (sh.fitting.sold) return 'That Fitting is not for sale.';
-    if (fitTargets(r, sh.fitting.id).length === 0) return 'No card in your deck can take it.';
-    const why = pay(sh.fitting.price);
-    if (why) return why;
-    r.scrip -= sh.fitting.price;
-    sh.fitting.sold = true;
-    r.fitWith = { id: sh.fitting.id, back: 'depot' };
-    r.phase = 'fit';
-    return null;
-  }
-  const id = what.startsWith('card:') ? what.slice(5) : what;
-  const item = sh.cards.find((c) => c.id === id && !c.sold);
+  const item = r.shop.cards.find((c) => c.id === what && !c.sold);
   if (!item) return 'That card is not for sale.';
-  const why = pay(item.price);
-  if (why) return why;
+  if (r.scrip < item.price) return `Needs ${item.price} scrip.`;
   r.scrip -= item.price;
   item.sold = true;
   r.deck.push(item.id);
@@ -470,13 +335,8 @@ export function buy(r: RunState, what: string): string | null {
   return null;
 }
 
-export function leaveDepot(r: RunState): void {
-  if (r.phase !== 'depot') throw new Error('run: not at a supply depot');
-  r.shop = null;
-  afterStop(r);
-}
-
-/** R-R11: take one of the event's choices. Returns why it was refused, or null. */
+/** R-R11: take one of the event's choices. Returns why it was refused, or null. A "remove" outcome waits for the
+ *  player to pick the card (phase eventRemove); the deck never drops below MIN_DECK, so that outcome is skipped then. */
 export function chooseEvent(r: RunState, index: number): string | null {
   if (r.phase !== 'event' || !r.event) throw new Error('run: no event here');
   const ev = EVENTS.find((e) => e.id === r.event!.id);
@@ -505,14 +365,22 @@ export function chooseEvent(r: RunState, index: number): string | null {
   r.event.result = result;
   r.log.push(`${ev.title.charAt(0)}${ev.title.slice(1).toLowerCase()}: ${result.join(', ') || 'nothing happened'}.`);
   if (remove) r.phase = 'eventRemove';
-  else { r.event = null; afterStop(r); }
+  else { r.event = null; afterNode(r); }
   return null;
 }
 
 export function removeForEvent(r: RunState, card: string): void {
   if (r.phase !== 'eventRemove') throw new Error('run: no card to remove');
-  removeCard(r, card);
+  const i = r.deck.indexOf(card);
+  if (i < 0) throw new Error(`run: ${card} is not in the deck`);
+  r.deck.splice(i, 1);
   r.log.push(`Left ${def(card).name} behind.`);
   r.event = null;
-  afterStop(r);
+  afterNode(r);
+}
+
+export function leaveSupply(r: RunState): void {
+  if (r.phase !== 'supply') throw new Error('run: not at a supply depot');
+  r.shop = null;
+  afterNode(r);
 }

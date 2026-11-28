@@ -1,4 +1,4 @@
-// The Fitting catalog (spec 20 R-R8, engine R-X5): an upgrade on every copy of one card in the run deck.
+// The Fitting catalog (spec 21 R-E8, engine R-X5): an upgrade on every copy of one card in the run deck.
 import type { Fitting } from '../engine/types';
 import { def } from '../engine/query';
 import type { Rarity } from './orders';
@@ -20,7 +20,7 @@ export const FITTINGS: RunFitting[] = [
   { id: 'leech-coil', name: 'Leech Coil', rarity: 'rare', text: 'Siphon', kw: ['siphon'] },
   { id: 'glider-wings', name: 'Glider Wings', rarity: 'rare', text: 'Aerial', kw: ['aerial'] },
   { id: 'light-frame', name: 'Light Frame', rarity: 'rare', text: 'costs 1 less', cost: -1 },
-  // hero signature Fittings (R-R13 rank 5)
+  // hero signature Fittings (R-E13 rank 5)
   { id: 'sig-bastion-plate', name: 'Bastion Plate', rarity: 'signature', text: '+0|+2', health: 2 },
   { id: 'sig-choir-bell', name: 'Choir Bell', rarity: 'signature', text: 'costs 1 less', cost: -1 },
   { id: 'sig-captains-ward', name: "Captain's Ward", rarity: 'signature', text: 'Ward', kw: ['ward'] },
@@ -35,10 +35,10 @@ export function fitting(id: string): RunFitting {
   return f;
 }
 
-/** Fittings the march can offer (R-R8): common and rare. */
+/** Fittings the march can offer (R-E8): common and rare. */
 export const OFFERABLE_FITTINGS = FITTINGS.filter((f) => f.rarity !== 'signature').map((f) => f.id);
 
-/** R-R8: stat and keyword Fittings go on units and heroes; a cost Fitting on any card that costs 2 or more. */
+/** R-E8: stat and keyword Fittings go on units and heroes; a cost Fitting on any card that costs 2 or more. */
 export function canFit(fitId: string, card: string): boolean {
   const f = fitting(fitId);
   const d = def(card);
