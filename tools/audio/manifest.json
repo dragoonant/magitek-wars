@@ -1,5 +1,5 @@
 {
-  "note": "Magitek Wars generation list for the local Audio Studio on EVILAEGIS (port 7890), run by tools/audio/gen.mjs. ids are the delivery file names under public/audio/. sfx ids match LogEntry.k so src/audio/audio.ts plays them by name; a kind without a sample plays its synthesized voice. Steam, brass, iron and gloam: no crystal, no published game's sounds. Loops are made seamless by level.mjs.",
+  "note": "Magitek Wars generation list. The shipped sound is ElevenLabs, made by tools/audio/eleven.mjs (PLAN D35); the local Audio Studio (port 7890, tools/audio/gen.mjs) reads the same prompts. An effect with layers is mixed from separately generated parts (eleven.mjs only). ids are the delivery file names under public/audio/. sfx ids match LogEntry.k so src/audio/audio.ts plays them by name; a kind without a sample plays its synthesized voice. Steam, brass, iron and gloam: no crystal, no published game's sounds. Loops are made seamless by level.mjs.",
   "music": [
     { "id": "music/title", "duration": 120, "bpm": 72, "key": "D minor", "loop": true,
       "prompt": "instrumental, slow solemn brass chorale over a deep pulsing steam engine rhythm, distant church bells, low strings, a smoky industrial city at dusk, sixteen-bit era game title theme, cinematic, clean mix" },
@@ -17,10 +17,14 @@
       "prompt": "instrumental, a rising brass swell into a bright held chord with a bell strike, heroic transformation sting, ends cleanly" }
   ],
   "sfx": [
-    { "id": "sfx/round", "seconds": 3, "prompt": "a single deep factory steam whistle blast followed by a large bell strike, no music, no voices" },
+    { "id": "sfx/round", "seconds": 3, "promptInfluence": 0.75, "prompt": "a deep low factory steam whistle blast, then one large heavy bronze bell struck once and ringing out, no music, no voices" },
     { "id": "sfx/play", "seconds": 1, "prompt": "a heavy playing card slapped down on a wooden table with a brass click, close, no music" },
-    { "id": "sfx/cast", "seconds": 2, "prompt": "a hiss of pressurised steam releasing with a rising electrical hum, no music, no voices" },
-    { "id": "sfx/strike", "seconds": 1, "prompt": "a heavy iron sword clashing against a riveted steel shield, metallic impact, no music" },
+    { "id": "sfx/cast", "seconds": 2, "prompt": "pressurised steam hissing out of a valve while a clean electrical hum rises in pitch underneath, a machine powering up a spell, no music, no voices", "source": "ElevenLabs sound generation, built from layers mixed in code",
+      "layers": [
+        { "at": 0, "seconds": 2, "gainDb": -4, "promptInfluence": 0.75, "prompt": "pressurised steam hissing out of a brass valve, no music, no voices" },
+        { "at": 0, "seconds": 2, "gainDb": 0, "promptInfluence": 0.75, "prompt": "a clean electrical hum rising smoothly in pitch, a machine powering up, no music, no voices" }
+      ] },
+    { "id": "sfx/strike", "seconds": 1, "promptInfluence": 0.75, "prompt": "a heavy broadsword slamming into a thick steel shield: a loud weighty metal clang with a low thump and a crunch, close, no music" },
     { "id": "sfx/dmg", "seconds": 1, "prompt": "a sharp metallic dent, a hammer hitting a steel plate once, no music" },
     { "id": "sfx/spireDmg", "seconds": 2, "source": "ElevenLabs sound generation, take 5 of 6, prompt_influence 0.7 (PLAN D27)", "prompt": "a heavy blow against a giant crystal: a deep low thud with weight, a bright glassy crack on top, then a long pure ringing crystal tone like a struck wine glass the size of a bell, slowly fading, no music, no voices" },
     { "id": "sfx/spireDmg-1", "seconds": 2, "source": "ElevenLabs sound generation, take 1 of 6, prompt_influence 0.6; a variant of sfx/spireDmg, one picked at random per hit (PLAN D28)", "prompt": "a huge glowing crystal struck hard: a sharp bright glassy impact with a cracking splinter, then a deep resonant ringing crystal hum that shimmers and fades, fantasy game hit sound, no music, no voices" },
@@ -29,11 +33,23 @@
     { "id": "sfx/spireDmg-4", "seconds": 2, "source": "ElevenLabs sound generation, take 4 of 6, prompt_influence 0.7; a variant of sfx/spireDmg, one picked at random per hit (PLAN D28)", "prompt": "a heavy blow against a giant crystal: a deep low thud with weight, a bright glassy crack on top, then a long pure ringing crystal tone like a struck wine glass the size of a bell, slowly fading, no music, no voices" },
     { "id": "sfx/spireDmg-6", "seconds": 2, "source": "ElevenLabs sound generation, take 6 of 6, prompt_influence 0.7; a variant of sfx/spireDmg, one picked at random per hit (PLAN D28)", "prompt": "a heavy blow against a giant crystal: a deep low thud with weight, a bright glassy crack on top, then a long pure ringing crystal tone like a struck wine glass the size of a bell, slowly fading, no music, no voices" },
     { "id": "sfx/die", "seconds": 2, "prompt": "a machine collapsing, metal crumpling and falling with a last puff of steam, no music, no voices" },
-    { "id": "sfx/attack", "seconds": 2, "prompt": "a squad charging, heavy boots on gravel and a brass bugle note, no music, no voices" },
-    { "id": "sfx/heal", "seconds": 2, "prompt": "a wrench tightening a bolt and a gentle rising chime, repair sound, no music" },
+    { "id": "sfx/attack", "seconds": 2, "prompt": "a squad of soldiers charging: many heavy boots running on gravel, one short brass bugle call over them, no music, no voices", "source": "ElevenLabs sound generation, built from layers mixed in code",
+      "layers": [
+        { "at": 0, "seconds": 2, "gainDb": 0, "promptInfluence": 0.75, "prompt": "a squad of soldiers running fast, many heavy boots crunching on gravel, no music, no voices" },
+        { "at": 0.25, "seconds": 1.5, "gainDb": -5, "promptInfluence": 0.75, "prompt": "one short brass bugle charge call, no music, no voices" }
+      ] },
+    { "id": "sfx/heal", "seconds": 2, "prompt": "a wrench tightening a bolt with three slow ratchet clicks, then a soft gentle rising chime, no music", "source": "ElevenLabs sound generation, built from layers mixed in code",
+      "layers": [
+        { "at": 0, "seconds": 1, "gainDb": 0, "promptInfluence": 0.75, "prompt": "three slow clicks of a ratchet wrench tightening a bolt, no music" },
+        { "at": 0.7, "seconds": 1.5, "gainDb": -3, "promptInfluence": 0.75, "prompt": "a soft gentle rising chime of small bright bells, magical restore, no music" }
+      ] },
     { "id": "sfx/ward", "seconds": 1, "prompt": "a shimmering protective barrier ringing as something bounces off it, metallic ping, no music" },
     { "id": "sfx/stasis", "seconds": 2, "prompt": "ice crackling and freezing over metal, a cold hiss, no music" },
-    { "id": "sfx/ascend", "seconds": 3, "prompt": "a powerful engine roaring to full pressure, gears locking into place, a triumphant steam blast, no music, no voices" }
+    { "id": "sfx/ascend", "seconds": 6, "prompt": "a great steam machine powering up: a deep rumble rising in pitch, metal gears clunking into place, then a big triumphant blast of steam, no music, no voices", "source": "ElevenLabs sound generation, built from layers mixed in code",
+      "layers": [
+        { "at": 0, "seconds": 3, "gainDb": 5, "promptInfluence": 0.6, "prompt": "a deep low rumble of a huge boiler swelling louder and rising in pitch, cinematic power-up riser, no music, no voices" },
+        { "at": 2, "seconds": 4, "gainDb": -2, "promptInfluence": 0.5, "prompt": "a great steam machine powering up: a deep rumble and a whine rising in pitch, metal gears clunking into place, then a big triumphant blast of steam, no music, no voices" }
+      ] }
   ],
   "voice": []
 }

@@ -1,6 +1,6 @@
 // One module owns every audio decision (adapted from Annals of Scrivenearth, PLAN D19). Sounds ride the structured
-// log: the battle screen hands each new event over as it appears. Generated samples (tools/audio, the local Audio
-// Studio) play when present; every other kind plays a synthesized brass-and-steam voice. NOT VERIFIED BY EAR.
+// log: the battle screen hands each new event over as it appears. Generated samples (tools/audio, ElevenLabs, PLAN
+// D35) play when present; every other kind plays a synthesized brass-and-steam voice. NOT VERIFIED BY EAR.
 import type { LogEntry, Seat } from '../engine/types';
 
 type Voice = (ctx: AudioContext, out: AudioNode, t: number, e: LogEntry, mine: boolean) => void;

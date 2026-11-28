@@ -106,6 +106,26 @@ export function silenceBounds(samples, thresholdDb = -50) {
   return a < 0 ? null : { start: a, end: b + 1 };
 }
 
+/**
+ * Where a looping track's ending begins to fade: the end of the last 0.5 s window still within `dropDb` of the track's median
+ * window loudness. A generated track often closes on a held chord and a reverb tail; cut there, the loop crossfade joins
+ * playing music to playing music instead of fading through near-silence.
+ */
+export function loopEnd(samples, dropDb = 4) {
+  const w = Math.round(0.5 * SR);
+  const db = [];
+  for (let i = 0; i + w <= samples.length; i += w) {
+    let s = 0;
+    for (let j = i; j < i + w; j++) s += samples[j] * samples[j];
+    db.push(10 * Math.log10(s / w + 1e-12));
+  }
+  if (db.length < 8) return samples.length;
+  const median = [...db].sort((x, y) => x - y)[Math.floor(db.length / 2)];
+  let k = db.length - 1;
+  while (k > 0 && db[k] < median - dropDb) k--;
+  return Math.min(samples.length, (k + 1) * w);
+}
+
 export function measureFile(file) {
   const d = decode(file);
   return { ...analyse(d.mono, d.peak), channels: d.channels, bounds: silenceBounds(d.mono), samples: d.mono.length };

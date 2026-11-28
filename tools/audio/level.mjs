@@ -12,7 +12,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { SILENT_LUFS, SR, measureFile, round } from './measure-lib.mjs';
+import { SILENT_LUFS, SR, decode, loopEnd, measureFile, round } from './measure-lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const MANIFEST = path.join(ROOT, 'tools', 'audio', 'manifest.json');
@@ -62,13 +62,19 @@ for (const e of entries) {
     if (m.bounds.start > lead * SR) start = Math.max(0, m.bounds.start - Math.round(keepLead * SR));
     if (m.samples - m.bounds.end > tail * SR) end = Math.min(m.samples, m.bounds.end + Math.round(keepTail * SR));
   }
+  // A loop also loses a fading ending (a final chord and its tail): at most 15 s, and never into the first half.
+  let endingMs = 0;
+  if (e.loop && e.kind === 'music') {
+    const cut = loopEnd(decode(src).mono);
+    if (cut < end && end - cut <= 15 * SR && cut > m.samples / 2) { endingMs = Math.round(((end - cut) / SR) * 1000); end = cut; }
+  }
   // A looping track is made seamless: its first `xfade` seconds are lifted off the head and crossfaded over its tail, so the
   // file ends in the material that leads back into its own start. The loop point is then sample 0. The crossfade is four
   // beats at the manifest's bpm, which hides a phrase joint without being heard as a dip.
   const xfade = e.loop && e.kind === 'music' && e.bpm ? round(240 / e.bpm, 3) : 0;
   const trimmedMs = Math.round(((m.samples - (end - start)) / SR) * 1000);
   const gainDb = silent ? 0 : round(TARGET_LUFS[e.kind] - m.lufs);
-  const line = `${e.id.padEnd(22)} master peak ${String(round(m.peakDb)).padStart(6)} dB  lufs ${String(round(m.lufs)).padStart(6)}  crest ${String(round(m.crest)).padStart(5)}  ${round(m.seconds, 2)} s${trimmedMs ? `  trim ${trimmedMs} ms` : ''}  gain ${gainDb > 0 ? '+' : ''}${gainDb} dB`;
+  const line = `${e.id.padEnd(22)} master peak ${String(round(m.peakDb)).padStart(6)} dB  lufs ${String(round(m.lufs)).padStart(6)}  crest ${String(round(m.crest)).padStart(5)}  ${round(m.seconds, 2)} s${trimmedMs ? `  trim ${trimmedMs} ms` : ''}${endingMs ? ` (fading ending ${endingMs} ms)` : ''}  gain ${gainDb > 0 ? '+' : ''}${gainDb} dB`;
   if (v['dry-run']) { console.log(line); continue; }
   const out = outOf(e);
   mkdirSync(path.dirname(out), { recursive: true });
@@ -79,10 +85,13 @@ for (const e of entries) {
   if (e.kind !== 'music' && m.channels === 2) front.push('pan=mono|c0=0.5*c0+0.5*c1');
   const encode = (filters, dest, codec = true) => {
     const args = ['-y', '-v', 'error'];
-    if (start > 0 || end < m.samples) args.push('-ss', (start / SR).toFixed(4), '-t', ((end - start) / SR).toFixed(4));
-    args.push('-i', src);
+    const input = [...(start > 0 || end < m.samples ? ['-ss', (start / SR).toFixed(4), '-t', ((end - start) / SR).toFixed(4)] : []), '-i', src];
+    // A loop reads the master twice (body from input 0, head from input 1): an asplit feeding acrossfade stalls on ffmpeg 6.1
+    // and writes an empty file with exit status 0.
+    args.push(...input);
     if (xfade) {
-      const graph = `[0:a]asplit[h][b];[h]atrim=0:${xfade},asetpts=PTS-STARTPTS[head];[b]atrim=${xfade},asetpts=PTS-STARTPTS[body];[body][head]acrossfade=d=${xfade}:c1=tri:c2=tri,${filters.join(',')}[out]`;
+      args.push(...input);
+      const graph = `[1:a]atrim=0:${xfade},asetpts=PTS-STARTPTS[head];[0:a]atrim=${xfade},asetpts=PTS-STARTPTS[body];[body][head]acrossfade=d=${xfade}:c1=tri:c2=tri,${filters.join(',')}[out]`;
       args.push('-filter_complex', graph, '-map', '[out]');
     } else args.push('-af', filters.join(','));
     args.push('-ac', e.kind === 'music' ? '2' : '1', '-ar', '48000');
@@ -110,7 +119,7 @@ for (const e of entries) {
     spawnSync(process.platform === 'win32' ? 'cmd' : 'rm', process.platform === 'win32' ? ['/c', 'del', '/q', tmp] : ['-f', tmp]);
   }
   report[e.id] = { kind: e.kind, master: { peakDb: round(m.peakDb), lufs: round(m.lufs), rmsDb: round(m.rmsDb), crest: round(m.crest), seconds: round(m.seconds, 2) },
-    delivered: { peakDb: round(o.peakDb), lufs: round(o.lufs), rmsDb: round(o.rmsDb), crest: round(o.crest), seconds: round(o.seconds, 2) }, trimmedMs, gainDb, compressed, silent, ...(xfade ? { loopCrossfadeS: xfade } : {}), source: path.basename(src) };
+    delivered: { peakDb: round(o.peakDb), lufs: round(o.lufs), rmsDb: round(o.rmsDb), crest: round(o.crest), seconds: round(o.seconds, 2) }, trimmedMs, ...(endingMs ? { fadingEndingCutMs: endingMs } : {}), gainDb, compressed, silent, ...(xfade ? { loopCrossfadeS: xfade } : {}), source: path.basename(src) };
   console.log(`${line}  ->  ${round(o.lufs)} LUFS, peak ${round(o.peakDb)} dB, crest ${round(o.crest)}, ${round(o.seconds, 2)} s${compressed ? '  (compressed)' : ''}${xfade ? `  (loop, ${xfade} s crossfade)` : ''}`);
 }
 for (const f of flags) console.error(`FLAG ${f}`);
