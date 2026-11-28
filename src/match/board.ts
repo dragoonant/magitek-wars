@@ -1,4 +1,4 @@
-// The match screen (PLAN D17): the SNES hi-res mode, 512 x 448. Both Lines, both Boilers, the hand, the stack,
+// The match screen (PLAN D17): the SNES hi-res mode, 512 x 448. Both Lines, both Crystals, the hand, the stack,
 // the log and the prompt. Every choice comes from legalActions: a click narrows the legal actions, so the screen can
 // never offer a move the engine would refuse, and never makes a choice for the player (KB rules 8 and 12).
 import { drawCover, drawPic } from '../detail';
@@ -429,12 +429,12 @@ export class Match {
       g.rect(48, y + 6, 3, 1, 'brassGlint');
       this.hots.push({ x: 44, y: y + 1, w: 10, h: 10, id: 'initiative', kind: 'button' });
     }
-    // the Boiler: a click target for "unit or Boiler" cards
+    // the Crystal: a click target for "unit or Crystal" cards
     const bx = 56;
     const bossOn = this.nextChoices().has(spireId(seat));
     g.rect(bx, y + 1, 64, 19, bossOn ? 'brassGlint' : 'ink');
     g.rect(bx + 1, y + 2, 62, 17, p.spire <= 5 ? 'emberDeep' : 'ironDark');
-    drawText(g, `BOILER ${p.spire}`, bx + 4, y + 7, { color: p.spire <= 5 ? 'emberGlow' : 'steamWhite' });
+    drawText(g, `CRYSTAL ${p.spire}`, bx + 3, y + 7, { color: p.spire <= 5 ? 'emberGlow' : 'steamWhite' });
     this.hots.push({ x: bx, y: y + 1, w: 64, h: 19, id: spireId(seat), kind: 'spire' });
     const info = `CHARGE ${p.charge}/${p.maxCharge}  RES ${p.reserve}  HAND ${p.hand.length}  DECK ${p.deck.length}  SCRAP ${p.scrap.length}`;
     drawText(g, info, 126, y + 2, { color: 'steam' });
@@ -478,7 +478,7 @@ export class Match {
     const next = this.nextChoices();
     const choosable = next.has(u.iid) || next.has(`R:${u.iid}`) || (this.picked?.mode === 'duel' && u.owner === 1);
     const pulse = (t >> 4) % 2 === 0;
-    const edge: Ink = choosable ? (pulse ? 'brassGlint' : 'emberBright') : this.picked?.iid === u.iid ? 'gloamBright' : role ? 'emberGlow' : f.ascended ? 'brassLight' : 'ink';
+    const edge: Ink = choosable ? (pulse ? 'brassGlint' : 'emberBright') : this.picked?.iid === u.iid ? 'crystalBright' : role ? 'emberGlow' : f.ascended ? 'brassLight' : 'ink';
     g.rect(x, y, sw, SLOT.h, edge);
     g.rect(x + 1, y + 1, sw - 2, SLOT.h - 2, u.owner === 0 ? 'ironDark' : 'emberNight');
     const name = f.name.toUpperCase();
@@ -486,10 +486,10 @@ export class Match {
     const art = cardArt(u.card, f.ascended);
     if (art) drawPic(g, art, ax, y + 12);
     else g.rect(ax, y + 12, 64, 48, 'ironNight');
-    if (u.stasis) { g.dither50(ax, y + 12, 64, 48, 'gloamWhite'); drawTextCentred(g, 'STASIS', ax + 32, y + 32, { color: 'ink' }); }
-    if (u.ward) { g.rect(ax - 1, y + 11, 66, 1, 'gloamBright'); g.rect(ax - 1, y + 60, 66, 1, 'gloamBright'); g.rect(ax - 1, y + 11, 1, 50, 'gloamBright'); g.rect(ax + 64, y + 11, 1, 50, 'gloamBright'); }
+    if (u.stasis) { g.dither50(ax, y + 12, 64, 48, 'crystalWhite'); drawTextCentred(g, 'STASIS', ax + 32, y + 32, { color: 'ink' }); }
+    if (u.ward) { g.rect(ax - 1, y + 11, 66, 1, 'crystalBright'); g.rect(ax - 1, y + 60, 66, 1, 'crystalBright'); g.rect(ax - 1, y + 11, 1, 50, 'crystalBright'); g.rect(ax + 64, y + 11, 1, 50, 'crystalBright'); }
     const kws = st.keywords.map((k) => KW_SHORT[k]).join(' ');
-    drawText(g, kws.length > nameMax ? kws.slice(0, nameMax) : kws, x + 3, y + 64, { color: 'gloamBright' });
+    drawText(g, kws.length > nameMax ? kws.slice(0, nameMax) : kws, x + 3, y + 64, { color: 'crystalBright' });
     if (role) drawText(g, role, x + 3, y + 74, { color: 'emberGlow' });
     drawText(g, String(st.power), x + 6, y + 86, { color: 'brassGlint', scale: 2 });
     const hp = String(st.hp);
@@ -569,13 +569,13 @@ export class Match {
       const f = face(v, 0, h.card);
       const playable = acts.some((a) => (a.type === 'play' || a.type === 'channel') && a.iid === h.iid);
       const marked = this.mull.has(h.iid);
-      g.rect(x, y, cw, CARD.h, this.armed?.iid === h.iid ? 'gloamBright' : marked ? 'emberBright' : playable ? 'brassLight' : 'ink');
+      g.rect(x, y, cw, CARD.h, this.armed?.iid === h.iid ? 'crystalBright' : marked ? 'emberBright' : playable ? 'brassLight' : 'ink');
       g.rect(x + 1, y + 1, cw - 2, CARD.h - 2, d.type === 'glyph' ? 'duskHigh' : 'ironDark');
       const art = cardArt(h.card, f.ascended);
       if (art) drawPic(g, art, x + 1, y + 12, aw, 48, { x: sx0, y: 0, w: aw, h: 48 });
       const cost = String(costOf(this.s, 0, h.card));
       g.rect(x + 1, y + 1, 12, 10, 'ink');
-      drawText(g, cost, x + 4, y + 3, { color: cost === String(d.cost) ? 'brassGlint' : 'gloamBright' });
+      drawText(g, cost, x + 4, y + 3, { color: cost === String(d.cost) ? 'brassGlint' : 'crystalBright' });
       drawText(g, d.type === 'glyph' ? (d.speed ?? '').slice(0, 1).toUpperCase() : d.type === 'hero' ? 'H' : 'U', x + cw - 8, y + 3, { color: 'ironLight' });
       wrap(f.name.toUpperCase(), Math.max(8, Math.floor((cw - 3) / 6))).slice(0, 3).forEach((l, j) => drawText(g, l, x + 2, y + 62 + j * 9, { color: 'steamWhite' }));
       if (d.type !== 'glyph') drawText(g, `${f.power}|${f.health}`, x + 3, y + 93, { color: 'brassLight' });
@@ -646,7 +646,7 @@ export class Match {
     for (const k of kws) {
       for (const l of wrap(`${KEYWORD_HELP[k].name.toUpperCase()}: ${KEYWORD_HELP[k].text.toUpperCase()}`, 39)) {
         if (ty > y + hgt - 20) break;
-        drawText(g, l, x + 8, ty, { color: 'gloamBright' });
+        drawText(g, l, x + 8, ty, { color: 'crystalBright' });
         ty += 9;
       }
     }
@@ -658,10 +658,10 @@ export class Match {
         ty += 9;
       }
     }
-    if (unit?.stasis && ty < y + hgt - 10) drawText(g, 'IN STASIS: CANNOT ATTACK OR BLOCK', x + 8, ty, { color: 'gloamWhite' });
+    if (unit?.stasis && ty < y + hgt - 10) drawText(g, 'IN STASIS: CANNOT ATTACK OR BLOCK', x + 8, ty, { color: 'crystalWhite' });
   }
 
-  /** Attack lines: each attacker to its blocker, or to the defender's Boiler when unblocked. */
+  /** Attack lines: each attacker to its blocker, or to the defender's Crystal when unblocked. */
   private drawCombat(g: Gfx, v: GameState, t: number): void {
     const c = v.combat;
     if (!c) return;
@@ -673,11 +673,11 @@ export class Match {
       }
     };
     const defender: Seat = c.attacker === 0 ? 1 : 0;
-    const boiler: [number, number] = [88, defender === 0 ? MY_BAR_Y + 10 : 10];
+    const crystal: [number, number] = [88, defender === 0 ? MY_BAR_Y + 10 : 10];
     for (const pr of c.pairs) {
       const a = this.pos.get(pr.att);
       if (!a) continue;
-      const b = pr.blk ? this.pos.get(pr.blk) : boiler;
+      const b = pr.blk ? this.pos.get(pr.blk) : crystal;
       if (b) line(a, b, pr.blk ? 'brassGlint' : 'emberBright');
     }
   }
@@ -687,17 +687,17 @@ export class Match {
     if (this.seenLog < 0 || this.seenLog > v.log.length) this.seenLog = v.log.length; // a resumed game starts quiet
     const fresh = v.log.slice(this.seenLog);
     this.seenLog = v.log.length;
-    const boilerAt = (seat: Seat | undefined): [number, number] => [88, seat === 0 ? MY_BAR_Y + 10 : 10];
+    const crystalAt = (seat: Seat | undefined): [number, number] => [88, seat === 0 ? MY_BAR_Y + 10 : 10];
     const at = (iid?: string) => (iid ? this.pos.get(iid) : undefined);
     for (const e of fresh) {
       playEvent(e, 0);
       const sign = (n: number | undefined) => `${(n ?? 0) >= 0 ? '+' : ''}${n ?? 0}`;
       let p: [number, number] | undefined;
       if (e.k === 'dmg' && (p = at(e.tunit))) this.fx.push({ x: p[0], y: p[1], text: `-${e.n ?? 0}`, ink: 'emberBright', born: t });
-      else if (e.k === 'heal' && (p = at(e.tunit))) this.fx.push({ x: p[0], y: p[1], text: `+${e.n ?? 0}`, ink: 'gloamBright', born: t });
+      else if (e.k === 'heal' && (p = at(e.tunit))) this.fx.push({ x: p[0], y: p[1], text: `+${e.n ?? 0}`, ink: 'crystalBright', born: t });
       else if (e.k === 'buff' && (p = at(e.tunit))) this.fx.push({ x: p[0], y: p[1] - 10, text: `${sign(e.n)}|${sign(e.m)}`, ink: 'brassGlint', born: t });
-      else if (e.k === 'spireDmg') { p = boilerAt(e.seat); this.fx.push({ x: p[0], y: p[1], text: `-${e.n ?? 0}`, ink: 'emberGlow', born: t }); }
-      else if (e.k === 'spireHeal') { p = boilerAt(e.seat); this.fx.push({ x: p[0], y: p[1], text: `+${e.n ?? 0}`, ink: 'gloamBright', born: t }); }
+      else if (e.k === 'spireDmg') { p = crystalAt(e.seat); this.fx.push({ x: p[0], y: p[1], text: `-${e.n ?? 0}`, ink: 'emberGlow', born: t }); }
+      else if (e.k === 'spireHeal') { p = crystalAt(e.seat); this.fx.push({ x: p[0], y: p[1], text: `+${e.n ?? 0}`, ink: 'crystalBright', born: t }); }
       else if (e.k === 'die' && (p = at(e.unit))) this.fx.push({ x: p[0], y: p[1], text: '', ink: 'emberGlow', born: t, flash: true });
     }
   }

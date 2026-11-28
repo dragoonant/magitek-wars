@@ -1,6 +1,6 @@
 # Magitek Wars
 
-An original 16-bit-style card battler of steam and gloam for the browser. An empire runs on gloamsteam drawn from the
+An original 16-bit-style card battler of steam and crystal for the browser. An empire runs on crystal grown from the
 glass roots under the continent, and the land above them is dying. Everything here (world, names, story, card text,
 art direction) is our own; it is not based on any published game.
 
@@ -8,7 +8,7 @@ art direction) is our own; it is not based on any published game.
 
 ## What is in it
 - **Campaign:** a roguelike march across three acts: pick a faction, grow one deck through skirmishes, elites, events,
-  rest stops, supply depots and bosses, with a Boiler that carries its damage (`docs/spec/20-roguelike.md`).
+  rest stops, supply depots and bosses, with a Crystal that carries its damage (`docs/spec/20-roguelike.md`).
 - **Quick battle:** any of 24 premade decks, six single-faction decks or your own, against the AI at three levels.
 - **Deck builder** and **card gallery** for all 300 cards and 24 heroes.
 - Art in full detail or as 16-bit pixels (ART on the title menu, or P).
@@ -21,7 +21,7 @@ art direction) is our own; it is not based on any published game.
 | `STATUS.md` | Where the project stands now |
 | `docs/spec/10-rules.md` | The battle rules, with rule ids |
 | `docs/spec/20-roguelike.md` | The campaign rules |
-| `docs/RESKIN.md` | The words this game prints (Boiler, tactic) over the engine's |
+| `docs/RESKIN.md` | The words this game prints (Crystal, tactic) over the engine's |
 | `docs/ART-STYLE.md` | The 16-bit house style in plain measurements, and how rendered art is snapped to it |
 | `docs/LORA.md`, `lora/RUNS.md` | The style LoRA: data, settings, results |
 | `docs/WORLD.md` | The world: factions, places, characters |

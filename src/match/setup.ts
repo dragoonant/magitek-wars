@@ -72,7 +72,7 @@ export class BattleSetup {
   draw(g: Gfx): void {
     this.hots = [];
     g.rect(0, 0, HW, HH, 'duskZenith');
-    g.dither25(0, 0, HW, HH, 'gloamDeep');
+    g.dither25(0, 0, HW, HH, 'crystalDeep');
     drawTextCentred(g, 'CHOOSE YOUR BATTLE', HW / 2, 8, { color: 'brassGlint', scale: 2 });
     this.list(g, 'YOUR DECK', 6, this.mine, 'mine', false);
     this.list(g, 'FOE DECK', 260, this.foe, 'foe', true);

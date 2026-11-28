@@ -98,7 +98,7 @@ export const coil: CardDef[] = [
   },
   // ---------- tactics (type 'glyph') ----------
   {
-    id: 'coil-sap-surge', name: 'Welling Gloam', faction: 'coil', type: 'glyph', cost: 1, speed: 'flash',
+    id: 'coil-sap-surge', name: 'Crystal Spring', faction: 'coil', type: 'glyph', cost: 1, speed: 'flash',
     text: 'Gain 2 Charge.', ops: [{ op: 'charge', n: 2 }],
   },
   {
@@ -292,7 +292,7 @@ export const coil: CardDef[] = [
     targets: [{ what: 'unit', side: 'enemy' }], ops: [{ op: 'buff', to: 'target0', power: -2, dur: 'round' }],
   },
   {
-    id: 'coil-quickening-rain', name: 'Gloam Rain', faction: 'coil', type: 'glyph', cost: 2, speed: 'flash',
+    id: 'coil-quickening-rain', name: 'Crystal Rain', faction: 'coil', type: 'glyph', cost: 2, speed: 'flash',
     text: 'Give every allied Glass Sapling +1|+1. Resonant: give them +1|+1 more.',
     ops: [
       { op: 'buff', to: { from: 'allies', filter: { card: 'coil-sapling' } }, power: 1, health: 1 },

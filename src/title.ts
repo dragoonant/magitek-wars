@@ -28,7 +28,7 @@ export function drawWindow(g: Gfx, x: number, y: number, w: number, h: number): 
   g.rect(x + w - 2, y + 2, 1, h - 3, 'brassShadow');
   g.rect(x + 3, y + 3, w - 6, h - 6, 'ink');
   g.rect(x + 4, y + 4, w - 8, h - 8, 'duskZenith');
-  g.dither25(x + 4, y + 4, w - 8, h - 8, 'gloamDeep');
+  g.dither25(x + 4, y + 4, w - 8, h - 8, 'crystalDeep');
   const rivets: [number, number][] = [[x + 1, y + 1], [x + w - 3, y + 1], [x + 1, y + h - 3], [x + w - 3, y + h - 3]];
   for (let rx = x + 24; rx < x + w - 24; rx += 24) rivets.push([rx, y + 1], [rx, y + h - 3]);
   for (const [rx, ry] of rivets) {

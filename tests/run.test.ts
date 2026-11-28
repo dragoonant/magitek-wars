@@ -50,9 +50,9 @@ describe('spec 20: the campaign run', () => {
     expect(() => enter(r, r.map.floors[2][0].id)).toThrow();
   });
 
-  it('R-R5 a battle starts both Boilers from the run, and the engine accepts the setup (R-X3)', () => {
+  it('R-R5 a battle starts both Crystals from the run, and the engine accepts the setup (R-X3)', () => {
     const r = newRun('storm', 7);
-    r.boiler = 13;
+    r.crystal = 13;
     enter(r, r.map.floors[0][0].id);
     const s = createGame(r.battle!.setup);
     expect(s.players[0].spire).toBe(13);
@@ -67,7 +67,7 @@ describe('spec 20: the campaign run', () => {
     finishBattle(r, 0, 15);
     expect(r.phase).toBe('reward');
     expect(r.scrip).toBe(10);
-    expect(r.boiler).toBe(18); // 15 left, then field repairs +3 (R-R5)
+    expect(r.crystal).toBe(18); // 15 left, then field repairs +3 (R-R5)
     expect(r.offer!.cards.length).toBe(3);
     for (const id of r.offer!.cards) expect(def(id).type).not.toBe('hero');
     const card = r.offer!.cards[0];
@@ -84,9 +84,9 @@ describe('spec 20: the campaign run', () => {
   it('R-R4 rest repairs up to 20 or removes a card, never below the minimum deck', () => {
     const r = newRun('tide', 5);
     r.phase = 'rest';
-    r.boiler = 17;
+    r.crystal = 17;
     rest(r, { kind: 'repair' });
-    expect(r.boiler).toBe(20);
+    expect(r.crystal).toBe(20);
     r.phase = 'rest';
     rest(r, { kind: 'remove', card: r.deck[5] });
     expect(r.deck.length).toBe(STARTER_SIZE - 1);
@@ -101,11 +101,11 @@ describe('spec 20: the campaign run', () => {
     r.shop = { cards: [{ id: 'ember-kilnhand', price: 15, sold: false }], repairSold: false };
     expect(buy(r, 'ember-kilnhand')).toMatch(/scrip/);
     r.scrip = 40;
-    r.boiler = 10;
+    r.crystal = 10;
     expect(buy(r, 'ember-kilnhand')).toBeNull();
     expect(buy(r, 'ember-kilnhand')).toMatch(/not for sale/);
     expect(buy(r, 'repair')).toBeNull();
-    expect(r.boiler).toBe(15);
+    expect(r.crystal).toBe(15);
     expect(r.scrip).toBe(5);
     expect(buy(r, 'repair')).toMatch(/already/);
     leaveSupply(r);

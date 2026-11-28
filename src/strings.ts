@@ -1,7 +1,7 @@
 // Every string the title screen draws. tests/font.test.ts checks the house font can draw each one.
 export const TITLE_TOP = 'MAGITEK';
 export const TITLE_BOTTOM = 'WARS';
-export const SUBTITLE = 'A WAR OF STEAM AND GLOAM';
+export const SUBTITLE = 'A WAR OF STEAM AND CRYSTAL';
 export const PRESS_START = 'PRESS START';
 export const CREDIT = 'BY EVILGOUKI';
 export const VERSION = 'V0.1';

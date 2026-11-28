@@ -75,7 +75,7 @@ export const CARDS = [
   },
   // ---------- glyphs ----------
   {
-    id: 'coil-sap-surge', kind: 'glyph', name: 'Welling Gloam',
+    id: 'coil-sap-surge', kind: 'glyph', name: 'Crystal Spring',
     subject: 'Teal resin welling up from a cracked green glass root in dark peat, bright glow spilling across marsh water, mist.',
   },
   {
@@ -199,7 +199,7 @@ export const CARDS = [
     subject: 'Green glass roots coiling up from marsh water around a black iron boot, gripping tight, teal glow, mud.',
   },
   {
-    id: 'coil-quickening-rain', kind: 'glyph', name: 'Gloam Rain',
+    id: 'coil-quickening-rain', kind: 'glyph', name: 'Crystal Rain',
     subject: 'Soft rain falling through teal light onto a row of green glass saplings, droplets glowing as they land, marsh peat, mist.',
   },
   {

@@ -40,7 +40,7 @@ export const CARDS = [
     subject: 'Burly engineer in a leather apron over iron plates, holding one heavy pipe wrench, squared up to a foe, a patched pipe hissing steam on his shoulder.',
   },
   {
-    id: 'prism-pane-mender', kind: 'unit', name: 'Field Boilerwright',
+    id: 'prism-pane-mender', kind: 'unit', name: 'Field Mechanic',
     subject: 'Kneeling engineer in brass goggles and red work jacket, holding one gloam cutting torch, welding a dented iron plate on a walking boiler\'s leg, teal sparks.',
   },
   {

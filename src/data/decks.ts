@@ -70,7 +70,7 @@ type HandDeck = { name: string; about: string; cards: Record<string, number> };
  * deck as Cold Current, because autoDeck does not depend on the order of its two factions.
  */
 export const BLACKWATER: HandDeck = {
-  name: 'Blackwater', about: "Freeze the enemy's blockers and drain their units dry; Grane ascends as your Boiler is repaired.",
+  name: 'Blackwater', about: "Freeze the enemy's blockers and drain their units dry; Grane ascends as your Crystal is repaired.",
   cards: {
     'under-vex': 3, 'tide-ilvane': 3,
     'under-leechtick': 3, 'under-siphontap': 3, 'under-leechwiresurgeon': 3, 'under-acidlamplighter': 2, 'under-snuffedfuse': 2, 'under-vaultpawnbroker': 2, 'under-bleeddry': 1, 'under-leechoverseer': 1,
@@ -101,7 +101,7 @@ export const HAND_BUILT: HandDeck[] = [
     },
   },
   {
-    name: 'Tithe Wall', about: 'Drain the enemy a little every turn behind Plated lines; every repair to your Boiler brings Grane closer.',
+    name: 'Tithe Wall', about: 'Drain the enemy a little every turn behind Plated lines; every repair to your Crystal brings Grane closer.',
     cards: {
       'prism-oren': 3, 'under-vex': 3,
       'prism-glasswarden': 3, 'prism-lampkeeper': 2, 'prism-tierguard': 2, 'prism-pane-mender': 2, 'prism-crystal-bulwark': 3, 'prism-sentinel-lens': 2, 'prism-chorus-warden': 2, 'prism-aegis-colossus': 2, 'prism-spire-keeper': 2, 'prism-spire-mantle': 1,
@@ -133,7 +133,7 @@ export const HAND_BUILT: HandDeck[] = [
     },
   },
   {
-    name: 'Crosscurrent', about: 'Fly over the Line and haul blockers away; Wren ascends on Boiler hits and attacks twice.',
+    name: 'Crosscurrent', about: 'Fly over the Line and haul blockers away; Wren ascends on Crystal hits and attacks twice.',
     cards: {
       'storm-jax': 3, 'tide-maren': 3,
       'storm-signalkite': 2, 'storm-tickettaker': 3, 'storm-railglider': 3, 'storm-dispatcher': 2, 'storm-updraft': 2, 'storm-galecourier': 3, 'storm-sparkrider': 2, 'storm-reroute': 1, 'storm-thunderkite': 2,
@@ -165,7 +165,7 @@ export const HAND_BUILT: HandDeck[] = [
     },
   },
   {
-    name: 'Choir of Ash', about: 'The Ashen Choir alone: burn every blocker, push damage at the Boiler, finish with a firestorm.',
+    name: 'Choir of Ash', about: 'The Ashen Choir alone: burn every blocker, push damage at the Crystal, finish with a firestorm.',
     cards: {
       'ember-kessa': 3, 'ember-crucible': 3,
       'ember-cinderscamp': 3, 'ember-ashrunner': 3, 'ember-kilnhand': 2, 'ember-slagsmith': 3, 'ember-sparkforge': 2, 'ember-slagbolt': 3, 'ember-furnacebrute': 3, 'ember-arcwelder': 2,
@@ -220,7 +220,7 @@ export const NEW_HERO_DECKS: HandDeck[] = [
     },
   },
   {
-    name: 'Ledger of Debts', about: 'Keep a full hand and a busy round: every tactic you play taxes the enemy Boiler a little more.',
+    name: 'Ledger of Debts', about: 'Keep a full hand and a busy round: every tactic you play taxes the enemy Crystal a little more.',
     cards: {
       'tide-sefa': 3, 'under-penn': 3,
       'tide-siltnewt': 2, 'tide-marginclerk': 2, 'tide-tallyframe': 2, 'tide-shelfwarden': 2, 'tide-brineboundsage': 2, 'tide-lorewhale': 1, 'tide-boundvolume': 2, 'tide-readthecurrent': 2, 'tide-rifflethestacks': 2,

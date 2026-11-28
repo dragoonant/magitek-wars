@@ -4,7 +4,7 @@ This is the house style for Magitek Wars (PLAN D1, D5). It describes a home-cons
 plain measurements, so any art (hand-drawn, code-drawn or generated and cleaned) can be checked against numbers.
 It copies no published game: no sprites, tiles, palettes, fonts, menus or character designs are taken from one.
 
-Presentation concept (D5): **field dispatches from a war of steam and gloam, on a 16-bit cartridge.**
+Presentation concept (D5): **field dispatches from a war of steam and crystal, on a 16-bit cartridge.**
 
 ## 1. Screen and grid
 | Item | Rule |
@@ -26,7 +26,7 @@ Presentation concept (D5): **field dispatches from a war of steam and gloam, on 
 | Large art (bosses, key portraits) | Up to two sub-palettes (30 colours). |
 | Ramps | 3-4 tones per material: shadow, base, light, glint. Hue-shift: shadows lean cool (toward violet), lights lean warm (toward yellow). |
 | Extremes | No pure black and no pure white. Darkest is ink `#080810`, lightest is steam white `#e8e8e0`. |
-| Light | Key light from the top left; rim light from the sun or a gloam source where a scene has one. |
+| Light | Key light from the top left; rim light from the sun or a crystal source where a scene has one. |
 
 ### House palette (`src/palette.ts`)
 | Group | Colours |
@@ -35,7 +35,7 @@ Presentation concept (D5): **field dispatches from a war of steam and gloam, on 
 | Brass | brass shadow `#382010`, brass dark `#704818`, brass `#b07828`, brass light `#e0b040`, brass glint `#f8e898` |
 | Ember | ember night `#401020`, ember deep `#782028`, ember `#c04028`, ember bright `#f07830`, ember glow `#f8b848` |
 | Dusk | dusk zenith `#100828`, dusk high `#201848`, dusk mid `#402860`, dusk low `#704070` |
-| Gloam (magic) | gloam deep `#083830`, gloam dark `#107058`, gloam `#20b088`, gloam bright `#60f0c0`, gloam white `#d0f8e8` |
+| Crystal (magic) | crystal deep `#083830`, crystal dark `#107058`, crystal `#20b088`, crystal bright `#60f0c0`, crystal white `#d0f8e8` |
 | Earth and skin | moss dark `#283018`, moss `#506030`, verdigris `#387068`, skin shadow `#a86848`, skin `#e8a878` |
 
 ## 3. Outlines
@@ -75,7 +75,7 @@ characters, costumes or creatures are reproduced, and the sheet is not used as L
 |---|---|---|
 | Field sprite (walking) | 16 x 24 | Head 9 tall (about 2.7 head-heights), the section 4a look simplified. 3-frame walk per facing, 4 facings. |
 | Battle sprite (person) | 24-32 x 32 | The section 4a look: head about 11 tall (about 2.8 head-heights, 35% of height), shoulders about 15 wide. Idle 2 frames, act 4 frames, hurt 1. Large creatures up to 32 x 40. |
-| Battle sprite (gloamwork machine) | 48 x 48 | Pilot always enclosed behind a porthole; never an open saddle seat. |
+| Battle sprite (crystalwork machine) | 48 x 48 | Pilot always enclosed behind a porthole; never an open saddle seat. |
 | Dialogue portrait | 48 x 48 | Crown to collarbone, face 20 tall, one sub-palette, framed by a 2 px brass bevel. |
 | Card or plate art (if D4 keeps cards) | 64 x 48 | Shown inside a 72 x 104 frame at logical size; x2 in the card viewer. |
 | Boss and key art | 128 x 128 to 192 x 160 | Two sub-palettes, dithering and hand anti-aliasing allowed. |
@@ -86,12 +86,12 @@ characters, costumes or creatures are reproduced, and the sheet is not used as L
 - Built from 8 x 8 tiles in up to **three parallax layers**: far (sky and mountains), middle (city or terrain),
   near (ground, rail, foreground rocks). Each layer has its own flat value; farther is lighter and lower contrast.
 - Skies are horizontal bands 8-28 px tall with dithered transitions (section 4).
-- Life comes from **palette cycling** (window lights, furnace glow, gloam beacons, water) and a few small sprites
+- Life comes from **palette cycling** (window lights, furnace glow, crystal beacons, water) and a few small sprites
   (smoke, airships, birds), not from redrawing the layer.
 
 ## 7. Interface
 - Windows: 1 px ink edge, 2 px brass bevel (light top-left, dark bottom-right), 1 px ink inner edge, a rivet at each
-  corner, smoked-glass interior (dusk zenith with a 25% gloam-deep dither). Text inset 8 px.
+  corner, smoked-glass interior (dusk zenith with a 25% crystal-deep dither). Text inset 8 px.
 - Cursor: a 7 x 7 brass pointer that bobs 1 px every 16 frames.
 - Disabled items are drawn in iron; they are still visible (open information).
 - Screen changes: palette fade or mosaic over 16 frames.

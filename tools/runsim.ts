@@ -21,7 +21,7 @@ for (const f of FACTIONS) {
     while (r.phase !== 'lost' && r.phase !== 'won' && guard++ < 80) {
       const opts = choices(r);
       // stand-in policy: prefer rest when hurt, else the first battle node
-      const pick = (r.boiler < 10 && opts.find((n) => n.kind === 'rest')) || opts.find((n) => n.kind !== 'supply') || opts[0];
+      const pick = (r.crystal < 10 && opts.find((n) => n.kind === 'rest')) || opts.find((n) => n.kind !== 'supply') || opts[0];
       enter(r, pick.id);
       if (r.phase === 'battle') {
         const s = createGame(r.battle!.setup);
@@ -44,7 +44,7 @@ for (const f of FACTIONS) {
     reach[key] = (reach[key] ?? 0) + 1;
     if (r.phase === 'won') wins++;
     const where = r.at ? r.map.floors.flat().find((n) => n.id === r.at) : null;
-    console.log(f, i, r.phase, 'act', r.act, 'wins', r.wins, 'boiler', r.boiler, 'deck', r.deck.length, 'at', where ? `floor ${where.floor} ${where.kind}` : '-');
+    console.log(f, i, r.phase, 'act', r.act, 'wins', r.wins, 'crystal', r.crystal, 'deck', r.deck.length, 'at', where ? `floor ${where.floor} ${where.kind}` : '-');
   }
 }
 const fw = firstFights.reduce((a, b) => a + b, 0);

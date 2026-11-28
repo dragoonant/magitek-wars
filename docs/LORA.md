@@ -68,7 +68,7 @@ published series (ART-STYLE section 8).
 **Never:** sprites or screenshots from any published game (including rip sites and fan rips), art by a named living
 artist, images found by search with no licence, or prompts naming a game, studio or artist.
 
-**Shape of the set:** 40-80 images, spread across people (battle sprites and portraits), gloamwork machines,
+**Shape of the set:** 40-80 images, spread across people (battle sprites and portraits), crystalwork machines,
 buildings and city skylines, landscapes and skies, items and icons, and interface frames. No single subject over 20%.
 
 **Preparation** (script to be written in `tools/lora/prep.ts`):

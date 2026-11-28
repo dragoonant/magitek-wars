@@ -83,7 +83,7 @@ export function auditFace(fd: FaceData): { fails: string[]; warns: string[] } {
   pair('Charge', ops.has('charge') || ops.has('maxCharge'), /\bCharge\b/.test(text));
   pair('cost less/more', json.includes('"costAuras"') && !json.includes('"costAuras":null') && /"costAuras":\[/.test(json), /\bcosts?\b/i.test(text));
   const spire = sels.has('mySpire') || sels.has('enemySpire') || json.includes('unitOrSpire') || json.includes('"c":"spire"') || trig.has('spireHit');
-  pair('Boiler', spire, /\bBoiler\b/.test(text)); // the engine's Spire is printed as the Boiler (PLAN D16)
+  pair('Crystal', spire, /\bCrystal\b/.test(text)); // the engine's Spire is printed as the Crystal (PLAN D24)
   if (fd.type === 'glyph') {
     const enemyOnly = json.includes('"side":"enemy"') || sels.has('enemies') || [...sels].some((s) => /Enemy$/.test(s)) || sels.has('enemySpire');
     if (enemyOnly && !/\benem/i.test(text)) fails.push('data targets enemies but the text never says enemy');

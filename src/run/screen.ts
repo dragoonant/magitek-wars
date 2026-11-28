@@ -39,6 +39,10 @@ export function readRun(): { run: RunState; actions: unknown[] } | { problem: st
   try {
     const s = JSON.parse(text) as RunSave;
     if (s.game !== 'magitek-wars.run' || s.version !== 1) return { problem: 'The saved campaign is from another version and cannot be opened.' };
+    // D24 renamed the Boiler to the Crystal and the gloam seep to a crystal seam: carry older saves across.
+    const old = s.run as RunState & { boiler?: number };
+    if (old.crystal === undefined && typeof old.boiler === 'number') { old.crystal = old.boiler; delete old.boiler; }
+    if (old.event?.id === 'gloam-seep') old.event.id = 'crystal-seam';
     return { run: s.run, actions: s.battleActions ? (JSON.parse(s.battleActions) as unknown[]) : [] };
   } catch {
     return { problem: 'The saved campaign is damaged and cannot be opened.' };
@@ -56,7 +60,7 @@ function clearRun(): void {
 const KIND_STYLE: Record<MapNode['kind'], { letter: string; ink: Ink; name: string }> = {
   skirmish: { letter: 'S', ink: 'ironLight', name: 'SKIRMISH' },
   elite: { letter: 'E', ink: 'emberBright', name: 'ELITE' },
-  rest: { letter: 'R', ink: 'gloamBright', name: 'REST' },
+  rest: { letter: 'R', ink: 'crystalBright', name: 'REST' },
   supply: { letter: 'D', ink: 'brassLight', name: 'SUPPLY DEPOT' },
   event: { letter: '?', ink: 'steamWhite', name: 'EVENT' },
   boss: { letter: 'B', ink: 'emberGlow', name: 'BOSS' },
@@ -264,10 +268,10 @@ export class RunScreen {
 
   private drawPick(g: Gfx): void {
     g.rect(0, 0, HW, HH, 'duskZenith');
-    g.dither25(0, 0, HW, HH, 'gloamDeep');
+    g.dither25(0, 0, HW, HH, 'crystalDeep');
     drawTextCentred(g, 'THE MARCH ON VASKOR', HW / 2, 10, { color: 'brassGlint', scale: 2 });
     drawTextCentred(g, 'CHOOSE YOUR FACTION. YOUR DECK GROWS WITH EVERY BATTLE;', HW / 2, 30, { color: 'steam' });
-    drawTextCentred(g, 'YOUR BOILER ONLY HEALS AT REST STOPS AND DEPOTS.', HW / 2, 40, { color: 'steam' });
+    drawTextCentred(g, 'YOUR CRYSTAL ONLY HEALS AT REST STOPS AND DEPOTS.', HW / 2, 40, { color: 'steam' });
     if (this.problem) drawTextCentred(g, this.problem.toUpperCase().slice(0, 84), HW / 2, 50, { color: 'emberGlow' });
     FACTIONS.forEach((f, i) => {
       const x = 8 + (i % 3) * 168, y = 58 + Math.floor(i / 3) * 186;
@@ -317,7 +321,7 @@ export class RunScreen {
       const size = n.kind === 'boss' ? 22 : 16;
       const here = r.at === n.id;
       const open = can.has(n.id);
-      g.rect(x - size / 2 - 1, y - size / 2 - 1, size + 2, size + 2, here ? 'gloamWhite' : open ? (pulse ? 'brassGlint' : 'brass') : 'ink');
+      g.rect(x - size / 2 - 1, y - size / 2 - 1, size + 2, size + 2, here ? 'crystalWhite' : open ? (pulse ? 'brassGlint' : 'brass') : 'ink');
       g.rect(x - size / 2, y - size / 2, size, size, open || here ? 'ironDark' : 'ironNight');
       drawText(g, st.letter, x - 2, y - 3, { color: open || here ? st.ink : 'iron' });
       if (open) this.hots.push({ x: x - size / 2 - 2, y: y - size / 2 - 2, w: size + 4, h: size + 4, id: `node|${n.id}` });
@@ -342,7 +346,7 @@ export class RunScreen {
     drawText(g, FACTION_INFO[r.faction].name.toUpperCase().slice(0, 18), x + 44, 52, { color: 'brassGlint' });
     const lead = portrait(LEADS[r.faction]);
     if (lead) { g.rect(x + 99, 63, 50, 50, 'brassDark'); drawPic(g, lead, x + 100, 64); }
-    drawText(g, `BOILER ${r.boiler}/${LIMITS.spire}`, x + 10, 86, { color: r.boiler <= 6 ? 'emberGlow' : 'steamWhite' });
+    drawText(g, `CRYSTAL ${r.crystal}/${LIMITS.spire}`, x + 10, 86, { color: r.crystal <= 6 ? 'emberGlow' : 'steamWhite' });
     drawText(g, `SCRIP ${r.scrip}`, x + 10, 98, { color: 'brassLight' });
     drawText(g, `DECK ${r.deck.length} CARDS`, x + 10, 110, { color: 'steamWhite' });
     drawText(g, `BATTLES WON ${r.wins}`, x + 10, 122, { color: 'steam' });
@@ -389,8 +393,8 @@ export class RunScreen {
   private drawRest(g: Gfx, r: RunState): void {
     drawWindow(g, 60, 120, 392, 150);
     drawTextCentred(g, 'A REST STOP', HW / 2, 134, { color: 'brassGlint', scale: 2 });
-    drawTextCentred(g, `REPAIR THE BOILER BY ${REST_REPAIR} (UP TO ${LIMITS.spire}), OR REMOVE ONE CARD FROM YOUR DECK.`, HW / 2, 160, { color: 'steamWhite' });
-    this.button(g, `REPAIR (+${Math.min(REST_REPAIR, LIMITS.spire - r.boiler)})`, 120, 190, 'repair');
+    drawTextCentred(g, `REPAIR THE CRYSTAL BY ${REST_REPAIR} (UP TO ${LIMITS.spire}), OR REMOVE ONE CARD FROM YOUR DECK.`, HW / 2, 160, { color: 'steamWhite' });
+    this.button(g, `REPAIR (+${Math.min(REST_REPAIR, LIMITS.spire - r.crystal)})`, 120, 190, 'repair');
     this.button(g, 'REMOVE A CARD', 280, 190, 'remove', r.deck.length > MIN_DECK);
     if (r.deck.length <= MIN_DECK) drawTextCentred(g, `YOUR DECK IS AT THE ${MIN_DECK}-CARD MINIMUM.`, HW / 2, 220, { color: 'iron' });
   }
@@ -468,8 +472,8 @@ export class RunScreen {
     }
     y += 6;
     drawTextCentred(g, `FACTIONS: ${factions.map((f) => FACTION_NAMES[f].toUpperCase()).join(', ')}`, HW / 2, y, { color: 'steam' });
-    drawTextCentred(g, `FOE DECK ${deck.length} CARDS   FOE BOILER ${b.setup.startSpire?.[1] ?? 20}   AI LEVEL ${b.level === 'easy' ? 'RECRUIT' : b.level === 'normal' ? 'VETERAN' : 'MARSHAL'}`, HW / 2, y + 12, { color: 'steam' });
-    drawTextCentred(g, `YOUR BOILER ${r.boiler}   YOUR DECK ${r.deck.length} CARDS`, HW / 2, y + 24, { color: 'steamWhite' });
+    drawTextCentred(g, `FOE DECK ${deck.length} CARDS   FOE CRYSTAL ${b.setup.startSpire?.[1] ?? 20}   AI LEVEL ${b.level === 'easy' ? 'RECRUIT' : b.level === 'normal' ? 'VETERAN' : 'MARSHAL'}`, HW / 2, y + 12, { color: 'steam' });
+    drawTextCentred(g, `YOUR CRYSTAL ${r.crystal}   YOUR DECK ${r.deck.length} CARDS`, HW / 2, y + 24, { color: 'steamWhite' });
     const by = this.foeDeckOpen ? 400 : bossFace ? 350 : 250;
     this.button(g, 'FIGHT', 300, by, 'fight');
     this.button(g, this.foeDeckOpen ? 'HIDE FOE DECK' : 'VIEW FOE DECK', 150, by, 'foedeck');

@@ -10,7 +10,7 @@ export const under: CardDef[] = [
     level: { who: 'you', stat: 'alliesDied', n: 4, text: '4+ of your units have been destroyed' },
     ascended: {
       name: 'Corva Lusk, Queen of the Runs', power: 4, health: 3, keywords: ['dread', 'corrosive'],
-      text: 'Dread, Corrosive. When another ally is destroyed, drain 1 from the enemy Boiler. Ascend: summon 2 Gloam Rats.',
+      text: 'Dread, Corrosive. When another ally is destroyed, drain 1 from the enemy Crystal. Ascend: summon 2 Shard Rats.',
       abilities: [
         { on: 'allyDied', ops: [{ op: 'drain', to: 'enemySpire', n: 1 }] },
         { on: 'ascend', ops: [{ op: 'summon', card: 'under-wirerat', n: 2 }] },
@@ -21,10 +21,10 @@ export const under: CardDef[] = [
     id: 'under-vex', name: 'Doctor Hollis Grane, Drawer', faction: 'under', type: 'hero', cost: 5, power: 4, health: 5,
     keywords: ['siphon'], tribe: 'syndicate',
     text: 'Siphon.',
-    level: { who: 'you', stat: 'spireHealed', n: 8, text: "You've repaired your Boiler by 8+" },
+    level: { who: 'you', stat: 'spireHealed', n: 8, text: "You've repaired your Crystal by 8+" },
     ascended: {
       name: 'Grane, Who Never Cools', power: 5, health: 6, keywords: ['siphon'],
-      text: 'Siphon. Dusk: drain 2 from the enemy Boiler. Ascend: drain 3 from every enemy unit.',
+      text: 'Siphon. Dusk: drain 2 from the enemy Crystal. Ascend: drain 3 from every enemy unit.',
       abilities: [
         { on: 'dusk', ops: [{ op: 'drain', to: 'enemySpire', n: 2 }] },
         { on: 'ascend', ops: [{ op: 'drain', to: 'enemies', n: 3 }] },
@@ -32,14 +32,14 @@ export const under: CardDef[] = [
     },
   },
   {
-    id: 'under-wirerat', name: 'Gloam Rat', faction: 'under', type: 'unit', cost: 1, power: 1, health: 1, token: true,
+    id: 'under-wirerat', name: 'Shard Rat', faction: 'under', type: 'unit', cost: 1, power: 1, health: 1, token: true,
     tribe: 'vermin', text: '',
   },
 
   // ---------- units ----------
   {
     id: 'under-fuserunner', name: 'Fog Runner', faction: 'under', type: 'unit', cost: 1, power: 1, health: 1, tribe: 'syndicate',
-    text: 'Shatter: drain 1 from the enemy Boiler.',
+    text: 'Shatter: drain 1 from the enemy Crystal.',
     abilities: [{ on: 'shatter', ops: [{ op: 'drain', to: 'enemySpire', n: 1 }] }],
   },
   {
@@ -54,7 +54,7 @@ export const under: CardDef[] = [
   },
   {
     id: 'under-ratwrangler', name: 'Rat Herder', faction: 'under', type: 'unit', cost: 2, power: 1, health: 2, tribe: 'syndicate',
-    text: 'Deploy: summon a Gloam Rat. Resonant: summon 2 Gloam Rats instead.',
+    text: 'Deploy: summon a Shard Rat. Resonant: summon 2 Shard Rats instead.',
     abilities: [{
       on: 'deploy',
       ops: [{
@@ -66,12 +66,12 @@ export const under: CardDef[] = [
   },
   {
     id: 'under-pitaccountant', name: 'Pit Tallyman', faction: 'under', type: 'unit', cost: 2, power: 1, health: 3, tribe: 'syndicate',
-    text: 'When another ally is destroyed, drain 1 from the enemy Boiler. Resonant: I have +1|+1.',
+    text: 'When another ally is destroyed, drain 1 from the enemy Crystal. Resonant: I have +1|+1.',
     abilities: [{ on: 'allyDied', ops: [{ op: 'drain', to: 'enemySpire', n: 1 }] }],
     auras: [{ to: 'self', power: 1, health: 1, cond: { c: 'resonant' } }],
   },
   {
-    id: 'under-acidlamplighter', name: 'Gloam Lamplighter', faction: 'under', type: 'unit', cost: 2, power: 1, health: 2, tribe: 'syndicate',
+    id: 'under-acidlamplighter', name: 'Crystal Lamplighter', faction: 'under', type: 'unit', cost: 2, power: 1, health: 2, tribe: 'syndicate',
     keywords: ['corrosive'],
     text: 'Corrosive.',
   },
@@ -92,7 +92,7 @@ export const under: CardDef[] = [
   },
   {
     id: 'under-vaultpawnbroker', name: 'Deep Vault Broker', faction: 'under', type: 'unit', cost: 4, power: 3, health: 4, tribe: 'syndicate',
-    text: 'When an enemy unit is destroyed, drain 1 from the enemy Boiler.',
+    text: 'When an enemy unit is destroyed, drain 1 from the enemy Crystal.',
     abilities: [{ on: 'enemyDied', ops: [{ op: 'drain', to: 'enemySpire', n: 1 }] }],
   },
   {
@@ -102,7 +102,7 @@ export const under: CardDef[] = [
   },
   {
     id: 'under-syndicatebroker', name: 'Cage Fence', faction: 'under', type: 'unit', cost: 5, power: 3, health: 5, tribe: 'syndicate',
-    text: 'Deploy: summon 2 Gloam Rats.',
+    text: 'Deploy: summon 2 Shard Rats.',
     abilities: [{ on: 'deploy', ops: [{ op: 'summon', card: 'under-wirerat', n: 2 }] }],
   },
   {
@@ -120,7 +120,7 @@ export const under: CardDef[] = [
   // ---------- tactics (type 'glyph') ----------
   {
     id: 'under-pullplug', name: 'Pull the Bung', faction: 'under', type: 'glyph', cost: 1, speed: 'flash',
-    text: 'Destroy an allied unit. Drain 2 from the enemy Boiler.',
+    text: 'Destroy an allied unit. Drain 2 from the enemy Crystal.',
     targets: [{ what: 'unit', side: 'ally' }],
     ops: [{ op: 'destroy', to: 'target0' }, { op: 'drain', to: 'enemySpire', n: 2 }],
   },
@@ -130,7 +130,7 @@ export const under: CardDef[] = [
     targets: [{ what: 'unit', side: 'enemy' }], ops: [{ op: 'drain', to: 'target0', n: 2 }],
   },
   {
-    id: 'under-acidbath', name: 'Gloam Dip', faction: 'under', type: 'glyph', cost: 2, speed: 'flash',
+    id: 'under-acidbath', name: 'Crystal Acid', faction: 'under', type: 'glyph', cost: 2, speed: 'flash',
     text: 'An allied unit gains Corrosive this round.',
     targets: [{ what: 'unit', side: 'ally' }], ops: [{ op: 'grant', to: 'target0', kw: ['corrosive'], dur: 'round' }],
   },
@@ -146,7 +146,7 @@ export const under: CardDef[] = [
   },
   {
     id: 'under-bleeddry', name: 'Wrung Dry', faction: 'under', type: 'glyph', cost: 4, speed: 'swift',
-    text: 'Drain 4 from an enemy unit or Boiler.',
+    text: 'Drain 4 from an enemy unit or Crystal.',
     targets: [{ what: 'unitOrSpire', side: 'enemy' }], ops: [{ op: 'drain', to: 'target0', n: 4 }],
   },
   {
@@ -156,12 +156,12 @@ export const under: CardDef[] = [
   },
   {
     id: 'under-wiremarket', name: 'Open the Grates', faction: 'under', type: 'glyph', cost: 3, speed: 'ritual',
-    text: 'Summon 3 Gloam Rats.',
+    text: 'Summon 3 Shard Rats.',
     ops: [{ op: 'summon', card: 'under-wirerat', n: 3 }],
   },
   {
     id: 'under-leechharvest', name: 'Collect the Dues', faction: 'under', type: 'glyph', cost: 4, speed: 'ritual',
-    text: 'Drain 2 from the enemy Boiler for each of your units destroyed this round.',
+    text: 'Drain 2 from the enemy Crystal for each of your units destroyed this round.',
     ops: [{ op: 'drain', to: 'enemySpire', n: { count: 'alliesDiedThisRound', mul: 2 } }],
   },
 
@@ -184,12 +184,12 @@ export const under: CardDef[] = [
   {
     id: 'under-penn', name: 'Mother Agna Vell', faction: 'under', type: 'hero', cost: 3, power: 2, health: 4,
     tribe: 'syndicate',
-    text: 'Dusk: drain 1 from the enemy Boiler for each tactic you play this round (at most 2).',
+    text: 'Dusk: drain 1 from the enemy Crystal for each tactic you play this round (at most 2).',
     abilities: [{ on: 'dusk', ops: [{ op: 'drain', to: 'enemySpire', n: { count: 'glyphsThisRound', mul: 1, max: 2 } }] }],
     level: { who: 'you', stat: 'glyphDamage', n: 10, text: 'Your tactics and abilities have dealt 10+ damage' },
     ascended: {
       name: 'Agna Vell, Whom Every House Owes', power: 4, health: 6,
-      text: 'Dusk: drain 1 from the enemy Boiler for each tactic you play this round (at most 4). Ascend: drain 1 from the enemy Boiler for each card in your hand (at most 4).',
+      text: 'Dusk: drain 1 from the enemy Crystal for each tactic you play this round (at most 4). Ascend: drain 1 from the enemy Crystal for each card in your hand (at most 4).',
       abilities: [
         { on: 'dusk', ops: [{ op: 'drain', to: 'enemySpire', n: { count: 'glyphsThisRound', mul: 1, max: 4 } }] },
         { on: 'ascend', ops: [{ op: 'drain', to: 'enemySpire', n: { count: 'hand', mul: 1, max: 4 } }] },
@@ -198,7 +198,7 @@ export const under: CardDef[] = [
   },
   {
     id: 'under-skimclerk', name: 'Thumb-Scale Clerk', faction: 'under', type: 'unit', cost: 1, power: 1, health: 1, tribe: 'syndicate',
-    text: 'Dusk: if you play 2+ tactics this round, deal 1 damage to the enemy Boiler.',
+    text: 'Dusk: if you play 2+ tactics this round, deal 1 damage to the enemy Crystal.',
     abilities: [{ on: 'dusk', cond: { c: 'seenRound', stat: 'glyphsCast', gte: 2 }, ops: [{ op: 'damage', to: 'enemySpire', n: 1 }] }],
   },
   {
@@ -208,7 +208,7 @@ export const under: CardDef[] = [
   },
   {
     id: 'under-tollrat', name: 'Coin Rat', faction: 'under', type: 'unit', cost: 1, power: 1, health: 1, tribe: 'vermin',
-    text: 'Strike: deal 1 damage to the enemy Boiler.',
+    text: 'Strike: deal 1 damage to the enemy Crystal.',
     abilities: [{ on: 'strike', ops: [{ op: 'damage', to: 'enemySpire', n: 1 }] }],
   },
   {
@@ -219,7 +219,7 @@ export const under: CardDef[] = [
   },
   {
     id: 'under-bagman', name: 'Satchel Man', faction: 'under', type: 'unit', cost: 2, power: 2, health: 2, tribe: 'syndicate',
-    text: 'Deploy: deal 1 damage to the enemy Boiler for each tactic you play this round.',
+    text: 'Deploy: deal 1 damage to the enemy Crystal for each tactic you play this round.',
     abilities: [{ on: 'deploy', ops: [{ op: 'damage', to: 'enemySpire', n: { count: 'glyphsThisRound', mul: 1 } }] }],
   },
   {
@@ -229,7 +229,7 @@ export const under: CardDef[] = [
     auras: [{ to: 'self', kw: ['corrosive'], cond: { c: 'resonant' } }],
   },
   {
-    id: 'under-vattailor', name: 'Gloamdye Tailor', faction: 'under', type: 'unit', cost: 3, power: 3, health: 3, tribe: 'syndicate',
+    id: 'under-vattailor', name: 'Crystal Dyer', faction: 'under', type: 'unit', cost: 3, power: 3, health: 3, tribe: 'syndicate',
     text: 'Deploy: an allied hero gains Corrosive.',
     abilities: [{ on: 'deploy', targets: [{ what: 'unit', side: 'ally', filter: { hero: true } }], ops: [{ op: 'grant', to: 'target0', kw: ['corrosive'] }] }],
   },
@@ -265,7 +265,7 @@ export const under: CardDef[] = [
   {
     id: 'under-taplinecolossus', name: 'Root-Tap Colossus', faction: 'under', type: 'unit', cost: 6, power: 4, health: 6, tribe: 'construct',
     keywords: ['siphon'],
-    text: 'Siphon. When you play a tactic, deal 1 damage to the enemy Boiler.',
+    text: 'Siphon. When you play a tactic, deal 1 damage to the enemy Crystal.',
     abilities: [{ on: 'glyphCast', ops: [{ op: 'damage', to: 'enemySpire', n: 1 }] }],
   },
   {
@@ -276,7 +276,7 @@ export const under: CardDef[] = [
   },
   {
     id: 'under-skimtop', name: 'Light Fingers', faction: 'under', type: 'glyph', cost: 1, speed: 'flash',
-    text: "Drain 1 from an enemy unit or the enemy Boiler. If you've played 2+ tactics this round, drain 2 instead.",
+    text: "Drain 1 from an enemy unit or the enemy Crystal. If you've played 2+ tactics this round, drain 2 instead.",
     targets: [{ what: 'unitOrSpire', side: 'enemy' }],
     ops: [{
       op: 'if', cond: { c: 'seenRound', stat: 'glyphsCast', gte: 2 },
@@ -292,7 +292,7 @@ export const under: CardDef[] = [
   },
   {
     id: 'under-protectionfee', name: 'Lantern Rent', faction: 'under', type: 'glyph', cost: 3, speed: 'flash',
-    text: 'Drain 1 from every enemy unit and from the enemy Boiler.',
+    text: 'Drain 1 from every enemy unit and from the enemy Crystal.',
     ops: [{ op: 'drain', to: 'enemies', n: 1 }, { op: 'drain', to: 'enemySpire', n: 1 }],
   },
   {
@@ -303,7 +303,7 @@ export const under: CardDef[] = [
   },
   {
     id: 'under-streettax', name: 'Gutter Toll', faction: 'under', type: 'glyph', cost: 3, speed: 'swift',
-    text: 'Drain 1 from the enemy Boiler for each enemy unit, at most 4.',
+    text: 'Drain 1 from the enemy Crystal for each enemy unit, at most 4.',
     ops: [{ op: 'drain', to: 'enemySpire', n: { count: 'enemies', mul: 1, max: 4 } }],
   },
   {
@@ -314,7 +314,7 @@ export const under: CardDef[] = [
   },
   {
     id: 'under-foreclosure', name: 'Seized', faction: 'under', type: 'glyph', cost: 5, speed: 'swift',
-    text: 'Drain 2 from every damaged enemy unit and 2 from the enemy Boiler.',
+    text: 'Drain 2 from every damaged enemy unit and 2 from the enemy Crystal.',
     ops: [{ op: 'drain', to: { from: 'enemies', filter: { damaged: true } }, n: 2 }, { op: 'drain', to: 'enemySpire', n: 2 }],
   },
   {
@@ -327,7 +327,7 @@ export const under: CardDef[] = [
   },
   {
     id: 'under-hostiletakeover', name: 'Repossessed', faction: 'under', type: 'glyph', cost: 6, speed: 'ritual',
-    text: 'Destroy an enemy unit. Drain 2 from the enemy Boiler.',
+    text: 'Destroy an enemy unit. Drain 2 from the enemy Crystal.',
     targets: [{ what: 'unit', side: 'enemy' }],
     ops: [{ op: 'destroy', to: 'target0' }, { op: 'drain', to: 'enemySpire', n: 2 }],
   },

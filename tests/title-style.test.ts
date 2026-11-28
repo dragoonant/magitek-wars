@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ADVANCE, GLYPHS, GLYPH_H, GLYPH_W, canDraw, textWidth } from '../src/font';
-import { GLOAM_CYCLE, PALETTE, WINDOW_CYCLE } from '../src/palette';
+import { CRYSTAL_CYCLE, PALETTE, WINDOW_CYCLE } from '../src/palette';
 import { ALL_SPRITES } from '../src/sprites';
 import * as S from '../src/strings';
 
@@ -18,7 +18,7 @@ describe('ART-STYLE 2 palette', () => {
     expect(new Set(values).size).toBe(values.length);
   });
   it('palette cycles only use house colours', () => {
-    for (const c of [...GLOAM_CYCLE, ...WINDOW_CYCLE]) expect(PALETTE[c]).toBeDefined();
+    for (const c of [...CRYSTAL_CYCLE, ...WINDOW_CYCLE]) expect(PALETTE[c]).toBeDefined();
   });
 });
 

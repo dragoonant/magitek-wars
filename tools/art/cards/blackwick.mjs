@@ -17,7 +17,7 @@ export const CARDS = [
     ascendedSubject: 'Gaunt man in leather apron, arms spread, streams of green light flowing into the glowing glass tanks on his back from all sides, dark cellar',
   },
   {
-    id: 'under-wirerat', kind: 'unit', name: 'Gloam Rat',
+    id: 'under-wirerat', kind: 'unit', name: 'Shard Rat',
     subject: 'Soot-black sewer rat with gloam-green glowing eyes and a blank brass tag on a wire collar, on a wet brick tunnel ledge',
   },
 
@@ -43,7 +43,7 @@ export const CARDS = [
     subject: 'Hunched clerk in sleeve garters and soot-black waistcoat at a lamplit tunnel desk, holding one closed ledger, a green lantern beside him',
   },
   {
-    id: 'under-acidlamplighter', kind: 'unit', name: 'Gloam Lamplighter',
+    id: 'under-acidlamplighter', kind: 'unit', name: 'Crystal Lamplighter',
     subject: 'Lamplighter in a long soot-black coat, holding one long pole whose tip burns with caustic dripping green gloam, foggy street lamp above',
   },
   {
@@ -88,7 +88,7 @@ export const CARDS = [
     subject: 'Thin stream of green light drawn from an armoured soldier\'s chest plate into a corked glass flask, dark alley',
   },
   {
-    id: 'under-acidbath', kind: 'glyph', name: 'Gloam Dip',
+    id: 'under-acidbath', kind: 'glyph', name: 'Crystal Acid',
     subject: 'Iron blade lifted out of a vat of bubbling caustic green gloam, smoking and dripping, by iron tongs',
   },
   {
@@ -153,7 +153,7 @@ export const CARDS = [
     subject: 'Bruiser with brass braces strapped to his arms, green-glowing tubes running from a back canister, holding one iron knuckle-duster, tunnel',
   },
   {
-    id: 'under-vattailor', kind: 'unit', name: 'Gloamdye Tailor',
+    id: 'under-vattailor', kind: 'unit', name: 'Crystal Dyer',
     subject: 'Tailor in a leather apron and verdigris thimbles, holding one pair of iron tongs, lifting a long coat from a vat of smoking green gloam',
   },
   {

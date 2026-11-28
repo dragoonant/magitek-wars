@@ -1,7 +1,7 @@
 {
   "name": "magitek-wars",
   "version": "0.1.0",
-  "description": "Magitek Wars: an original 16-bit-style game of steam and gloam for the browser",
+  "description": "Magitek Wars: an original 16-bit-style game of steam and crystal for the browser",
   "private": true,
   "type": "module",
   "scripts": {

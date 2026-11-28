@@ -362,7 +362,7 @@ export class DeckBuilder {
   draw(g: Gfx, t: number): void {
     this.hots = [];
     g.rect(0, 0, HW, HH, 'duskZenith');
-    g.dither25(0, 0, HW, HH, 'gloamDeep');
+    g.dither25(0, 0, HW, HH, 'crystalDeep');
     drawText(g, 'DECK BUILDER', LEFT_X + 2, 5, { color: 'brassGlint', scale: 2 });
     this.drawFilters(g);
     this.drawPool(g);
@@ -463,7 +463,7 @@ export class DeckBuilder {
       if (n > 0) {
         const s = `${n}/${LIMITS.copies}`;
         g.rect(x + 64 - textWidth(s) - 3, y + 39, textWidth(s) + 4, 10, 'ink');
-        drawText(g, s, x + 64 - textWidth(s) - 1, y + 41, { color: n >= LIMITS.copies ? 'emberGlow' : 'gloamBright' });
+        drawText(g, s, x + 64 - textWidth(s) - 1, y + 41, { color: n >= LIMITS.copies ? 'emberGlow' : 'crystalBright' });
       }
       drawText(g, fit(say(c.name), 11), x, y + 52, { color: n > 0 ? 'brassGlint' : 'steamWhite' });
       this.hots.push({ x, y, w: 66, h: CELL_H - 2, id: `pool:${c.id}` });
@@ -496,7 +496,7 @@ export class DeckBuilder {
     drawText(g, title, x + 2, 26, { color: 'brassGlint' });
     if (this.dirty) drawText(g, 'UNSAVED', x + RIGHT_W - 2 - textWidth('UNSAVED'), 26, { color: 'emberGlow' });
     const full = check.size === LIMITS.deck;
-    drawText(g, `${check.size}/${LIMITS.deck}`, x + 2, 36, { color: full ? 'gloamBright' : 'emberGlow', scale: 2 });
+    drawText(g, `${check.size}/${LIMITS.deck}`, x + 2, 36, { color: full ? 'crystalBright' : 'emberGlow', scale: 2 });
     const hc = check.heroCards;
     drawText(g, `FACTIONS ${check.factions.length}/${LIMITS.factions}`, x + 70, 36, { color: check.factions.length > LIMITS.factions ? 'emberGlow' : 'steamWhite' });
     check.factions.forEach((f, i) => {
@@ -519,7 +519,7 @@ export class DeckBuilder {
 
     // rules (R-G1): every line checkDeck reports, paged if they do not fit
     const ruleLines: { text: string; ink: Ink }[] = [];
-    if (check.ok) ruleLines.push({ text: 'LEGAL DECK: READY FOR BATTLE', ink: 'gloamBright' });
+    if (check.ok) ruleLines.push({ text: 'LEGAL DECK: READY FOR BATTLE', ink: 'crystalBright' });
     for (const e of check.errors) wrap(say(e), RULE_CHARS).forEach((l, i) => ruleLines.push({ text: (i ? '  ' : '') + l, ink: 'emberGlow' }));
     const maxRule = 14;
     const pages = Math.max(1, Math.ceil(ruleLines.length / maxRule));
@@ -549,7 +549,7 @@ export class DeckBuilder {
         const hover = this.mx >= x && this.mx < x + RIGHT_W && this.my >= y - 1 && this.my < y + ROW_H - 1;
         if (hover) g.rect(x, y - 1, RIGHT_W, ROW_H, 'brassDark');
         const tl = hasCard(l.id) ? def(l.id).type : null;
-        drawText(g, `${l.n}`, x + 4, y, { color: l.n! >= LIMITS.copies ? 'emberGlow' : 'gloamBright' });
+        drawText(g, `${l.n}`, x + 4, y, { color: l.n! >= LIMITS.copies ? 'emberGlow' : 'crystalBright' });
         drawText(g, tl === 'glyph' ? 'T' : tl === 'hero' ? 'H' : tl ? 'U' : '?', x + 14, y, { color: 'ironLight' });
         drawText(g, l.text, x + 24, y, { color: l.ink });
         this.hots.push({ x, y: y - 1, w: RIGHT_W, h: ROW_H, id: `deck:${l.id}` });
@@ -608,7 +608,7 @@ export class DeckBuilder {
     const facName = wrap(fac ? fac.name : say(d.faction), 17);
     facName.forEach((l, i) => drawText(g, l, x + 140, yy + 32 + i * 9, { color: 'ironLight' }));
     const n = countOf(this.cards, cardId);
-    drawText(g, `IN DECK ${n}/${LIMITS.copies}`, x + 140, yy + 34 + facName.length * 9, { color: n ? 'gloamBright' : 'ironLight' });
+    drawText(g, `IN DECK ${n}/${LIMITS.copies}`, x + 140, yy + 34 + facName.length * 9, { color: n ? 'crystalBright' : 'ironLight' });
     const why = canAdd(this.cards, cardId);
     const whyLines = why ? wrap(say(`Cannot add: ${why}`), 39) : [];
     const limit = y + hgt - 14 - whyLines.length * 9;
@@ -619,7 +619,7 @@ export class DeckBuilder {
       for (const l of wrap(say(s), 39)) { if (!room()) return; drawText(g, l, x + 8, ty, { color: ink }); ty += 9; }
     };
     put(f.text, 'steamWhite');
-    for (const k of f.keywords) put(`${KEYWORD_HELP[k].name}: ${KEYWORD_HELP[k].text}`, 'gloamBright');
+    for (const k of f.keywords) put(`${KEYWORD_HELP[k].name}: ${KEYWORD_HELP[k].text}`, 'crystalBright');
     if (d.level) put(`Ascends: ${d.level.text} (${d.level.n})`, 'brassLight');
     if (d.ascended) {
       ty += 2;
@@ -641,7 +641,7 @@ export class DeckBuilder {
     drawText(g, `${m.name.length}/${NAME_MAX}`, x + w - 18 - textWidth(`${m.name.length}/${NAME_MAX}`), y + 52, { color: 'iron' });
     const st = deckStatus(this.cards);
     const lines = st.legal ? ['THIS DECK IS LEGAL.'] : wrap(say(`This deck is illegal and will be saved marked ILLEGAL: ${st.reason}`), 54);
-    lines.slice(0, 3).forEach((l, i) => drawText(g, l, x + 12, y + 72 + i * 9, { color: st.legal ? 'gloamBright' : 'emberGlow' }));
+    lines.slice(0, 3).forEach((l, i) => drawText(g, l, x + 12, y + 72 + i * 9, { color: st.legal ? 'crystalBright' : 'emberGlow' }));
     let bx = x + 12;
     const by = y + h - 28;
     bx += this.btn(g, 'NEXT NAME', bx, by, 'name:next') + 6;
@@ -670,7 +670,7 @@ export class DeckBuilder {
       const st = deckStatus(d.cards);
       drawText(g, fit(say(d.name), 40), x + 14, ry + 2, { color: 'steamWhite' });
       const meta = `${d.cards.length}/${LIMITS.deck}  ${st.label}`;
-      drawText(g, meta, x + w - 14 - textWidth(meta), ry + 2, { color: st.legal ? 'gloamBright' : 'emberGlow' });
+      drawText(g, meta, x + w - 14 - textWidth(meta), ry + 2, { color: st.legal ? 'crystalBright' : 'emberGlow' });
       if (!st.legal) drawText(g, fit(say(st.reason), 72), x + 14, ry + 10, { color: 'emberGlow' });
       else drawText(g, say(checkDeck(d.cards).factions.map((f) => FACTIONS.find((z) => z.engine === f)!.name).join(' AND ')), x + 14, ry + 10, { color: 'ironLight' });
       this.hots.push({ x: x + 10, y: ry, w: w - 20, h: ROW - 2, id: `load:${i}` });

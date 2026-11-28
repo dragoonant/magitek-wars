@@ -28,7 +28,7 @@ any other published game, book or show: no names, characters, places, story, car
 - `src/engine/` rules (`types.ts` is the contract), `src/data/cards/` one file per faction, `src/ai/`,
   `src/deckbuilder/`; screens: `src/main.ts` (one 512 x 448 canvas), `title.ts`, `scene.ts`, `gallery.ts`,
   `src/match/` (battle screen, deck select, session, log text), `src/run/` (campaign rules and screens, spec 20).
-- Card names and words follow `docs/RESKIN.md` (Boiler, tactic); art pipeline in `tools/art/`, LoRA in `tools/lora/`.
+- Card names and words follow `docs/RESKIN.md` (Crystal, tactic); art pipeline in `tools/art/`, LoRA in `tools/lora/`.
 - `tests/` Vitest (rule-id tests, one behaviour test per card and hero); `tools/sim.ts` arena; `tools/runsim.ts`
   campaign bench; `tools/gate.ts`. `?auto&fast` in the URL lets the AI play both seats of a battle.
 
