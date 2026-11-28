@@ -174,6 +174,22 @@ export async function loadSamples(base = './audio/'): Promise<void> {
     samples.set(id, await c.decodeAudioData(await f.arrayBuffer()));
   }));
 }
+/**
+ * Variants (PLAN D28): `sfx/<kind>-<n>` files are alternatives to `sfx/<kind>`. Each play picks one at random,
+ * never the one heard last, so a sound that repeats (every Crystal hit) does not sound the same each time.
+ */
+const lastVariant = new Map<string, string>();
+export function variantsOf(id: string, ids: readonly string[]): string[] {
+  return ids.filter((x) => x === id || (x.startsWith(`${id}-`) && /^\d+$/.test(x.slice(id.length + 1))));
+}
+function pickVariant(id: string): string {
+  const all = variantsOf(id, [...samples.keys()]);
+  if (all.length <= 1) return id;
+  const pool = all.filter((x) => x !== lastVariant.get(id));
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  lastVariant.set(id, pick);
+  return pick;
+}
 function playSample(c: AudioContext, id: string, gain = 1): boolean {
   const buf = samples.get(id);
   if (!buf || !master) return false;
@@ -246,7 +262,7 @@ export function playEvent(e: LogEntry, seat: Seat): void {
   if (live >= MAX_LIVE && e.k !== 'ascend' && e.k !== 'over') return;
   lastAt.set(e.k, t);
   if (e.k === 'ascend' && e.card) { playSample(c, 'music/ascend-sting', 1.4); playSample(c, `voice/${e.card}`, 1.6); } // sting, then the hero's line over it
-  if (playSample(c, `sfx/${e.k}`)) return;
+  if (playSample(c, pickVariant(`sfx/${e.k}`))) return;
   voice(c, master, t, e, e.seat === seat);
 }
 
