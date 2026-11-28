@@ -1,10 +1,10 @@
-// Every string the title screen draws. tests/font.test.ts checks the house font can draw each one.
+// Every string the title screen draws.
 export const TITLE_TOP = 'MAGITEK';
 export const TITLE_BOTTOM = 'WARS';
-export const SUBTITLE = 'A WAR OF STEAM AND GLOAM';
+export const SUBTITLE = 'A WAR OF STEAM AND CRYSTAL';
 export const PRESS_START = 'PRESS START';
-export const CREDIT = 'BY EVILGOUKI';
-export const VERSION = 'V0.1';
+export const CREDIT = 'by evilgouki';
+export const VERSION = 'v0.1';
 
 export type MenuId = 'run' | 'new' | 'continue' | 'decks' | 'cards' | 'art' | 'credits';
 
@@ -25,24 +25,24 @@ export const DIALOGS: Record<MenuId, readonly string[]> = {
   decks: [],
   cards: [],
   art: [],
-  credits: ['MAGITEK WARS, AN ORIGINAL GAME', 'DESIGN AND CODE: EVILGOUKI', 'ART: FLUX.2 KLEIN WITH OUR', 'OWN STYLE LORA, FIXED IN CODE', 'TITLE TYPE: CINZEL (OFL)', 'CARD ENGINE: ANNALS OF', 'SCRIVENEARTH, ALSO EVILGOUKI'],
+  credits: ['Magitek Wars, an original game', 'Design and code: evilgouki', 'Art: FLUX.2 klein with our own', 'style LoRA', 'Type: Cinzel, Fira Sans (OFL)', 'Card engine: Annals of', 'Scrivenearth, also by evilgouki'],
 };
 
-export const DIALOG_CLOSE = 'PRESS ANY KEY';
+export const DIALOG_CLOSE = 'Press any key';
 
 /** The title menu's art switch (PLAN D22) names the current mode; P switches it anywhere. */
 export const ART_LABEL = { detail: 'ART: DETAIL', pixel: 'ART: PIXEL' } as const;
 
 /** Fixed labels on the card gallery (src/gallery.ts). */
 export const GALLERY = {
-  factionKeys: 'Q <  > E',
-  back: 'X BACK',
-  pageLeft: '<',
-  pageRight: '>',
-  loading: '...',
-  noArt: 'NO ART',
-  toAscended: 'A: ASCENDED',
-  toBase: 'A: BASE FORM',
-  ascendsWhen: 'ASCENDS WHEN: ',
-  token: ' TOKEN',
+  factionKeys: 'Q ‹  › E',
+  back: 'X back',
+  pageLeft: '‹',
+  pageRight: '›',
+  loading: '…',
+  noArt: 'No art',
+  toAscended: 'A: ascended',
+  toBase: 'A: base form',
+  ascendsWhen: 'Ascends when: ',
+  token: ' token',
 } as const;

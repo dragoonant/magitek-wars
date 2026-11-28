@@ -1,4 +1,4 @@
-// Cindral Dominion (faction id 'prism'): the iron legions and walking boilers of the citadel. Plated, Ward, Spotter, wide buffs, repair.
+// Cindral Dominion (faction id 'prism'): the iron legions and walking engines of the citadel. Plated, Ward, Spotter, wide buffs, repair.
 import type { CardDef } from '../../engine/types';
 
 export const prism: CardDef[] = [
@@ -26,7 +26,7 @@ export const prism: CardDef[] = [
     level: { who: 'self', stat: 'survivals', n: 3, text: "I've survived damage 3+ times" },
     ascended: {
       name: 'Maudrey Hale, the Unbowed', power: 5, health: 8, keywords: ['spotter', 'plated'],
-      text: 'Spotter, Plated. When I survive damage, I get +1|+0 and deal 2 to the strongest enemy (highest power). Ascend: repair your Boiler by 4.',
+      text: 'Spotter, Plated. When I survive damage, I get +1|+0 and deal 2 to the strongest enemy (highest power). Ascend: repair your Crystal by 4.',
       abilities: [
         { on: 'survive', ops: [{ op: 'buff', to: 'self', power: 1 }, { op: 'damage', to: 'strongestEnemy', n: 2 }] },
         { on: 'ascend', ops: [{ op: 'heal', to: 'mySpire', n: 4 }] },
@@ -59,7 +59,7 @@ export const prism: CardDef[] = [
     abilities: [{ on: 'survive', ops: [{ op: 'heal', to: 'self', n: 1 }] }],
   },
   {
-    id: 'prism-pane-mender', name: 'Field Boilerwright', faction: 'prism', type: 'unit', cost: 2, power: 1, health: 3,
+    id: 'prism-pane-mender', name: 'Field Mechanic', faction: 'prism', type: 'unit', cost: 2, power: 1, health: 3,
     tribe: 'lens-wright', text: 'Deploy: repair an ally by 4.',
     abilities: [{ on: 'deploy', targets: [{ what: 'unit', side: 'ally' }], ops: [{ op: 'heal', to: 'target0', n: 4 }] }],
   },
@@ -91,7 +91,7 @@ export const prism: CardDef[] = [
   },
   {
     id: 'prism-spire-keeper', name: 'Rampart Keeper', faction: 'prism', type: 'unit', cost: 5, power: 3, health: 5,
-    keywords: ['plated'], tribe: 'warden', text: 'Plated. Dusk: repair your Boiler by 2.',
+    keywords: ['plated'], tribe: 'warden', text: 'Plated. Dusk: repair your Crystal by 2.',
     abilities: [{ on: 'dusk', ops: [{ op: 'heal', to: 'mySpire', n: 2 }] }],
   },
   {
@@ -142,7 +142,7 @@ export const prism: CardDef[] = [
   },
   {
     id: 'prism-spire-mantle', name: 'Citadel Aegis', faction: 'prism', type: 'glyph', cost: 5, speed: 'swift',
-    text: 'Repair your Boiler by 5 and give every ally Ward.',
+    text: 'Repair your Crystal by 5 and give every ally Ward.',
     ops: [{ op: 'heal', to: 'mySpire', n: 5 }, { op: 'grant', to: 'allies', kw: ['ward'] }],
   },
   {
@@ -152,7 +152,7 @@ export const prism: CardDef[] = [
   },
   {
     id: 'prism-crystal-dawn', name: 'Ember Dawn', faction: 'prism', type: 'glyph', cost: 6, speed: 'ritual',
-    text: 'Give every ally +2|+2, then repair every ally fully. Repair your Boiler by 3.',
+    text: 'Give every ally +2|+2, then repair every ally fully. Repair your Crystal by 3.',
     ops: [{ op: 'buff', to: 'allies', power: 2, health: 2 }, { op: 'heal', to: 'allies', n: 99 }, { op: 'heal', to: 'mySpire', n: 3 }],
   },
   // ---------- First Light additions (docs/SETS.md): formation (Ilse Corrow) and flak-gunner (Senna Kale) ----------

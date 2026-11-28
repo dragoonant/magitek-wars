@@ -1,115 +1,159 @@
+import '@fontsource/cinzel/700.css';
+import '@fontsource/fira-sans/500.css';
+import '@fontsource/fira-sans/700.css';
 import type { Gfx } from './gfx';
-import type { Ink } from './palette';
+import { PALETTE, rgba, type Ink } from './palette';
 
-// House bitmap font: 5x7 glyphs in a 6x8 cell (docs/ART-STYLE.md section 5). Drawn by us.
-export const GLYPH_W = 5;
-export const GLYPH_H = 7;
-export const ADVANCE = 6;
+// Type (PLAN D25): real fonts drawn at the screen's own resolution, replacing the 5x7 bitmap font. Cinzel (display:
+// titles, headings, buttons) and Fira Sans (body: card text, the log, descriptions), both SIL OFL 1.1, bundled
+// with the game. The calls keep the old shape: (x, y) is the top of a capital letter, `scale` 1 is the body size
+// (capitals 7 logical px apart from their line, lines 9 to 10 px apart), 2 and 3 are headings.
 
-export const GLYPHS: Record<string, readonly string[]> = {
-  A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
-  B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
-  C: ['01110', '10001', '10000', '10000', '10000', '10001', '01110'],
-  D: ['11110', '10001', '10001', '10001', '10001', '10001', '11110'],
-  E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'],
-  F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
-  G: ['01110', '10001', '10000', '10111', '10001', '10001', '01111'],
-  H: ['10001', '10001', '10001', '11111', '10001', '10001', '10001'],
-  I: ['01110', '00100', '00100', '00100', '00100', '00100', '01110'],
-  J: ['00111', '00010', '00010', '00010', '00010', '10010', '01100'],
-  K: ['10001', '10010', '10100', '11000', '10100', '10010', '10001'],
-  L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
-  M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
-  N: ['10001', '10001', '11001', '10101', '10011', '10001', '10001'],
-  O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
-  P: ['11110', '10001', '10001', '11110', '10000', '10000', '10000'],
-  Q: ['01110', '10001', '10001', '10001', '10101', '10010', '01101'],
-  R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
-  S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'],
-  T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
-  U: ['10001', '10001', '10001', '10001', '10001', '10001', '01110'],
-  V: ['10001', '10001', '10001', '10001', '10001', '01010', '00100'],
-  W: ['10001', '10001', '10001', '10101', '10101', '10101', '01010'],
-  X: ['10001', '10001', '01010', '00100', '01010', '10001', '10001'],
-  Y: ['10001', '10001', '01010', '00100', '00100', '00100', '00100'],
-  Z: ['11111', '00001', '00010', '00100', '01000', '10000', '11111'],
-  '0': ['01110', '10001', '10011', '10101', '11001', '10001', '01110'],
-  '1': ['00100', '01100', '00100', '00100', '00100', '00100', '01110'],
-  '2': ['01110', '10001', '00001', '00010', '00100', '01000', '11111'],
-  '3': ['11110', '00001', '00001', '01110', '00001', '00001', '11110'],
-  '4': ['00010', '00110', '01010', '10010', '11111', '00010', '00010'],
-  '5': ['11111', '10000', '11110', '00001', '00001', '10001', '01110'],
-  '6': ['00110', '01000', '10000', '11110', '10001', '10001', '01110'],
-  '7': ['11111', '00001', '00010', '00100', '01000', '01000', '01000'],
-  '8': ['01110', '10001', '10001', '01110', '10001', '10001', '01110'],
-  '9': ['01110', '10001', '10001', '01111', '00001', '00010', '01100'],
-  ' ': ['00000', '00000', '00000', '00000', '00000', '00000', '00000'],
-  '.': ['00000', '00000', '00000', '00000', '00000', '01100', '01100'],
-  ',': ['00000', '00000', '00000', '00000', '01100', '00100', '01000'],
-  '!': ['00100', '00100', '00100', '00100', '00100', '00000', '00100'],
-  '?': ['01110', '10001', '00001', '00010', '00100', '00000', '00100'],
-  '-': ['00000', '00000', '00000', '11111', '00000', '00000', '00000'],
-  "'": ['00100', '00100', '01000', '00000', '00000', '00000', '00000'],
-  ':': ['00000', '01100', '01100', '00000', '01100', '01100', '00000'],
-  '(': ['00010', '00100', '01000', '01000', '01000', '00100', '00010'],
-  ')': ['01000', '00100', '00010', '00010', '00010', '00100', '01000'],
-  '/': ['00001', '00010', '00010', '00100', '01000', '01000', '10000'],
-  '+': ['00000', '00100', '00100', '11111', '00100', '00100', '00000'],
-  ';': ['00000', '01100', '01100', '00000', '01100', '00100', '01000'],
-  '|': ['00100', '00100', '00100', '00100', '00100', '00100', '00100'],
-  '&': ['01100', '10010', '10100', '01000', '10101', '10010', '01101'],
-  '<': ['00010', '00100', '01000', '10000', '01000', '00100', '00010'],
-  '"': ['01010', '01010', '01010', '00000', '00000', '00000', '00000'],
-  '>': ['01000', '00100', '00010', '00001', '00010', '00100', '01000'],
-};
+export type Face = 'body' | 'bold' | 'display';
 
-export function canDraw(text: string): boolean {
-  return [...text].every((ch) => ch in GLYPHS);
+/** Logical font size per unit of scale, and how far below y the baseline sits. */
+const SIZE: Record<Face, number> = { body: 9.4, bold: 9.4, display: 8.6 };
+const CAP = 7;
+
+export function fontOf(face: Face, scale: number): string {
+  const px = (face === 'display' && scale >= 2 ? 10 : SIZE[face]) * scale;
+  if (face === 'display') return `700 ${px}px Cinzel, Georgia, serif`;
+  return `${face === 'bold' ? 700 : 500} ${px}px "Fira Sans", "Segoe UI", sans-serif`;
 }
 
-export function textWidth(text: string, scale = 1): number {
-  return text.length === 0 ? 0 : (text.length * ADVANCE - 1) * scale;
+/** Headings (scale 2+) are Cinzel; scale 1 is the body face unless the style names one. */
+function faceOf(style: { scale?: number; face?: Face } | undefined): Face {
+  return style?.face ?? ((style?.scale ?? 1) >= 2 ? 'display' : 'body');
+}
+
+/** Load the fonts before the first frame, so widths measured for layout are the real ones. */
+export async function loadFonts(): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts) return;
+  await Promise.all([fontOf('display', 1), fontOf('body', 1), fontOf('bold', 1)].map((f) => document.fonts.load(f, 'Aa')));
+  widths.clear();
+}
+
+/** Every printable character can be drawn (a real font has them all); control characters cannot. */
+export function canDraw(text: string): boolean {
+  return !/[\u0000-\u001f\u007f]/.test(text);
+}
+
+// Widths come from the browser's own measurement. Outside a browser (the unit tests) a fixed estimate stands in:
+// half an em per character, which is wider than the real body face, so layouts checked there are never too tight.
+let probe: CanvasRenderingContext2D | null | undefined;
+const widths = new Map<string, number>();
+function measure(text: string, face: Face, scale: number): number {
+  if (probe === undefined) probe = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+  if (!probe) return text.length * (face === 'display' && scale >= 2 ? 10 : SIZE[face]) * scale * (face === 'display' ? 0.75 : 0.5);
+  const font = fontOf(face, scale);
+  const key = `${font}|${text}`;
+  let w = widths.get(key);
+  if (w === undefined) {
+    probe.font = font;
+    w = probe.measureText(text).width;
+    if (widths.size > 4000) widths.clear();
+    widths.set(key, w);
+  }
+  return w;
+}
+
+export function textWidth(text: string, scale = 1, face?: Face): number {
+  return text.length === 0 ? 0 : measure(text, faceOf({ scale, face }), scale);
 }
 
 export interface TextStyle {
   color: Ink;
   scale?: number;
-  /** Per glyph row colour (0-6), for wordmarks. Overrides `color`. */
+  face?: Face;
+  /** A colour per height band 0 (top) to 6 (baseline), for wordmarks: drawn as a gradient. Overrides `color`. */
   rowColor?: (row: number) => Ink;
+  /** A dark edge around the letters, for text over pictures. */
   outline?: Ink;
+  /** A soft drop shadow. */
   shadow?: Ink;
+  /** A soft glow in this colour. */
+  glow?: Ink;
+  alpha?: number;
 }
 
-function pass(g: Gfx, text: string, x: number, y: number, s: number, colorOf: (row: number) => Ink): void {
-  let cx = x;
-  for (const ch of text) {
-    const glyph = GLYPHS[ch];
-    if (!glyph) throw new Error(`font: no glyph for '${ch}'`);
-    for (let r = 0; r < GLYPH_H; r++) {
-      const bits = glyph[r];
-      for (let c = 0; c < GLYPH_W; c++) if (bits[c] === '1') g.rect(cx + c * s, y + r * s, s, s, colorOf(r));
-    }
-    cx += ADVANCE * s;
-  }
-}
-
-/** Draw text with optional shadow and 1 px outline. Throws on a character the font does not have (no silent fallback). */
+/** Draw text; (x, y) is the top of the capitals. */
 export function drawText(g: Gfx, text: string, x: number, y: number, style: TextStyle): void {
+  if (!text) return;
   const s = style.scale ?? 1;
+  const face = faceOf(style);
+  const ctx = g.ctx;
+  ctx.save();
+  ctx.font = fontOf(face, s);
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+  if (style.alpha !== undefined) ctx.globalAlpha = style.alpha;
+  const by = y + CAP * s;
+  let fill: string | CanvasGradient = PALETTE[style.color];
+  if (style.rowColor) {
+    const gr = ctx.createLinearGradient(0, y, 0, by);
+    for (let r = 0; r <= 6; r++) gr.addColorStop(r / 6, PALETTE[style.rowColor(r)]);
+    fill = gr;
+  }
   if (style.shadow) {
-    const sh = style.shadow;
-    pass(g, text, x + 2, y + 2, s, () => sh);
+    ctx.shadowColor = rgba(style.shadow, 0.85);
+    ctx.shadowBlur = 2.5 * s;
+    ctx.shadowOffsetY = 1 * s;
   }
   if (style.outline) {
-    const ol = style.outline;
-    for (const [dx, dy] of [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]] as const) {
-      pass(g, text, x + dx, y + dy, s, () => ol);
-    }
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 2 * Math.min(s, 2);
+    ctx.strokeStyle = rgba(style.outline, 0.9);
+    ctx.strokeText(text, x, by);
+    ctx.shadowColor = 'transparent';
   }
-  pass(g, text, x, y, s, style.rowColor ?? (() => style.color));
+  if (style.glow) {
+    ctx.shadowColor = rgba(style.glow, 0.9);
+    ctx.shadowBlur = 4 * s;
+    ctx.shadowOffsetY = 0;
+  }
+  ctx.fillStyle = fill;
+  ctx.fillText(text, x, by);
+  ctx.restore();
 }
 
 /** Draw text centred on x. */
 export function drawTextCentred(g: Gfx, text: string, cx: number, y: number, style: TextStyle): void {
-  drawText(g, text, Math.round(cx - textWidth(text, style.scale ?? 1) / 2), y, style);
+  drawText(g, text, cx - textWidth(text, style.scale ?? 1, style.face) / 2, y, style);
+}
+
+/** Draw text ending at x. */
+export function drawTextRight(g: Gfx, text: string, rx: number, y: number, style: TextStyle): void {
+  drawText(g, text, rx - textWidth(text, style.scale ?? 1, style.face), y, style);
+}
+
+/**
+ * Word-wrap to lines no wider than `maxW` logical px in a face. A word wider than the line is split by characters
+ * (never dropped).
+ */
+export function wrapPx(text: string, maxW: number, scale = 1, face?: Face): string[] {
+  const out: string[] = [];
+  let line = '';
+  const fits = (s: string) => textWidth(s, scale, face) <= maxW;
+  for (let word of text.split(/\s+/).filter(Boolean)) {
+    while (!fits(word)) {
+      if (line) { out.push(line); line = ''; }
+      let n = word.length - 1;
+      while (n > 1 && !fits(word.slice(0, n))) n--;
+      out.push(word.slice(0, n));
+      word = word.slice(n);
+    }
+    if (!line) line = word;
+    else if (fits(`${line} ${word}`)) line += ` ${word}`;
+    else { out.push(line); line = word; }
+  }
+  if (line) out.push(line);
+  return out;
+}
+
+/** Cut text with an ellipsis so it fits `maxW`. */
+export function fitText(text: string, maxW: number, scale = 1, face?: Face): string {
+  if (textWidth(text, scale, face) <= maxW) return text;
+  let n = text.length;
+  while (n > 1 && textWidth(`${text.slice(0, n)}…`, scale, face) > maxW) n--;
+  return `${text.slice(0, n).trimEnd()}…`;
 }

@@ -22,11 +22,11 @@ export const PALETTE = {
   duskHigh: '#201848',
   duskMid: '#402860',
   duskLow: '#704070',
-  gloamDeep: '#083830',
-  gloamDark: '#107058',
-  gloam: '#20b088',
-  gloamBright: '#60f0c0',
-  gloamWhite: '#d0f8e8',
+  crystalDeep: '#083830',
+  crystalDark: '#107058',
+  crystal: '#20b088',
+  crystalBright: '#60f0c0',
+  crystalWhite: '#d0f8e8',
   mossDark: '#283018',
   moss: '#506030',
   verdigris: '#387068',
@@ -36,7 +36,13 @@ export const PALETTE = {
 
 export type Ink = keyof typeof PALETTE;
 
-/** Palette cycle for gloam glow (beacons, cockpits). */
-export const GLOAM_CYCLE: readonly Ink[] = ['gloamDark', 'gloam', 'gloamBright', 'gloamWhite', 'gloamBright', 'gloam'];
+/** Palette cycle for crystal glow (beacons, cockpits). */
+export const CRYSTAL_CYCLE: readonly Ink[] = ['crystalDark', 'crystal', 'crystalBright', 'crystalWhite', 'crystalBright', 'crystal'];
 /** Palette cycle for furnace-lit windows. */
 export const WINDOW_CYCLE: readonly Ink[] = ['emberGlow', 'brassLight', 'emberBright', 'brassLight'];
+
+/** A house colour with transparency (PLAN D25: the interface blends house colours; it never invents new ones). */
+export function rgba(c: Ink, a: number): string {
+  const h = PALETTE[c];
+  return `rgba(${parseInt(h.slice(1, 3), 16)}, ${parseInt(h.slice(3, 5), 16)}, ${parseInt(h.slice(5, 7), 16)}, ${a})`;
+}

@@ -53,7 +53,7 @@ export function autoDeck(a: FactionId, b: FactionId): string[] {
 
 /**
  * The first five premades: built by autoDeck from the original 150-card pool, then retuned by hand into the 45-55% band
- * (PLAN D25, BALANCE B-7), which gave each a top end. Names and order stay (`?decks=` indices rely on them).
+ * (PLAN D31, BALANCE B-7), which gave each a top end. Names and order stay (`?decks=` indices rely on them).
  */
 const CURVE: { name: string; cards: Record<string, number> }[] = [
   { name: 'Rampart and Reed', cards: { 'prism-ysolde': 3, 'coil-aruvi': 3, 'prism-facet-initiate': 1, 'coil-rootling': 1, 'prism-glasswarden': 1, 'coil-sap-surge': 1, 'prism-hold-the-line': 1, 'coil-sprout-tender': 1, 'prism-lampkeeper': 1, 'coil-thornback-cub': 1, 'coil-bristle': 1, 'prism-bracewright': 1, 'coil-duel-of-thorns': 1, 'prism-call-out': 1, 'prism-mirror-ward': 1, 'coil-sap-engine': 1, 'prism-pane-mender': 1, 'coil-spearhorn': 1, 'prism-tierguard': 1, 'coil-vinewhip': 1, 'prism-choir-of-facets': 1, 'coil-bloomcaller': 1, 'prism-chorus-warden': 1, 'coil-crownmaw': 1, 'prism-crystal-bulwark': 1, 'coil-lash-out': 1, 'prism-lightwall-oath': 1, 'coil-lashvine': 1, 'prism-sentinel-lens': 1, 'coil-overgrowth': 1, 'prism-aegis-colossus': 1, 'coil-grafting': 1, 'coil-spore-herald': 1, 'prism-tier-sovereign': 1, 'coil-domewyrm': 1, 'prism-patch-the-pane': 1 } },
@@ -70,7 +70,7 @@ type HandDeck = { name: string; about: string; cards: Record<string, number> };
  * deck as Cold Current, because autoDeck does not depend on the order of its two factions.
  */
 export const BLACKWATER: HandDeck = {
-  name: 'Blackwater', about: "Freeze the enemy's blockers and drain their units dry; Grane ascends as your Boiler is repaired.",
+  name: 'Blackwater', about: "Freeze the enemy's blockers and drain their units dry; Grane ascends as your Crystal is repaired.",
   cards: {
       'under-vex': 3, 'tide-ilvane': 3,
       'under-leechtick': 3, 'under-siphontap': 3, 'under-leechwiresurgeon': 3, 'under-acidlamplighter': 2, 'under-snuffedfuse': 2, 'under-vaultpawnbroker': 2, 'under-bleeddry': 1, 'under-leechoverseer': 1, 'under-debtassessor': 1,
@@ -81,7 +81,7 @@ export const BLACKWATER: HandDeck = {
 /**
  * The twelve newer premade decks, built by hand around one plan each (card id: copies). With the first six they
  * cover all 15 faction pairs plus two single-faction decks, and every hero leads at least two premades.
- * Win rates: BALANCE.md B-4; retuned into the 45-55% band in B-7 (PLAN D25).
+ * Win rates: BALANCE.md B-4; retuned into the 45-55% band in B-7 (PLAN D31).
  */
 export const HAND_BUILT: HandDeck[] = [
   {
@@ -101,7 +101,7 @@ export const HAND_BUILT: HandDeck[] = [
     },
   },
   {
-    name: 'Tithe Wall', about: 'Drain the enemy a little every turn behind Plated lines; every repair to your Boiler brings Grane closer.',
+    name: 'Tithe Wall', about: 'Drain the enemy a little every turn behind Plated lines; every repair to your Crystal brings Grane closer.',
     cards: {
       'prism-oren': 3, 'under-vex': 3,
       'prism-glasswarden': 3, 'prism-lampkeeper': 2, 'prism-tierguard': 2, 'prism-pane-mender': 2, 'prism-crystal-bulwark': 3, 'prism-sentinel-lens': 2, 'prism-chorus-warden': 2, 'prism-aegis-colossus': 2, 'prism-spire-keeper': 2, 'prism-spire-mantle': 1,
@@ -133,7 +133,7 @@ export const HAND_BUILT: HandDeck[] = [
     },
   },
   {
-    name: 'Crosscurrent', about: 'Fly over the Line and haul blockers away; Wren ascends on Boiler hits and attacks twice.',
+    name: 'Crosscurrent', about: 'Fly over the Line and haul blockers away; Wren ascends on Crystal hits and attacks twice.',
     cards: {
       'storm-jax': 3, 'tide-maren': 3,
       'storm-tickettaker': 3, 'storm-railglider': 3, 'storm-galecourier': 3, 'storm-sparkrider': 2, 'storm-thunderkite': 2, 'storm-gliderdrop': 1, 'storm-stormcaller': 1, 'storm-signalkite': 2,
@@ -165,7 +165,7 @@ export const HAND_BUILT: HandDeck[] = [
     },
   },
   {
-    name: 'Choir of Ash', about: 'The Ashen Choir alone: burn every blocker, push damage at the Boiler, finish with a firestorm.',
+    name: 'Choir of Ash', about: 'The Ashen Choir alone: burn every blocker, push damage at the Crystal, finish with a firestorm.',
     cards: {
       'ember-kessa': 3, 'ember-crucible': 2,
       'ember-cinderscamp': 3, 'ember-ashrunner': 3, 'ember-kilnhand': 3, 'ember-slagsmith': 3, 'ember-sparkforge': 2, 'ember-slagbolt': 3, 'ember-furnacebrute': 3, 'ember-arcwelder': 2, 'ember-furnacetender': 2, 'ember-heatlance': 1, 'ember-sparkcascade': 1, 'ember-pyrelancer': 2, 'ember-cinderhail': 2, 'ember-moltenwarden': 1, 'ember-firestorm': 1, 'ember-foundrytitan': 1, 'ember-ringcrier': 1, 'ember-pinprick': 1,
@@ -182,7 +182,7 @@ export const HAND_BUILT: HandDeck[] = [
 
 /**
  * Six premades led by the twelve First Light heroes (PLAN D26), two new heroes each, built from the faction's new cards.
- * Win rates: BALANCE.md B-5; retuned in B-7 (PLAN D25).
+ * Win rates: BALANCE.md B-5; retuned in B-7 (PLAN D31).
  */
 export const NEW_HERO_DECKS: HandDeck[] = [
   {
@@ -218,7 +218,7 @@ export const NEW_HERO_DECKS: HandDeck[] = [
     },
   },
   {
-    name: 'Ledger of Debts', about: 'Keep a full hand and a busy round: every tactic you play taxes the enemy Boiler a little more.',
+    name: 'Ledger of Debts', about: 'Keep a full hand and a busy round: every tactic you play taxes the enemy Crystal a little more.',
     cards: {
       'tide-sefa': 3, 'under-penn': 3,
       'tide-siltnewt': 2, 'tide-marginclerk': 2, 'tide-tallyframe': 2, 'tide-shelfwarden': 2, 'tide-brineboundsage': 2, 'tide-boundvolume': 2, 'tide-readthecurrent': 2, 'tide-rifflethestacks': 2, 'tide-ripplescribe': 1,

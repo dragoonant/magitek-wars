@@ -1,4 +1,4 @@
-// Premade round robin for the 45-55% band (PLAN D25): every pair of premades, both seats, `--rounds` times on fresh
+// Premade round robin for the 45-55% band (PLAN D31): every pair of premades, both seats, `--rounds` times on fresh
 // seeds, Adept vs Adept. Shards run in parallel and are merged; the table counts decisive games only.
 //   npx tsx tools/tourney.ts --rounds 9 --seed 30000 --shard 0/4 --out s0.json     (one shard)
 //   npx tsx tools/tourney.ts --merge s0.json s1.json ...                            (deck table, band check)

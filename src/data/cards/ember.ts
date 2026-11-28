@@ -5,12 +5,12 @@ export const ember: CardDef[] = [
   {
     id: 'ember-kessa', name: 'Sister Maren, Kindler', faction: 'ember', type: 'hero', cost: 2, power: 2, health: 3,
     tribe: 'artificer',
-    text: 'Deploy: deal 1 to an enemy unit or the enemy Boiler.',
+    text: 'Deploy: deal 1 to an enemy unit or the enemy Crystal.',
     abilities: [{ on: 'deploy', targets: [{ what: 'unitOrSpire', side: 'enemy' }], ops: [{ op: 'damage', to: 'target0', n: 1 }] }],
     level: { who: 'you', stat: 'glyphDamage', n: 8, text: 'Your tactics and abilities have dealt 8+ damage' },
     ascended: {
       name: 'Maren, the Lit Wick', power: 3, health: 4,
-      text: 'Deploy: deal 1 to an enemy unit or the enemy Boiler. When you play a tactic, deal 2 to the enemy Boiler. Ascend: deal 2 to every enemy unit.',
+      text: 'Deploy: deal 1 to an enemy unit or the enemy Crystal. When you play a tactic, deal 2 to the enemy Crystal. Ascend: deal 2 to every enemy unit.',
       abilities: [
         { on: 'deploy', targets: [{ what: 'unitOrSpire', side: 'enemy' }], ops: [{ op: 'damage', to: 'target0', n: 1 }] },
         { on: 'glyphCast', ops: [{ op: 'damage', to: 'enemySpire', n: 2 }] },
@@ -26,7 +26,7 @@ export const ember: CardDef[] = [
     level: { who: 'you', stat: 'unitsSummoned', n: 12, text: "You've summoned 12+ units" },
     ascended: {
       name: 'Ebbe, the Last Hymn', power: 6, health: 6, keywords: ['pierce'],
-      text: 'Pierce. Dawn: summon a Wicker Martyr. When another ally is destroyed, deal 1 to the enemy Boiler. Ascend: summon 2 Wicker Martyrs.',
+      text: 'Pierce. Dawn: summon a Wicker Martyr. When another ally is destroyed, deal 1 to the enemy Crystal. Ascend: summon 2 Wicker Martyrs.',
       abilities: [
         { on: 'dawn', ops: [{ op: 'summon', card: 'ember-slagling' }] },
         { on: 'allyDied', ops: [{ op: 'damage', to: 'enemySpire', n: 1 }] },
@@ -51,7 +51,7 @@ export const ember: CardDef[] = [
   },
   {
     id: 'ember-kilnhand', name: 'Ash Novice', faction: 'ember', type: 'unit', cost: 1, power: 1, health: 1, tribe: 'smith',
-    text: 'Shatter: deal 1 to the enemy Boiler.',
+    text: 'Shatter: deal 1 to the enemy Crystal.',
     abilities: [{ on: 'shatter', ops: [{ op: 'damage', to: 'enemySpire', n: 1 }] }],
   },
   {
@@ -98,7 +98,7 @@ export const ember: CardDef[] = [
   },
   {
     id: 'ember-pyrelancer', name: 'Censer Lancer', faction: 'ember', type: 'unit', cost: 4, power: 3, health: 3, tribe: 'construct',
-    keywords: ['vanguard'], text: 'Vanguard. Assault: deal 1 to the enemy Boiler.',
+    keywords: ['vanguard'], text: 'Vanguard. Assault: deal 1 to the enemy Crystal.',
     abilities: [{ on: 'assault', ops: [{ op: 'damage', to: 'enemySpire', n: 1 }] }],
   },
   {
@@ -124,12 +124,12 @@ export const ember: CardDef[] = [
   },
   {
     id: 'ember-pinprick', name: 'Cinder Flick', faction: 'ember', type: 'glyph', cost: 2, speed: 'flash',
-    text: 'Deal 1 to an enemy unit or the enemy Boiler.',
+    text: 'Deal 1 to an enemy unit or the enemy Crystal.',
     targets: [{ what: 'unitOrSpire', side: 'enemy' }], ops: [{ op: 'damage', to: 'target0', n: 1 }],
   },
   {
     id: 'ember-ventburst', name: 'Censer Burst', faction: 'ember', type: 'glyph', cost: 3, speed: 'flash',
-    text: 'Deal 2 to an enemy unit and 1 to the enemy Boiler.',
+    text: 'Deal 2 to an enemy unit and 1 to the enemy Crystal.',
     targets: [{ what: 'unit', side: 'enemy' }], ops: [{ op: 'damage', to: 'target0', n: 2 }, { op: 'damage', to: 'enemySpire', n: 1 }],
   },
   {
@@ -139,12 +139,12 @@ export const ember: CardDef[] = [
   },
   {
     id: 'ember-scrapburst', name: 'Willing Pyre', faction: 'ember', type: 'glyph', cost: 2, speed: 'swift',
-    text: 'Destroy an ally. Deal 3 to the enemy Boiler.',
+    text: 'Destroy an ally. Deal 3 to the enemy Crystal.',
     targets: [{ what: 'unit', side: 'ally' }], ops: [{ op: 'destroy', to: 'target0' }, { op: 'damage', to: 'enemySpire', n: 3 }],
   },
   {
     id: 'ember-heatlance', name: 'Searing Hymn', faction: 'ember', type: 'glyph', cost: 3, speed: 'swift',
-    text: 'Deal 3 to an enemy unit or the enemy Boiler.',
+    text: 'Deal 3 to an enemy unit or the enemy Crystal.',
     targets: [{ what: 'unitOrSpire', side: 'enemy' }], ops: [{ op: 'damage', to: 'target0', n: 3 }],
   },
   {
@@ -159,7 +159,7 @@ export const ember: CardDef[] = [
   },
   {
     id: 'ember-firestorm', name: 'The Great Burning', faction: 'ember', type: 'glyph', cost: 6, speed: 'ritual',
-    text: 'Deal 3 to every enemy unit and 2 to the enemy Boiler.',
+    text: 'Deal 3 to every enemy unit and 2 to the enemy Crystal.',
     ops: [{ op: 'damage', to: 'enemies', n: 3 }, { op: 'damage', to: 'enemySpire', n: 2 }],
   },
 
@@ -172,7 +172,7 @@ export const ember: CardDef[] = [
     level: { who: 'self', stat: 'strikes', n: 5, text: "I've struck 5+ times" },
     ascended: {
       name: 'Hask, Ember Penitent', power: 4, health: 5, keywords: ['vanguard', 'dueler'],
-      text: 'Vanguard, Dueler. Strike: deal 1 to the enemy Boiler. Ascend: I strike every enemy unit.',
+      text: 'Vanguard, Dueler. Strike: deal 1 to the enemy Crystal. Ascend: I strike every enemy unit.',
       abilities: [
         { on: 'strike', ops: [{ op: 'damage', to: 'enemySpire', n: 1 }] },
         { on: 'ascend', ops: [{ op: 'strike', from: 'self', to: 'enemies' }] },
@@ -216,7 +216,7 @@ export const ember: CardDef[] = [
   },
   {
     id: 'ember-gaugewatcher', name: 'Coal Vigil', faction: 'ember', type: 'unit', cost: 2, power: 1, health: 3, tribe: 'artificer',
-    text: 'Dawn: if you have 2+ Reserve, deal 1 to the enemy Boiler.',
+    text: 'Dawn: if you have 2+ Reserve, deal 1 to the enemy Crystal.',
     abilities: [{ on: 'dawn', cond: { c: 'reserve', gte: 2 }, ops: [{ op: 'damage', to: 'enemySpire', n: 1 }] }],
   },
   {
@@ -320,7 +320,7 @@ export const ember: CardDef[] = [
   },
   {
     id: 'ember-overpressure', name: 'Debt of Fire', faction: 'ember', type: 'glyph', cost: 6, speed: 'swift',
-    text: 'Deal 4 to an enemy unit or the enemy Boiler. Gain 3 Charge.',
+    text: 'Deal 4 to an enemy unit or the enemy Crystal. Gain 3 Charge.',
     targets: [{ what: 'unitOrSpire', side: 'enemy' }],
     ops: [{ op: 'damage', to: 'target0', n: 4 }, { op: 'charge', n: 3 }],
   },

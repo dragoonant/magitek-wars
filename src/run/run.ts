@@ -5,7 +5,7 @@ import { LIMITS } from '../engine/types';
 import { def } from '../engine/query';
 import { autoDeck, collectible } from '../data/decks';
 import type { Difficulty } from '../ai/ai';
-import { EVENTS, cardFor, eventBoiler } from './events';
+import { EVENTS, cardFor, eventCrystal } from './events';
 
 export type NodeKind = 'skirmish' | 'elite' | 'rest' | 'supply' | 'event' | 'boss';
 export interface MapNode { id: string; floor: number; kind: NodeKind; links: string[] }
@@ -23,7 +23,7 @@ export interface RunState {
   rng: number;
   faction: FactionId;
   deck: string[];
-  boiler: number;
+  crystal: number;
   scrip: number;
   act: number;
   map: ActMap;
@@ -51,7 +51,7 @@ export const LEADS: Record<FactionId, string> = {
 const BOSS_FACTIONS: FactionId[][] = [['storm', 'coil', 'under'], ['tide', 'ember', 'coil'], ['prism', 'under', 'ember']];
 const ALL: FactionId[] = ['prism', 'ember', 'tide', 'coil', 'storm', 'under'];
 
-/** R-R6 table: [deck size, foe Boiler, AI level] by act (0-2) and kind. */
+/** R-R6 table: [deck size, foe Crystal, AI level] by act (0-2) and kind. */
 const FOES: Record<'skirmish' | 'elite' | 'boss', [number, number, Difficulty][]> = {
   skirmish: [[20, 10, 'easy'], [24, 14, 'normal'], [28, 18, 'normal']],
   elite: [[24, 14, 'normal'], [28, 18, 'normal'], [30, 20, 'hard']],
@@ -180,7 +180,7 @@ export function choices(r: RunState): MapNode[] {
 // ---------- run ----------
 export function newRun(faction: FactionId, seed: number): RunState {
   const r: RunState = {
-    v: 1, seed, rng: seed >>> 0 || 1, faction, deck: starterDeck(faction), boiler: LIMITS.spire, scrip: 0, act: 1,
+    v: 1, seed, rng: seed >>> 0 || 1, faction, deck: starterDeck(faction), crystal: LIMITS.spire, scrip: 0, act: 1,
     map: { act: 1, floors: [] }, at: null, phase: 'map', battle: null, offer: null, shop: null, wins: 0, log: [],
   };
   r.map = makeMap(r, 1);
@@ -190,7 +190,7 @@ export function newRun(faction: FactionId, seed: number): RunState {
 
 function foeFor(r: RunState, kind: 'skirmish' | 'elite' | 'boss'): Battle {
   const act = r.act - 1;
-  const [size, boiler, level] = FOES[kind][act];
+  const [size, foeCrystal, level] = FOES[kind][act];
   let a: FactionId, b: FactionId;
   if (kind === 'boss') {
     a = BOSS_FACTIONS[act].find((f) => f !== r.faction)!;
@@ -202,7 +202,7 @@ function foeFor(r: RunState, kind: 'skirmish' | 'elite' | 'boss'): Battle {
   }
   const deck = foeDeck(r, a, b, size, kind === 'boss');
   const seed = int(r, 0x7fffffff);
-  const setup: Setup = { seed, decks: [[...r.deck], deck], startSpire: [r.boiler, boiler] };
+  const setup: Setup = { seed, decks: [[...r.deck], deck], startSpire: [r.crystal, foeCrystal] };
   const names = [...new Set([a, b])].map((f) => FACTION_NAMES[f]);
   const foeName = kind === 'boss' ? `${FACTION_NAMES[a]} warlord` : `${names.join(' and ')} ${kind === 'elite' ? 'elite' : 'patrol'}`;
   return { setup, foeName, level, kind };
@@ -240,20 +240,20 @@ function rewardPool(faction: FactionId | null, minCost: number): string[] {
   return collectible().filter((c) => c.type !== 'hero' && (faction === null || c.faction === faction) && c.cost >= minCost).map((c) => c.id);
 }
 
-/** R-R5/R-R7: the battle is over; write the Boiler back and offer the reward. */
-export function finishBattle(r: RunState, winner: Seat | 'draw' | null, myBoiler: number): void {
+/** R-R5/R-R7: the battle is over; write the Crystal back and offer the reward. */
+export function finishBattle(r: RunState, winner: Seat | 'draw' | null, myCrystal: number): void {
   if (r.phase !== 'battle' || !r.battle) throw new Error('run: no battle to finish');
   const kind = r.battle.kind as 'skirmish' | 'elite' | 'boss';
-  r.boiler = Math.max(0, Math.min(LIMITS.spire, myBoiler));
+  r.crystal = Math.max(0, Math.min(LIMITS.spire, myCrystal));
   r.battle = null;
-  if (winner !== 0 || r.boiler <= 0) {
+  if (winner !== 0 || r.crystal <= 0) {
     // RULING: a draw is not a win; the run ends as a defeat.
     r.phase = 'lost';
-    r.log.push(winner === 'draw' ? 'The battle ended in a draw: the march is over.' : 'The Boiler fell: the march is over.');
+    r.log.push(winner === 'draw' ? 'The battle ended in a draw: the march is over.' : 'The Crystal fell: the march is over.');
     return;
   }
   r.wins += 1;
-  r.boiler = Math.min(LIMITS.spire, r.boiler + FIELD_REPAIR);
+  r.crystal = Math.min(LIMITS.spire, r.crystal + FIELD_REPAIR);
   if (kind === 'boss' && r.act === ACTS) {
     r.phase = 'won';
     r.log.push('Vaskor has fallen silent. The march is won.');
@@ -294,9 +294,9 @@ function afterNode(r: RunState): void {
 export function rest(r: RunState, choice: { kind: 'repair' } | { kind: 'remove'; card: string }): void {
   if (r.phase !== 'rest') throw new Error('run: not at a rest stop');
   if (choice.kind === 'repair') {
-    const before = r.boiler;
-    r.boiler = Math.min(LIMITS.spire, r.boiler + REST_REPAIR);
-    r.log.push(`Repaired the Boiler by ${r.boiler - before}.`);
+    const before = r.crystal;
+    r.crystal = Math.min(LIMITS.spire, r.crystal + REST_REPAIR);
+    r.log.push(`Repaired the Crystal by ${r.crystal - before}.`);
   } else {
     // RULING: removal is refused below MIN_DECK cards, so a run can never draw out on its first rounds.
     if (r.deck.length <= MIN_DECK) throw new Error(`run: the deck cannot go below ${MIN_DECK} cards`);
@@ -321,7 +321,7 @@ export function buy(r: RunState, what: string): string | null {
     if (r.shop.repairSold) return 'The repair is already used.';
     if (r.scrip < SUPPLY_REPAIR_PRICE) return `Needs ${SUPPLY_REPAIR_PRICE} scrip.`;
     r.scrip -= SUPPLY_REPAIR_PRICE;
-    r.boiler = Math.min(LIMITS.spire, r.boiler + SUPPLY_REPAIR);
+    r.crystal = Math.min(LIMITS.spire, r.crystal + SUPPLY_REPAIR);
     r.shop.repairSold = true;
     return null;
   }
@@ -349,10 +349,10 @@ export function chooseEvent(r: RunState, index: number): string | null {
   let remove = false;
   for (const o of ch.outcomes) {
     if (o.kind === 'scrip') { r.scrip += o.n; result.push(`+${o.n} scrip`); }
-    else if (o.kind === 'boiler') {
-      const before = r.boiler;
-      r.boiler = eventBoiler(r.boiler, o.n);
-      result.push(`Boiler ${r.boiler - before >= 0 ? '+' : ''}${r.boiler - before}`);
+    else if (o.kind === 'crystal') {
+      const before = r.crystal;
+      r.crystal = eventCrystal(r.crystal, o.n);
+      result.push(`Crystal ${r.crystal - before >= 0 ? '+' : ''}${r.crystal - before}`);
     } else if (o.kind === 'card') {
       const id = cardFor(o.pool, r.faction, o.minCost ?? 0, next(r));
       r.deck.push(id);

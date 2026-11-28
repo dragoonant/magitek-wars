@@ -54,7 +54,7 @@ describe('under cards', () => {
     expect(cards(res, 0)).toEqual(['under-vex', 'under-ratwrangler', 'under-wirerat', 'under-wirerat']);
   });
 
-  it('under-pitaccountant: deals 1 to the enemy Boiler when another ally is destroyed (no repair); Resonant gives +1|+1', () => {
+  it('under-pitaccountant: deals 1 to the enemy Crystal when another ally is destroyed (no repair); Resonant gives +1|+1', () => {
     const s = board({ hand: [[], ['zz-zap']], line: [['under-pitaccountant', 'zz-grunt', 'under-vex'], []], first: 1 });
     s.players[0].spire = 15;
     unit(s, 0, 'zz-grunt').dmg = 1;

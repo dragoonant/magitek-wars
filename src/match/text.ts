@@ -1,5 +1,5 @@
 // Every player-facing sentence of the match that is not card text: log lines, keyword help, prompts, end reasons.
-// Adapted from Annals of Scrivenearth's client text with this game's words (PLAN D16: Boiler, tactic).
+// Adapted from Annals of Scrivenearth's client text with this game's words (PLAN D16, D24: Crystal, tactic).
 // An unknown log kind throws (no silent fallback); tests/match-text.test.ts checks every kind the engine emits.
 import type { Keyword, LogEntry, Seat, TargetSpec } from '../engine/types';
 
@@ -55,10 +55,10 @@ export const LOG_LINES: Record<string, LineFn> = {
   resolve: (e, n) => `${n(req(e.card))} resolved.`,
   round: (e) => `Round ${e.n ?? 0}: ${e.seat === 0 ? 'you hold' : 'the foe holds'} the Initiative.`,
   silence: (e, n) => `${n(req(e.tcard))} was silenced${via(e, n)}.`,
-  spireDmg: (e, n) => `${e.seat === 0 ? 'Your' : "The foe's"} Boiler took ${e.n ?? 0} damage${via(e, n)}.`,
-  spireHeal: (e, n) => `${e.seat === 0 ? 'Your' : "The foe's"} Boiler was repaired by ${e.n ?? 0}${via(e, n)}.`,
+  spireDmg: (e, n) => `${e.seat === 0 ? 'Your' : "The foe's"} Crystal took ${e.n ?? 0} damage${via(e, n)}.`,
+  spireHeal: (e, n) => `${e.seat === 0 ? 'Your' : "The foe's"} Crystal was repaired by ${e.n ?? 0}${via(e, n)}.`,
   stasis: (e, n) => `${n(req(e.tcard))} is in Stasis for the round${via(e, n)}.`,
-  strike: (e, n) => `${n(req(e.card))} struck ${e.tcard ? n(e.tcard) : e.tunit === 'spire0' ? 'your Boiler' : "the foe's Boiler"} for ${e.n ?? 0}.`,
+  strike: (e, n) => `${n(req(e.card))} struck ${e.tcard ? n(e.tcard) : e.tunit === 'spire0' ? 'your Crystal' : "the foe's Crystal"} for ${e.n ?? 0}.`,
   summon: (e, n) => `${n(req(e.card))} joined ${whose(e.seat)} Line.`,
   ward: (e, n) => `${n(req(e.tcard))}'s Ward absorbed the damage.`,
 };
@@ -71,11 +71,11 @@ export function lineText(e: LogEntry, name: Name): string {
 
 export const KEYWORD_HELP: Record<Keyword, { name: string; text: string }> = {
   vanguard: { name: 'Vanguard', text: 'When attacking, strikes before its blocker. If the blocker is destroyed it does not strike back.' },
-  pierce: { name: 'Pierce', text: "Strike damage beyond the blocker's health hits the enemy Boiler. If the blocker is gone, it strikes the Boiler." },
+  pierce: { name: 'Pierce', text: "Strike damage beyond the blocker's health hits the enemy Crystal. If the blocker is gone, it strikes the Crystal." },
   aerial: { name: 'Aerial', text: 'Can be blocked only by Aerial or Spotter units.' },
   spotter: { name: 'Spotter', text: 'Can block Aerial units.' },
   plated: { name: 'Plated', text: 'Takes 1 less damage from every source.' },
-  siphon: { name: 'Siphon', text: "Damage its strikes deal repairs its owner's Boiler by that much." },
+  siphon: { name: 'Siphon', text: "Damage its strikes deal repairs its owner's Crystal by that much." },
   ward: { name: 'Ward', text: 'Negates the next damage it would take, then is used up.' },
   dueler: { name: 'Dueler', text: 'When declared as an attacker, may name one enemy unit not in Stasis, which must block it.' },
   dread: { name: 'Dread', text: 'Cannot be blocked by units with 2 or less power.' },
@@ -85,8 +85,8 @@ export const KEYWORD_HELP: Record<Keyword, { name: string; text: string }> = {
 };
 
 export const END_REASONS: Record<string, string> = {
-  spire: 'A Boiler fell to 0.',
-  spires: 'Both Boilers fell at the same moment.',
+  spire: 'A Crystal fell to 0.',
+  spires: 'Both Crystals fell at the same moment.',
   deck: 'A player had to draw from an empty deck.',
   rounds: 'Round 45 passed without a winner.',
   concede: 'A player conceded.',
@@ -95,7 +95,7 @@ export const END_REASONS: Record<string, string> = {
 function specWords(s: TargetSpec): string {
   const side = s.side === 'ally' ? 'a friendly' : s.side === 'enemy' ? 'an enemy' : 'any';
   if (s.what === 'glyph') return s.side === 'ally' ? 'one of your tactics on the stack' : s.side === 'enemy' ? 'an enemy tactic on the stack' : 'a tactic on the stack';
-  const base = s.what === 'unitOrSpire' ? 'unit or Boiler' : 'unit';
+  const base = s.what === 'unitOrSpire' ? 'unit or Crystal' : 'unit';
   return `${side}${s.filter?.hero ? ' hero' : ''} ${base}${s.inCombat ? ' in the attack' : ''}`;
 }
 

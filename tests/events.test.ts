@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import '../src/data/cards/index';
 import { canDraw } from '../src/font';
 import { def } from '../src/engine/query';
-import { BOSS_INTRO, EVENTS, cardFor, eventBoiler } from '../src/run/events';
+import { BOSS_INTRO, EVENTS, cardFor, eventCrystal } from '../src/run/events';
 import { MIN_DECK, chooseEvent, newRun, removeForEvent, type RunState } from '../src/run/run';
 
 function atEvent(id: string, seed = 4): RunState {
@@ -45,13 +45,13 @@ describe('spec 20 R-R11: events', () => {
     expect(r.phase).toBe('map');
   });
 
-  it('an event never takes the Boiler below 1 or above 20', () => {
-    expect(eventBoiler(2, -4)).toBe(1);
-    expect(eventBoiler(19, 6)).toBe(20);
-    const r = atEvent('gloam-seep');
-    r.boiler = 3;
+  it('an event never takes the Crystal below 1 or above 20', () => {
+    expect(eventCrystal(2, -4)).toBe(1);
+    expect(eventCrystal(19, 6)).toBe(20);
+    const r = atEvent('crystal-seam');
+    r.crystal = 3;
     chooseEvent(r, 0);
-    expect(r.boiler).toBe(1);
+    expect(r.crystal).toBe(1);
   });
 
   it('a remove outcome waits for the player to pick, and respects the minimum deck', () => {

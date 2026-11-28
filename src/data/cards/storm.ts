@@ -7,10 +7,10 @@ export const storm: CardDef[] = [
     id: 'storm-jax', name: 'Wren Ashby', faction: 'storm', type: 'hero', cost: 2, power: 3, health: 2,
     keywords: ['vanguard'], tribe: 'courier',
     text: 'Vanguard.',
-    level: { who: 'you', stat: 'spireDamage', n: 8, text: "You've dealt 8+ damage to the enemy Boiler" },
+    level: { who: 'you', stat: 'spireDamage', n: 8, text: "You've dealt 8+ damage to the enemy Crystal" },
     ascended: {
       name: 'Wren, Ghost of the Line', power: 4, health: 3, keywords: ['vanguard', 'aerial'],
-      text: 'Vanguard, Aerial. When I strike the enemy Boiler, I get +1|+0. Ascend: you may attack again this round.',
+      text: 'Vanguard, Aerial. When I strike the enemy Crystal, I get +1|+0. Ascend: you may attack again this round.',
       abilities: [
         { on: 'spireHit', ops: [{ op: 'buff', to: 'self', power: 1 }] },
         { on: 'ascend', ops: [{ op: 'rally' }] },
@@ -44,7 +44,7 @@ export const storm: CardDef[] = [
   },
   {
     id: 'storm-tickettaker', name: 'Mailbag Cutter', faction: 'storm', type: 'unit', cost: 1, power: 1, health: 1, tribe: 'courier',
-    keywords: ['vanguard'], text: 'Vanguard. When I strike the enemy Boiler, draw a card.',
+    keywords: ['vanguard'], text: 'Vanguard. When I strike the enemy Crystal, draw a card.',
     abilities: [{ on: 'spireHit', ops: [{ op: 'draw', n: 1 }] }],
   },
   {
@@ -71,7 +71,7 @@ export const storm: CardDef[] = [
   },
   {
     id: 'storm-galecourier', name: 'Satchel Dropper', faction: 'storm', type: 'unit', cost: 3, power: 3, health: 2, tribe: 'courier',
-    keywords: ['aerial'], text: 'Aerial. When I strike the enemy Boiler, deal 1 to the enemy Boiler.',
+    keywords: ['aerial'], text: 'Aerial. When I strike the enemy Crystal, deal 1 to the enemy Crystal.',
     abilities: [{ on: 'spireHit', ops: [{ op: 'damage', to: 'enemySpire', n: 1 }] }],
   },
   {
@@ -106,7 +106,7 @@ export const storm: CardDef[] = [
   },
   {
     id: 'storm-tempestliner', name: 'Captured Skyfreighter', faction: 'storm', type: 'unit', cost: 7, power: 6, health: 6, tribe: 'courier',
-    keywords: ['aerial', 'vanguard'], text: 'Aerial, Vanguard. When I strike the enemy Boiler, deal 2 to the enemy Boiler.',
+    keywords: ['aerial', 'vanguard'], text: 'Aerial, Vanguard. When I strike the enemy Crystal, deal 2 to the enemy Crystal.',
     abilities: [{ on: 'spireHit', ops: [{ op: 'damage', to: 'enemySpire', n: 2 }] }],
   },
   // ---------- collectible tactics (type 'glyph') ----------
@@ -261,7 +261,7 @@ export const storm: CardDef[] = [
   },
   {
     id: 'storm-bellexpress', name: 'Union Express', faction: 'storm', type: 'unit', cost: 7, power: 6, health: 6, tribe: 'courier',
-    keywords: ['vanguard'], text: 'Vanguard. Assault: if you have declared 5 or more attackers this round, deal 4 to the enemy Boiler.',
+    keywords: ['vanguard'], text: 'Vanguard. Assault: if you have declared 5 or more attackers this round, deal 4 to the enemy Crystal.',
     abilities: [{ on: 'assault', cond: { c: 'seenRound', stat: 'attackersDeclared', gte: 5 }, ops: [{ op: 'damage', to: 'enemySpire', n: 4 }] }],
   },
   // tactics

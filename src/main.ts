@@ -1,6 +1,6 @@
 import './style.css';
 import './data/cards/index';
-import { drawText } from './font';
+import { drawText, loadFonts } from './font';
 import { Gfx, H, W } from './gfx';
 import { Scene } from './scene';
 import { Title } from './title';
@@ -103,7 +103,7 @@ let lastBattle: { mine: DeckOption; foe: DeckOption; level: Difficulty } | null 
 type Screen = 'title' | 'gallery' | 'setup' | 'match' | 'run' | 'decks';
 let screen: Screen = 'title';
 let failed = '';
-Promise.all([scene.load(), title.load(), gallery.load()]).catch((e: unknown) => {
+Promise.all([loadFonts(), scene.load(), title.load(), gallery.load()]).catch((e: unknown) => {
   failed = e instanceof Error ? e.message : String(e);
   console.error(e);
 });
@@ -142,7 +142,7 @@ function fit(): void {
   const k = Math.max(1, Math.ceil(devScale - 0.001));
   up.width = FW * k;
   up.height = HH * k;
-  sizeOffscreen(isDetail() ? k : 1);
+  sizeOffscreen(k); // PLAN D25: the interface is always drawn at the screen's resolution, whatever the art
 }
 window.addEventListener('resize', fit);
 fit();
@@ -293,7 +293,11 @@ window.addEventListener('keydown', (e) => {
   else title.key(e.code);
   route();
 });
+/** The battle screen in play (a quick battle, or a campaign battle): it takes raw pointer events for drag and hold. */
+const liveMatch = (): Match | null => (screen === 'match' ? match : screen === 'run' ? run?.match ?? null : null);
 canvas.addEventListener('pointermove', (e) => {
+  const m = liveMatch();
+  if (m) { m.pointerMove(...logical(e), e.pointerType === 'touch'); return; }
   if (screen === 'title') title.pointerMove(...logical(e));
   else if (screen === 'match') match?.pointerMove(...logical(e));
   else if (screen === 'run') run?.pointerMove(...logical(e));
@@ -302,15 +306,27 @@ canvas.addEventListener('pointermove', (e) => {
 // Touch: a tap acts on pointer-up; a press held 400 ms inspects instead (the hover detail), and does not act.
 let touchHold: { x: number; y: number; timer: number; held: boolean } | null = null;
 canvas.addEventListener('pointerup', (e) => {
+  const m = liveMatch();
+  if (m) { m.pointerUp(...logical(e)); route(); return; }
   if (e.pointerType !== 'touch' || !touchHold) return;
   clearTimeout(touchHold.timer);
   const t0 = touchHold;
   touchHold = null;
   if (!t0.held) press(t0.x, t0.y, 0);
 });
+canvas.addEventListener('pointercancel', () => liveMatch()?.pointerCancel());
+canvas.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') liveMatch()?.pointerLeave(); });
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   const [x, y] = logical(e);
+  const m = liveMatch();
+  if (m) {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    canvas.setPointerCapture(e.pointerId);
+    m.pointerDown(x, y, e.pointerType === 'touch');
+    route();
+    return;
+  }
   if (e.pointerType === 'touch') {
     const hold = { x, y, held: false, timer: 0 };
     hold.timer = window.setTimeout(() => {
@@ -335,6 +351,13 @@ function press(x: number, y: number, button: number): void {
 }
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('wheel', (e) => {
+  const lm = liveMatch();
+  if (lm) {
+    e.preventDefault();
+    lm.wheel(e.deltaY, ...logical(e as unknown as PointerEvent));
+    return;
+  }
+  if (screen === 'run' && run) { e.preventDefault(); run.wheel(e.deltaY); return; }
   if (screen !== 'decks' || !builder) return;
   e.preventDefault();
   builder.wheel(e.deltaY, ...logical(e as unknown as PointerEvent));
@@ -363,7 +386,7 @@ function frame(now: number): void {
   if (crash) {
     ctx!.fillStyle = '#080810';
     ctx!.fillRect(0, HH - 12, FW, 12);
-    drawText(hi, `ERROR: ${crash}`.toUpperCase().replace(/[^A-Z0-9 .,:'()/+|-]/g, ' ').slice(0, 84), 2, HH - 10, { color: 'emberGlow' });
+    drawText(hi, `Error: ${crash}`.slice(0, 140), 4, HH - 10, { color: 'emberGlow' });
   }
   present();
   requestAnimationFrame(frame);
@@ -414,7 +437,7 @@ requestAnimationFrame(frame);
     startBattle(s.decks[mine], s.decks[foe], 'normal');
     return s.decks.length;
   },
-  run: () => (run ? { phase: run.run?.phase ?? 'pick', act: run.run?.act, boiler: run.run?.boiler, deck: run.run?.deck.length, inBattle: !!run.match } : null),
+  run: () => (run ? { phase: run.run?.phase ?? 'pick', act: run.run?.act, crystal: run.run?.crystal, deck: run.run?.deck.length, inBattle: !!run.match } : null),
   ui: () => (match ? match.debug() : null),
   match: () => (match ? { phase: match.session.state.phase, round: match.session.state.round, priority: match.session.state.priority, winner: match.session.state.winner, actions: match.session.actions.length } : null),
 };

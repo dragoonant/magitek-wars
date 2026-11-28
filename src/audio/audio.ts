@@ -106,9 +106,13 @@ const VOICES: Record<string, Voice> = {
   strike: (c, o, t) => { noise(c, o, t, 0.09, 0.3, 300, 2500); tone(c, o, t, 160, 0.12, 0.25, 'triangle', 70); },
   dmg: (c, o, t) => noise(c, o, t, 0.07, 0.22, 2500),
   spireDmg: (c, o, t, e) => {
+    // a struck crystal (PLAN D27): a low thud, a glassy crack, then inharmonic ringing partials
     const big = Math.min(1, (e.n ?? 1) / 6);
-    tone(c, o, t, 90, 0.5, 0.35 + 0.2 * big, 'sine', 45);
-    noise(c, o, t, 0.25, 0.2 + 0.15 * big, 1800);
+    tone(c, o, t, 80, 0.3, 0.25 + 0.15 * big, 'sine', 50);
+    noise(c, o, t, 0.08, 0.18 + 0.1 * big, 3000);
+    chime(c, o, t + 0.01, 1200, 0.9, 0.12);
+    chime(c, o, t + 0.01, 2806, 0.7, 0.08);
+    chime(c, o, t + 0.02, 6661, 0.4, 0.04);
   },
   ward: (c, o, t) => { chime(c, o, t, 1318.5, 0.5, 0.16); chime(c, o, t + 0.05, 1975.5, 0.4, 0.08); },
   absorb: (c, o, t) => tone(c, o, t, 220, 0.12, 0.15, 'square'),
@@ -169,6 +173,22 @@ export async function loadSamples(base = './audio/'): Promise<void> {
     if (!f.ok) throw new Error(`audio manifest lists ${id} but ${id}.ogg is missing`);
     samples.set(id, await c.decodeAudioData(await f.arrayBuffer()));
   }));
+}
+/**
+ * Variants (PLAN D28): `sfx/<kind>-<n>` files are alternatives to `sfx/<kind>`. Each play picks one at random,
+ * never the one heard last, so a sound that repeats (every Crystal hit) does not sound the same each time.
+ */
+const lastVariant = new Map<string, string>();
+export function variantsOf(id: string, ids: readonly string[]): string[] {
+  return ids.filter((x) => x === id || (x.startsWith(`${id}-`) && /^\d+$/.test(x.slice(id.length + 1))));
+}
+function pickVariant(id: string): string {
+  const all = variantsOf(id, [...samples.keys()]);
+  if (all.length <= 1) return id;
+  const pool = all.filter((x) => x !== lastVariant.get(id));
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  lastVariant.set(id, pick);
+  return pick;
 }
 function playSample(c: AudioContext, id: string, gain = 1): boolean {
   const buf = samples.get(id);
@@ -242,7 +262,7 @@ export function playEvent(e: LogEntry, seat: Seat): void {
   if (live >= MAX_LIVE && e.k !== 'ascend' && e.k !== 'over') return;
   lastAt.set(e.k, t);
   if (e.k === 'ascend' && e.card) { playSample(c, 'music/ascend-sting', 1.4); playSample(c, `voice/${e.card}`, 1.6); } // sting, then the hero's line over it
-  if (playSample(c, `sfx/${e.k}`)) return;
+  if (playSample(c, pickVariant(`sfx/${e.k}`))) return;
   voice(c, master, t, e, e.seat === seat);
 }
 

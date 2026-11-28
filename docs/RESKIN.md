@@ -1,4 +1,4 @@
-# Re-skin guide (PLAN D12, D16)
+# Re-skin guide (PLAN D12, D16, D24)
 
 The card data came from Annals of Scrivenearth. Magitek Wars keeps every number and every rule, and replaces the
 names and words. This guide is what every card edit follows.
@@ -6,7 +6,7 @@ names and words. This guide is what every card edit follows.
 ## What changes
 | Engine / Annals word | Printed in Magitek Wars | Notes |
 |---|---|---|
-| Spire | **Boiler** | Each side's 20-point engine. Internal ids (`spire0`, `mySpire`, `enemySpire`) stay. `tools/audit.ts` checks the word. |
+| Spire | **Crystal** | Each nation's heart crystal, the 20-point thing it defends (D24; was "Boiler" under D16). Internal ids (`spire0`, `mySpire`, `enemySpire`) and card ids stay. `tools/audit.ts` checks the word, so no card name may start with "Crystal" if another card's text names it. |
 | glyph | **tactic** | The card type id stays `'glyph'`; text says "tactic" ("When you play a tactic", "Negate a tactic"). |
 | cast (a glyph) | **play** (a tactic) | |
 | Prismguard, Emberworks, Tidewardens, Verdant Coil, Stormrail, Undervolt | Cindral Dominion, Ashen Choir, Gale Exchange, Sedgekin, Free Gauge, the Blackwick | D12. Faction ids (`prism`, ...) stay. |

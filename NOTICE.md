@@ -6,4 +6,6 @@
   trained on the owner's own images and our own renders (`docs/LORA.md`, `lora/SOURCES.csv`), then fixed in code.
 - **Music and sound effects** were generated on our own machine from our own prompts (`tools/audio/manifest.json`):
   music with ACE-Step 1.5 (Apache-2.0), effects with Stable Audio Open 1.0 (Stability AI Community License; Powered by
-  Stability AI). Then trimmed, levelled and encoded in code (`tools/audio/level.mjs`).
+  Stability AI). The Crystal hits (`sfx/spireDmg` and its variants) were generated with ElevenLabs sound generation from our own
+  prompts.
+  Then trimmed, levelled and encoded in code (`tools/audio/level.mjs`).
