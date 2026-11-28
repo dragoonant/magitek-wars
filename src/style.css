@@ -22,7 +22,7 @@ main {
   display: block;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  touch-action: manipulation;
+  touch-action: none;
   cursor: pointer;
 }
 

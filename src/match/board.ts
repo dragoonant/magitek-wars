@@ -114,6 +114,23 @@ export class Match {
   /** Units summoned by a queued event: hidden until their turn, then they fly in from the hand. */
   private arrive = new Map<string, { born: number; seat: Seat }>();
   private seenLog = -1;
+  /**
+   * Where each unit sits on its Line, by column. Display only: no rule reads a unit's place (nothing in the engine or
+   * the card text names a neighbour), so the player may drop a unit into any open slot. Kept per battle in storage.
+   */
+  private slots = new Map<string, number>();
+  private slotKey: string;
+  /** The column a unit being played will take, and the unit it replaces when the Line is full (set by a drop). */
+  private pendingSlot: number | null = null;
+  private preferredReplace: string | null = null;
+  /** A press in progress: where it started, on what, and whether a touch has been held long enough to inspect. */
+  private down: { x: number; y: number; hot: Hot | null; touch: boolean; timer: number; held: boolean; dead: boolean } | null = null;
+  /** A hand card being dragged, and where the pointer is. */
+  private drag: { iid: string; x: number; y: number } | null = null;
+  /** The card a held touch is inspecting (cleared when the finger lifts). */
+  private inspect: Hot | null = null;
+  /** The enlarged card grows from its place: which card it is and how far it has grown. */
+  private zoom = { key: '', k: 0 };
   /** Set when the player leaves; main.ts returns to the title. */
   exit: 'title' | 'rematch' | null = null;
   /** Called once when the match ends (the roguelike reads the result). */
@@ -128,6 +145,13 @@ export class Match {
   endLabel: string | null = null;
 
   constructor(readonly session: Session, readonly title: string) {
+    this.slotKey = `mkw-slots-${session.setup.seed}`;
+    try {
+      const saved = JSON.parse(localStorage.getItem(this.slotKey) ?? '{}') as Record<string, number>;
+      for (const [k, c] of Object.entries(saved)) if (Number.isInteger(c)) this.slots.set(k, c);
+    } catch {
+      /* no storage or a bad entry: units take the first open slots */
+    }
     const q = new URLSearchParams(location.search);
     this.auto = q.has('auto');
     if (q.has('fast')) this.delay = 0;
@@ -150,7 +174,18 @@ export class Match {
   }
 
   private apply(a: Action): void {
+    const before = new Set(this.s.players[0].line.map((u) => u.iid));
     const r = this.session.apply(a);
+    if (r.ok && a.type === 'play' && this.pendingSlot !== null) {
+      const fresh = this.s.players[0].line.find((u) => !before.has(u.iid) && u.card === this.cardOfAny(a.iid));
+      if (fresh) {
+        if (a.replace) this.slots.delete(a.replace);
+        this.slots.set(fresh.iid, this.pendingSlot);
+        this.saveSlots();
+      }
+    }
+    this.pendingSlot = null;
+    this.preferredReplace = null;
     this.note = r.ok ? '' : r.error ?? 'The engine refused that move.';
     this.armed = null;
     this.picked = null;
@@ -211,6 +246,20 @@ export class Match {
       out.push({ id: 'pass', label, enabled: true });
     }
     return out;
+  }
+
+  /** The card id of a hand card, or of the card just played from the hand (it is gone from the hand by then). */
+  private played = new Map<string, string>();
+  private cardOfAny(iid: string): string | undefined {
+    return this.played.get(iid);
+  }
+
+  private saveSlots(): void {
+    try {
+      localStorage.setItem(this.slotKey, JSON.stringify(Object.fromEntries(this.slots)));
+    } catch {
+      /* no storage: the places last for this visit only */
+    }
   }
 
   private cardOf(iid: string): string {
@@ -284,7 +333,7 @@ export class Match {
     }
     if (id === 'rematch') { this.exit = 'rematch'; return; }
     if (id === 'title') { this.exit = 'title'; return; }
-    if (id === 'cancel') { this.armed = null; this.picked = null; return; }
+    if (id === 'cancel') { this.armed = null; this.picked = null; this.pendingSlot = null; this.preferredReplace = null; return; }
     if (id === 'mulligan') { this.apply({ type: 'mulligan', replace: [...this.mull] }); return; }
     if (id === 'pass') { this.apply({ type: 'pass' }); return; }
     if (id === 'attack') { this.apply({ type: 'attack' }); return; }
@@ -292,6 +341,7 @@ export class Match {
     if (id === 'channel' && this.armed) { this.apply({ type: 'channel', iid: this.armed.iid }); return; }
     if (id === 'noduel' && this.picked) { this.apply({ type: 'declare', unit: this.picked.iid }); return; }
     if (id === 'play' && this.armed) {
+      this.played.set(this.armed.iid, this.cardOf(this.armed.iid));
       const n = this.armed.path.length;
       const a = this.candidates().find((x) => pathOf(x).length === n);
       if (a) this.apply(a);
@@ -322,6 +372,15 @@ export class Match {
     this.note = '';
   }
 
+  /** After a choice: take the unit a drop pointed at when only the unit to scrap is left, and play once complete. */
+  private advance(): void {
+    if (!this.armed) return;
+    const next = [...this.nextChoices()];
+    const pref = this.preferredReplace ? `R:${this.preferredReplace}` : null;
+    if (pref && next.length && next.every((x) => x.startsWith('R:')) && next.includes(pref)) this.armed.path.push(pref);
+    if (this.nextChoices().size === 0) this.press('play');
+  }
+
   private clickObject(id: string): void {
     const s = this.s;
     if (!this.myTurn) return;
@@ -330,7 +389,7 @@ export class Match {
       const key = next.has(id) ? id : next.has(`R:${id}`) ? `R:${id}` : null;
       if (!key) { this.note = 'That is not a legal choice for this card.'; return; }
       this.armed.path.push(key);
-      if (this.nextChoices().size === 0) this.press('play');
+      this.advance();
       return;
     }
     const acts = this.acts();
@@ -369,8 +428,132 @@ export class Match {
     }
   }
 
-  pointerMove(x: number, y: number): void {
-    this.hover = this.hit(x, y);
+  /** Pointer moved. A mouse moving over a card enlarges it; a press that moves on a hand card becomes a drag. */
+  pointerMove(x: number, y: number, touch = false): void {
+    if (!touch) this.hover = this.hit(x, y);
+    const d = this.down;
+    if (d && !d.dead) {
+      const far = Math.hypot(x - d.x, y - d.y) > (d.touch ? 10 : 6);
+      if (far && !this.drag && !d.held && d.hot?.kind === 'hand') this.startDrag(d);
+      if (far && d.touch && !d.held) clearTimeout(d.timer);
+    }
+    if (this.drag) { this.drag.x = x; this.drag.y = y; }
+  }
+
+  pointerLeave(): void {
+    this.hover = null;
+  }
+
+  /** A press starts: buttons act at once; anything else waits for release (a click), a drag, or a held touch. */
+  pointerDown(x: number, y: number, touch = false): void {
+    const h = this.hit(x, y);
+    if (h?.kind === 'button') { this.press(h.id); return; }
+    const d = { x, y, hot: h, touch, timer: 0, held: false, dead: false };
+    if (touch && h && h.kind !== 'spire') {
+      d.timer = window.setTimeout(() => {
+        if (this.down !== d || this.drag) return;
+        d.held = true;
+        this.inspect = h;
+      }, 400);
+    }
+    this.down = d;
+  }
+
+  pointerUp(x: number, y: number): void {
+    const d = this.down;
+    this.down = null;
+    if (!d) return;
+    clearTimeout(d.timer);
+    if (this.drag) { this.drop(x, y); this.drag = null; return; }
+    if (d.held) { this.inspect = null; return; }
+    if (!d.dead) this.clickAt(d.x, d.y);
+  }
+
+  pointerCancel(): void {
+    if (this.down) clearTimeout(this.down.timer);
+    this.down = null;
+    this.inspect = null;
+    if (this.drag) { this.drag = null; this.armed = null; this.pendingSlot = null; }
+  }
+
+  private startDrag(d: NonNullable<Match['down']>): void {
+    const iid = d.hot!.id;
+    if (this.menu || this.panel || !this.myTurn || this.s.phase === 'mulligan') return;
+    const playable = this.acts().some((a) => a.type === 'play' && a.iid === iid);
+    if (!playable) {
+      this.note = whyNotPlay(this.s, 0, iid) ?? 'That card cannot be played now.';
+      d.dead = true;
+      return;
+    }
+    this.armed = { iid, path: [] };
+    this.picked = null;
+    this.pendingSlot = null;
+    this.preferredReplace = null;
+    this.note = '';
+    this.inspect = null;
+    this.drag = { iid, x: d.x, y: d.y };
+  }
+
+  /** Each of a Line's units by display column (see slots), filling any unplaced unit into the first open column. */
+  private baseCols(v: GameState, seat: Seat): Map<string, number> {
+    const out = new Map<string, number>();
+    const taken = new Set<number>();
+    const line = v.players[seat].line;
+    for (const u of line) {
+      const c = this.slots.get(u.iid);
+      if (c !== undefined && c >= 0 && c < LIMITS.line && !taken.has(c)) { out.set(u.iid, c); taken.add(c); }
+    }
+    let changed = false;
+    for (const u of line) {
+      if (out.has(u.iid)) continue;
+      let c = 0;
+      while (taken.has(c)) c++;
+      out.set(u.iid, c);
+      taken.add(c);
+      this.slots.set(u.iid, c);
+      changed = true;
+    }
+    if (changed) this.saveSlots();
+    return out;
+  }
+
+  /** The column a unit dropped at x, y would take: the open slot under it, or the nearest open one. */
+  private dropCol(x: number): number | null {
+    const v = this.s;
+    if (v.players[0].line.length >= LIMITS.line) return null;
+    const used = new Set(this.baseCols(v, 0).values());
+    const sg = slotGeo();
+    let best: number | null = null, bestD = Infinity;
+    for (let c = 0; c < LIMITS.line; c++) {
+      if (used.has(c)) continue;
+      const d = Math.abs(sg.x0 + c * sg.dx + sg.w / 2 - x);
+      if (d < bestD) { bestD = d; best = c; }
+    }
+    return best;
+  }
+
+  /** A dragged card is let go. Back over the hand cancels; a unit takes the slot it was dropped on; a tactic its target. */
+  private drop(x: number, y: number): void {
+    const iid = this.drag!.iid;
+    if (!this.armed || this.armed.iid !== iid) return;
+    if (y >= HAND_Y - 8) { this.armed = null; return; }
+    const d = def(this.cardOf(iid));
+    const h = this.hit(x, y);
+    if (d.type !== 'glyph') {
+      if (this.s.players[0].line.length >= LIMITS.line) {
+        // a full Line: dropping on one of your units chooses it to be scrapped, and the new unit takes its place
+        if (h?.kind === 'unit' && this.s.players[0].line.some((u) => u.iid === h.id)) {
+          this.preferredReplace = h.id;
+          this.pendingSlot = this.baseCols(this.s, 0).get(h.id) ?? null;
+        }
+      } else this.pendingSlot = this.dropCol(x);
+      this.advance();
+      return;
+    }
+    const next = this.nextChoices();
+    if (h && next.has(h.id)) { this.armed.path.push(h.id); this.advance(); }
+    else if (next.size === 0) this.press('play');
+    // otherwise it stays chosen and the prompt asks for its target
   }
 
   private hit(x: number, y: number): Hot | null {
@@ -381,7 +564,7 @@ export class Match {
     return null;
   }
 
-  pointerDown(x: number, y: number): void {
+  private clickAt(x: number, y: number): void {
     const h = this.hit(x, y);
     if (!h) {
       if (this.armed || this.picked) { this.armed = null; this.picked = null; }
@@ -437,6 +620,10 @@ export class Match {
     g.wash(0, 0, HW, HH, 'ink', 0.42);
 
     this.lastT = t;
+    const onLine = new Set([...v.players[0].line, ...v.players[1].line].map((u) => u.iid));
+    let pruned = false;
+    for (const k of [...this.slots.keys()]) if (!onLine.has(k)) { this.slots.delete(k); pruned = true; }
+    if (pruned) this.saveSlots();
     this.spawnFx(v, t);
     const [sx, sy] = this.fx.screen(t);
     g.ctx.save();
@@ -458,8 +645,11 @@ export class Match {
     this.drawerT += ((this.drawer ? 1 : 0) - this.drawerT) * 0.3;
     if (Math.abs(this.drawerT - (this.drawer ? 1 : 0)) < 0.01) this.drawerT = this.drawer ? 1 : 0;
     if (this.drawerT > 0) this.drawDrawer(g, v);
+    if (this.drag) this.drawDragged(g, v, t);
+    const look = this.inspect ?? (this.drag || this.down?.touch ? null : this.hover);
     if (this.panel) this.drawPanel(g, v);
-    else if (this.hover && !this.menu && v.phase !== 'over') this.drawDetail(g, v, this.hover);
+    else if (look && !this.menu && v.phase !== 'over') this.drawDetail(g, v, look);
+    else this.zoom = { key: '', k: 0 };
     if (this.menu) this.drawMenu(g);
   }
 
@@ -674,30 +864,39 @@ export class Match {
     const line = v.players[seat].line;
     const out = new Map<string, { col: number; out: boolean }>();
     const c = v.combat;
+    const base = this.baseCols(v, seat);
     if (!c || c.pairs.length === 0) {
-      line.forEach((u, i) => out.set(u.iid, { col: i, out: false }));
+      for (const u of line) out.set(u.iid, { col: base.get(u.iid)!, out: false });
       return out;
     }
     if (c.attacker === seat) {
       const att = new Set(c.pairs.map((p) => p.att));
-      line.forEach((u, i) => out.set(u.iid, { col: i, out: att.has(u.iid) }));
+      for (const u of line) out.set(u.iid, { col: base.get(u.iid)!, out: att.has(u.iid) });
       return out;
     }
-    const foeLine = v.players[c.attacker].line;
+    const foeBase = this.baseCols(v, c.attacker);
     const taken = new Set<number>();
     for (const p of c.pairs) {
       if (!p.blk || !line.some((u) => u.iid === p.blk)) continue;
-      const col = foeLine.findIndex((u) => u.iid === p.att);
-      if (col < 0 || taken.has(col)) continue;
+      const col = foeBase.get(p.att);
+      if (col === undefined || taken.has(col)) continue;
       out.set(p.blk, { col, out: true });
       taken.add(col);
     }
-    let next = 0;
+    // the others keep their own slot unless a blocker took it; those pushed aside take the nearest open slot
+    const moved: Unit[] = [];
     for (const u of line) {
       if (out.has(u.iid)) continue;
-      while (taken.has(next)) next++;
-      out.set(u.iid, { col: next, out: false });
-      taken.add(next);
+      const b = base.get(u.iid)!;
+      if (taken.has(b)) moved.push(u);
+      else { out.set(u.iid, { col: b, out: false }); taken.add(b); }
+    }
+    for (const u of moved) {
+      const b = base.get(u.iid)!;
+      let best = 0, bestD = Infinity;
+      for (let i = 0; i < LIMITS.line; i++) if (!taken.has(i) && Math.abs(i - b) < bestD) { bestD = Math.abs(i - b); best = i; }
+      out.set(u.iid, { col: best, out: false });
+      taken.add(best);
     }
     return out;
   }
@@ -879,7 +1078,6 @@ export class Match {
     const acts = this.acts();
     const cg = cardGeo(p.hand.length);
     const cw = cg.w;
-    const ctx = g.ctx;
     // the card under the pointer (or the armed one) is drawn last, lifted, so an overlapped hand can still be read
     const top = p.hand.findIndex((h) => h.iid === (this.armed?.iid ?? (this.hover?.kind === 'hand' ? this.hover.id : '')));
     const order = p.hand.map((_, i) => i);
@@ -888,53 +1086,103 @@ export class Match {
       const h = p.hand[i];
       const x = Math.round(cg.x0 + i * cg.dx);
       const armed = this.armed?.iid === h.iid;
+      if (this.drag?.iid === h.iid) {
+        // its place in the hand stays marked while it is carried
+        g.ctx.save();
+        g.ctx.setLineDash([3, 3]);
+        frame(g, x, HAND_Y, cw, CARD.h, 'crystalBright', 4);
+        g.ctx.restore();
+        continue;
+      }
       const y = HAND_Y - (armed ? 6 : i === top ? 4 : 0);
-      const d = def(h.card);
-      const f = face(v, 0, h.card);
       const playable = acts.some((a) => (a.type === 'play' || a.type === 'channel') && a.iid === h.iid);
       const marked = this.mull.has(h.iid);
-      ctx.save();
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
-      ctx.shadowBlur = 6;
-      ctx.shadowOffsetY = 2;
-      fillRound(g, x, y, cw, CARD.h, d.type === 'glyph' ? 'duskHigh' : 'ironNight', 0.97, 4);
-      ctx.restore();
-      const art = cardArt(h.card, f.ascended);
-      const artH = 56;
-      const unclip = clipRound(g, x + 1, y + 1, cw - 2, CARD.h - 2, 3.5);
-      if (art) {
-        const k = Math.max((cw - 2) / 64, artH / 48);
-        const sw0 = (cw - 2) / k, sh0 = artH / k;
-        drawPic(g, art, x + 1, y + 1, cw - 2, artH, { x: (64 - sw0) / 2, y: (48 - sh0) / 2, w: sw0, h: sh0 });
-      }
-      const lg = ctx.createLinearGradient(0, y + artH - 12, 0, y + artH + 2);
-      lg.addColorStop(0, rgba(d.type === 'glyph' ? 'duskHigh' : 'ironNight', 0));
-      lg.addColorStop(1, rgba(d.type === 'glyph' ? 'duskHigh' : 'ironNight', 1));
-      ctx.fillStyle = lg;
-      ctx.fillRect(x + 1, y + artH - 12, cw - 2, 14);
-      if (marked) g.wash(x + 1, y + 1, cw - 2, CARD.h - 2, 'emberNight', 0.55);
-      unclip();
-      const cost = costOf(this.s, 0, h.card);
-      this.badge(g, x + 8.5, y + 8.5, cost, cost === d.cost ? 'cost' : 'costMod');
-      const tag = d.type === 'glyph' ? (d.speed ?? '') : d.type === 'hero' ? 'hero' : '';
-      if (tag) {
-        const tw = textWidth(tag, 0.8) + 6;
-        fillRound(g, x + cw - tw - 3, y + 3, tw, 9, 'ink', 0.75, 3);
-        drawText(g, tag, x + cw - tw, y + 4.5, { color: d.type === 'hero' ? 'brassGlint' : 'crystalBright', scale: 0.8 });
-      }
-      // a name whose longest word does not fit is set smaller rather than broken mid-word
-      const ns = f.name.split(' ').some((wd) => textWidth(wd, 0.95, 'bold') > cw - 7) ? 0.8 : 0.95;
-      wrapPx(f.name, cw - 7, ns, 'bold').slice(0, 2).forEach((l, j) => drawText(g, l, x + 4, y + artH + 3 + j * 9.5, { color: 'steamWhite', face: 'bold', scale: ns, shadow: 'ink' }));
-      if (d.type !== 'glyph') {
-        this.badge(g, x + 9, y + CARD.h - 9, f.power, 'power');
-        this.badge(g, x + cw - 9, y + CARD.h - 9, f.health, 'health');
-      } else drawText(g, 'tactic', x + 4, y + CARD.h - 12, { color: 'ironLight', scale: 0.85 });
-      if (marked) drawTextCentred(g, 'SWAP', x + cw / 2, y + 26, { color: 'emberGlow', face: 'display', outline: 'ink' });
       const edge: Ink = armed ? 'crystalBright' : marked ? 'emberBright' : playable ? 'brassLight' : 'ink';
-      frame(g, x, y, cw, CARD.h, edge, 4, armed);
+      this.handCard(g, v, h.card, x, y, cw, edge, armed, marked);
       this.hots.push({ x, y, w: cw, h: CARD.h, id: h.iid, kind: 'hand' });
     }
     if (p.hand.length === 0) drawTextCentred(g, 'Your hand is empty', HW / 2, HAND_Y + 40, { color: 'ironLight' });
+  }
+
+  /** One hand card's face at x, y (in the hand, or carried by a drag). */
+  private handCard(g: Gfx, v: GameState, card: string, x: number, y: number, cw: number, edge: Ink, glow: boolean, marked: boolean): void {
+    const ctx = g.ctx;
+    const d = def(card);
+    const f = face(v, 0, card);
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetY = 2;
+    fillRound(g, x, y, cw, CARD.h, d.type === 'glyph' ? 'duskHigh' : 'ironNight', 0.97, 4);
+    ctx.restore();
+    const art = cardArt(card, f.ascended);
+    const artH = 56;
+    const unclip = clipRound(g, x + 1, y + 1, cw - 2, CARD.h - 2, 3.5);
+    if (art) {
+      const k = Math.max((cw - 2) / 64, artH / 48);
+      const sw0 = (cw - 2) / k, sh0 = artH / k;
+      drawPic(g, art, x + 1, y + 1, cw - 2, artH, { x: (64 - sw0) / 2, y: (48 - sh0) / 2, w: sw0, h: sh0 });
+    }
+    const lg = ctx.createLinearGradient(0, y + artH - 12, 0, y + artH + 2);
+    lg.addColorStop(0, rgba(d.type === 'glyph' ? 'duskHigh' : 'ironNight', 0));
+    lg.addColorStop(1, rgba(d.type === 'glyph' ? 'duskHigh' : 'ironNight', 1));
+    ctx.fillStyle = lg;
+    ctx.fillRect(x + 1, y + artH - 12, cw - 2, 14);
+    if (marked) g.wash(x + 1, y + 1, cw - 2, CARD.h - 2, 'emberNight', 0.55);
+    unclip();
+    const cost = costOf(this.s, 0, card);
+    this.badge(g, x + 8.5, y + 8.5, cost, cost === d.cost ? 'cost' : 'costMod');
+    const tag = d.type === 'glyph' ? (d.speed ?? '') : d.type === 'hero' ? 'hero' : '';
+    if (tag) {
+      const tw = textWidth(tag, 0.8) + 6;
+      fillRound(g, x + cw - tw - 3, y + 3, tw, 9, 'ink', 0.75, 3);
+      drawText(g, tag, x + cw - tw, y + 4.5, { color: d.type === 'hero' ? 'brassGlint' : 'crystalBright', scale: 0.8 });
+    }
+    // a name whose longest word does not fit is set smaller rather than broken mid-word
+    const ns = f.name.split(' ').some((wd) => textWidth(wd, 0.95, 'bold') > cw - 7) ? 0.8 : 0.95;
+    wrapPx(f.name, cw - 7, ns, 'bold').slice(0, 2).forEach((l, j) => drawText(g, l, x + 4, y + artH + 3 + j * 9.5, { color: 'steamWhite', face: 'bold', scale: ns, shadow: 'ink' }));
+    if (d.type !== 'glyph') {
+      this.badge(g, x + 9, y + CARD.h - 9, f.power, 'power');
+      this.badge(g, x + cw - 9, y + CARD.h - 9, f.health, 'health');
+    } else drawText(g, 'tactic', x + 4, y + CARD.h - 12, { color: 'ironLight', scale: 0.85 });
+    if (marked) drawTextCentred(g, 'SWAP', x + cw / 2, y + 26, { color: 'emberGlow', face: 'display', outline: 'ink' });
+    frame(g, x, y, cw, CARD.h, edge, 4, glow);
+  }
+
+  /** The card being dragged follows the pointer; a unit shows the slot it will take, a tactic the target under it. */
+  private drawDragged(g: Gfx, v: GameState, t: number): void {
+    const dg = this.drag!;
+    const card = v.players[0].hand.find((h) => h.iid === dg.iid)?.card;
+    if (!card) return;
+    const d = def(card);
+    const sg = slotGeo();
+    const overHand = dg.y >= HAND_Y - 8;
+    if (!overHand && d.type !== 'glyph') {
+      const col = this.dropCol(dg.x);
+      if (col !== null) {
+        const x = sg.x0 + col * sg.dx;
+        const a = 0.55 + 0.25 * Math.sin(t / 5);
+        g.ctx.save();
+        g.ctx.globalAlpha = a;
+        fillRound(g, x, MY_LINE_Y, sg.w, SLOT.h, 'crystalDeep', 0.6, 4);
+        frame(g, x, MY_LINE_Y, sg.w, SLOT.h, 'crystalBright', 4, true);
+        g.ctx.restore();
+        drawTextCentred(g, 'DEPLOY HERE', x + sg.w / 2, MY_LINE_Y + SLOT.h / 2 - 4, { color: 'crystalWhite', face: 'display', scale: 0.85, outline: 'ink' });
+      }
+    } else if (!overHand) {
+      const h = this.hit(dg.x, dg.y);
+      if (h && this.nextChoices().has(h.id)) frame(g, h.x - 2, h.y - 2, h.w + 4, h.h + 4, 'crystalBright', 5, true);
+    }
+    const cw = cardGeo(v.players[0].hand.length).w;
+    const k = overHand ? 1 : 1.1;
+    g.ctx.save();
+    g.ctx.translate(dg.x, dg.y);
+    g.ctx.scale(k, k);
+    g.ctx.rotate(Math.max(-0.08, Math.min(0.08, (dg.x - (this.down?.x ?? dg.x)) / 900)));
+    g.ctx.globalAlpha = overHand ? 0.7 : 0.95;
+    g.ctx.shadowColor = rgba('crystalBright', 0.6);
+    this.handCard(g, v, card, -cw / 2, -CARD.h / 2, cw, 'crystalBright', true, false);
+    g.ctx.restore();
   }
 
   private drawButtons(g: Gfx): void {
@@ -953,6 +1201,10 @@ export class Match {
     }
   }
 
+  /**
+   * The full card, enlarged where it sits: it grows out of the card under the mouse (or under a held finger) and
+   * shrinks away when the pointer leaves or the finger lifts. Hand cards grow upward from the hand.
+   */
   private drawDetail(g: Gfx, v: GameState, h: Hot): void {
     let cardId: string | null = null;
     let seat: Seat = 0;
@@ -968,64 +1220,89 @@ export class Match {
       cardId = h.id;
       seat = v.players[0].heroes.includes(h.id) ? 0 : 1;
     }
-    if (!cardId || cardId === '?') return;
+    if (!cardId || cardId === '?') { this.zoom = { key: '', k: 0 }; return; }
     const d = def(cardId);
     const f = face(v, seat, cardId);
-    const w = 260, hgt = 262;
-    const x = h.x + h.w / 2 < HW / 2 ? HW - w - 6 : 6;
-    const y = 36;
-    panel(g, x, y, w, hgt, { tone: 'dark' });
-    const art = cardArt(cardId, f.ascended, true);
-    if (art) {
-      const unclip = clipRound(g, x + 8, y + 8, 128, 96, 3);
-      drawPic(g, art, x + 8, y + 8);
-      unclip();
-      frame(g, x + 8, y + 8, 128, 96, 'brassDark', 3);
-    } else drawTextCentred(g, isMissing(cardId, f.ascended, true) || !CARD_ART[cardId]?.art ? 'No art' : '…', x + 72, y + 50, { color: 'iron' });
-    const tx = x + 144, tw = w - 152;
-    const nm = wrapPx(f.name, tw, 1.15, 'bold');
-    nm.forEach((l, i) => drawText(g, l, tx, y + 10 + i * 11, { color: 'brassGlint', face: 'bold', scale: 1.15 }));
-    let yy = y + 14 + nm.length * 11;
-    drawText(g, d.type === 'glyph' ? `Tactic, ${d.speed ?? ''}` : d.type === 'hero' ? (f.ascended ? 'Hero, ascended' : 'Hero') : d.token ? 'Token unit' : 'Unit', tx, yy, { color: 'steam' });
-    yy += 14;
-    const cost = seat === 0 ? costOf(this.s, 0, cardId) : d.cost;
-    this.badge(g, tx + 6, yy + 3, cost, 'cost');
-    drawText(g, 'cost', tx + 15, yy, { color: 'ironLight', scale: 0.9 });
-    if (d.type !== 'glyph') {
-      const st = unit ? stats(v, unit) : null;
-      this.badge(g, tx + 6, yy + 19, st ? st.power : f.power, 'power');
-      drawText(g, 'power', tx + 15, yy + 16, { color: 'ironLight', scale: 0.9 });
-      const hp = st ? st.hp : f.health;
-      this.badge(g, tx + 6, yy + 35, hp, st && st.hp < st.health ? 'hurt' : 'health');
-      drawText(g, st ? `health (of ${st.health})` : 'health', tx + 15, yy + 32, { color: 'ironLight', scale: 0.9 });
+    const st = unit ? stats(v, unit) : null;
+    // lay the card out first, to know its height
+    const w = 168;
+    const artW = w - 10, artH = Math.round(artW * 0.75);
+    const tw = w - 16;
+    const nameLines = wrapPx(f.name, tw - 22, 1.2, 'bold');
+    const typeLine = d.type === 'glyph' ? `Tactic, ${d.speed ?? ''}` : d.type === 'hero' ? (f.ascended ? 'Hero, ascended' : 'Hero') : d.token ? 'Token unit' : 'Unit';
+    const body: { text: string; ink: Ink; face: 'body' | 'bold'; kw?: string }[] = [];
+    for (const l of wrapPx(f.text, tw, 0.95)) body.push({ text: l, ink: 'steamWhite', face: 'body' });
+    for (const k of st ? st.keywords : f.keywords) {
+      const kw = `${KEYWORD_HELP[k].name}:`;
+      wrapPx(`${kw} ${KEYWORD_HELP[k].text}`, tw, 0.9).forEach((l, i) => body.push({ text: l, ink: 'steam', face: 'body', kw: i === 0 ? kw : undefined }));
     }
-    let ty = y + 114;
-    rule(g, x + 8, ty - 5, w - 16);
-    for (const l of wrapPx(f.text, w - 18)) { drawText(g, l, x + 9, ty, { color: 'steamWhite' }); ty += 10.5; }
-    const kws = unit ? stats(v, unit).keywords : f.keywords;
-    for (const k of kws) {
-      ty += 2;
-      const lines = wrapPx(`${KEYWORD_HELP[k].name}: ${KEYWORD_HELP[k].text}`, w - 18, 0.95);
-      for (const [i, l] of lines.entries()) {
-        if (ty > y + hgt - 14) break;
-        if (i === 0) {
-          const kw = `${KEYWORD_HELP[k].name}:`;
-          drawText(g, kw, x + 9, ty, { color: 'crystalBright', face: 'bold', scale: 0.95 });
-          drawText(g, l.slice(kw.length), x + 9 + textWidth(kw, 0.95, 'bold'), ty, { color: 'steam', scale: 0.95 });
-        } else drawText(g, l, x + 9, ty, { color: 'steam', scale: 0.95 });
-        ty += 10;
-      }
-    }
-    if (d.level && !f.ascended && ty < y + hgt - 20) {
+    if (d.level && !f.ascended) {
       const p = v.players[seat];
       const have = d.level.who === 'you' ? p.seen[d.level.stat] ?? 0 : unit?.seen[d.level.stat] ?? 0;
-      ty += 3;
-      for (const l of wrapPx(`Ascends: ${d.level.text} (${Math.min(have, d.level.n)}/${d.level.n})`, w - 18)) {
-        drawText(g, l, x + 9, ty, { color: 'brassLight' });
-        ty += 10.5;
-      }
+      for (const l of wrapPx(`Ascends: ${d.level.text} (${Math.min(have, d.level.n)}/${d.level.n})`, tw, 0.9)) body.push({ text: l, ink: 'brassLight', face: 'body' });
     }
-    if (unit?.stasis && ty < y + hgt - 10) drawText(g, 'In Stasis: cannot attack or block', x + 9, ty, { color: 'crystalWhite' });
+    if (unit?.stasis) body.push({ text: 'In Stasis: cannot attack or block', ink: 'crystalWhite', face: 'body' });
+    if (st && st.hp < st.health) body.push({ text: `Damaged: ${st.hp} of ${st.health} health`, ink: 'emberGlow', face: 'bold' });
+    const hgt = Math.min(HH - 8, 5 + artH + 6 + nameLines.length * 12 + 13 + body.length * 10 + (d.type !== 'glyph' ? 24 : 8));
+    // place it over its card, kept on screen; hand cards grow upward
+    const cx0 = h.x + h.w / 2, cy0 = h.y + h.h / 2;
+    const x = Math.round(Math.max(4, Math.min(HW - w - 4, cx0 - w / 2)));
+    const y = Math.round(h.kind === 'hand' ? Math.max(4, Math.min(HH - 4, h.y + h.h + 2) - hgt) : Math.max(4, Math.min(HH - hgt - 4, cy0 - hgt / 2)));
+    const key = `${h.kind}:${h.id}`;
+    if (this.zoom.key !== key) this.zoom = { key, k: 0 };
+    this.zoom.k += (1 - this.zoom.k) * 0.38;
+    if (this.zoom.k > 0.995) this.zoom.k = 1;
+    const e = 1 - (1 - this.zoom.k) ** 2;
+    const sc = Math.min(h.w / w, h.h / hgt) + (1 - Math.min(h.w / w, h.h / hgt)) * e;
+    const ctx = g.ctx;
+    ctx.save();
+    // grow from the card's own place: at full size the card sits at x, y
+    const ox = cx0 + (x + w / 2 - cx0) * e, oy = cy0 + (y + hgt / 2 - cy0) * e;
+    ctx.translate(ox, oy);
+    ctx.scale(sc, sc);
+    ctx.translate(-(x + w / 2), -(y + hgt / 2));
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+    ctx.shadowBlur = 14;
+    ctx.shadowOffsetY = 4;
+    const ground: Ink = d.type === 'glyph' ? 'duskHigh' : seat === 0 ? 'ironNight' : 'emberNight';
+    fillRound(g, x, y, w, hgt, ground, 0.98, 6);
+    ctx.shadowColor = 'transparent';
+    const art = cardArt(cardId, f.ascended, true);
+    const unclip = clipRound(g, x + 5, y + 5, artW, artH, 4);
+    if (art) drawPic(g, art, x + 5, y + 5, artW, artH);
+    else {
+      g.rect(x + 5, y + 5, artW, artH, 'ironDark');
+      drawTextCentred(g, isMissing(cardId, f.ascended, true) || !CARD_ART[cardId]?.art ? 'No art' : '…', x + w / 2, y + 5 + artH / 2 - 4, { color: 'iron' });
+    }
+    unclip();
+    frame(g, x + 5, y + 5, artW, artH, 'brassDark', 4);
+    const cost = seat === 0 ? costOf(this.s, 0, cardId) : d.cost;
+    this.badge(g, x + 14, y + 14, cost, cost === d.cost ? 'cost' : 'costMod');
+    let ty = y + 5 + artH + 6;
+    nameLines.forEach((l, i) => drawText(g, l, x + 8, ty + i * 12, { color: 'brassGlint', face: 'bold', scale: 1.2, shadow: 'ink' }));
+    ty += nameLines.length * 12;
+    drawText(g, typeLine, x + 8, ty, { color: 'steam', scale: 0.9 });
+    ty += 11;
+    rule(g, x + 6, ty, w - 12);
+    ty += 3;
+    for (const l of body) {
+      if (ty > y + hgt - (d.type !== 'glyph' ? 30 : 12)) break;
+      if (l.kw) {
+        drawText(g, l.kw, x + 8, ty, { color: 'crystalBright', face: 'bold', scale: 0.9 });
+        drawText(g, l.text.slice(l.kw.length), x + 8 + textWidth(l.kw, 0.9, 'bold'), ty, { color: l.ink, scale: 0.9 });
+      } else drawText(g, l.text, x + 8, ty, { color: l.ink, face: l.face, scale: l.ink === 'steamWhite' ? 0.95 : 0.9 });
+      ty += 10;
+    }
+    if (d.type !== 'glyph') {
+      const pw = st ? st.power : f.power;
+      const hp = st ? st.hp : f.health;
+      this.badge(g, x + 14, y + hgt - 13, pw, 'power');
+      drawText(g, 'power', x + 24, y + hgt - 17, { color: 'ironLight', scale: 0.85 });
+      this.badge(g, x + w - 14, y + hgt - 13, hp, st && st.hp < st.health ? 'hurt' : 'health');
+      drawText(g, 'health', x + w - 24 - textWidth('health', 0.85), y + hgt - 17, { color: 'ironLight', scale: 0.85 });
+    }
+    frame(g, x, y, w, hgt, f.ascended ? 'brassGlint' : seat === 0 ? 'brassLight' : 'emberGlow', 6, true);
+    ctx.restore();
   }
 
   /** Attack lines: each attacker to its blocker, or to the defender's Crystal when unblocked. */
