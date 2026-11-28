@@ -17,6 +17,7 @@ import { cardArt, emblem, field, isMissing } from './art';
 import { END_REASONS, KEYWORD_HELP, lineText, targetPrompt } from './text';
 import type { Session } from './session';
 import { playEvent } from '../audio/audio';
+import { Fx, type Pt } from './fx';
 
 /**
  * Logical screen size (PLAN D17, D23). The height is fixed at 448; the width follows the window's shape, from 512
@@ -103,7 +104,15 @@ export class Match {
   private at = new Map<string, [number, number]>();
   /** Where each unit was last drawn, so effects can rise from it (even after it is gone). */
   private pos = new Map<string, [number, number]>();
-  private fx: { x: number; y: number; text: string; ink: Ink; born: number; flash?: boolean }[] = [];
+  /** Battle effects (PLAN D26), driven only by new log entries. */
+  private fx = new Fx();
+  /** The frame the last queued effect starts on: a new batch of events plays after the one before it. */
+  private fxEnd = 0;
+  private lastT = 0;
+  /** Who cast each tactic on the stack, so its bolts start from that side. */
+  private castBy = new Map<string, Seat>();
+  /** Units summoned by a queued event: hidden until their turn, then they fly in from the hand. */
+  private arrive = new Map<string, { born: number; seat: Seat }>();
   private seenLog = -1;
   /** Set when the player leaves; main.ts returns to the title. */
   exit: 'title' | 'rematch' | null = null;
@@ -159,6 +168,8 @@ export class Match {
       return;
     }
     if ((this.s.priority !== 1 && !this.auto) || now < this.aiAt) return;
+    // the AI waits for the effects of the last move to play out, so its moves can be followed
+    if (this.delay > 0 && this.fxEnd > this.lastT) return;
     const r = this.session.apply(this.session.aiAction(this.s.priority));
     if (!r.ok) throw new Error(`The AI chose a move the engine refused: ${r.error ?? ''}`);
     this.aiAt = now + this.delay;
@@ -425,17 +436,23 @@ export class Match {
     else g.rect(0, 0, HW, HH, 'duskZenith');
     g.wash(0, 0, HW, HH, 'ink', 0.42);
 
+    this.lastT = t;
+    this.spawnFx(v, t);
+    const [sx, sy] = this.fx.screen(t);
+    g.ctx.save();
+    g.ctx.translate(sx, sy);
     this.drawBar(g, v, 1, 0);
     this.drawFoeHand(g, v);
     this.drawMiddle(g, v, t);
+    this.fx.drawUnder(g, t, HW);
     this.drawLine(g, v, 1, FOE_LINE_Y, t);
     this.drawLine(g, v, 0, MY_LINE_Y, t);
     this.drawBar(g, v, 0, MY_BAR_Y);
     this.drawCombat(g, v, t);
     this.drawPiles(g, v);
     this.drawHand(g, v, t);
-    this.spawnFx(v, t);
-    this.drawFx(g, t);
+    this.fx.draw(g, t, HW, HH);
+    g.ctx.restore();
     if (v.phase === 'over') this.drawOver(g, v);
     this.drawButtons(g);
     this.drawerT += ((this.drawer ? 1 : 0) - this.drawerT) * 0.3;
@@ -705,11 +722,25 @@ export class Match {
       const c = cols.get(u.iid)!;
       const tx = sg.x0 + c.col * sg.dx;
       const ty = y + (c.out ? (seat === 0 ? -LUNGE : LUNGE) : 0);
+      const arr = this.arrive.get(u.iid);
+      if (arr) {
+        if (t < arr.born) continue; // its summon has not played yet
+        // it flies in from its owner's hand and lands with a ring and a puff of steam
+        const o = this.sideOrigin(seat);
+        this.at.set(u.iid, [o[0] - sg.w / 2, o[1] - SLOT.h / 2]);
+        const cx = tx + sg.w / 2, cy = ty + SLOT.h / 2;
+        const ink: Ink = seat === 0 ? 'crystalBright' : 'emberGlow';
+        this.fx.ring(cx, cy, ink, t + 12, 10, 62, 24, 3);
+        this.fx.burst(cx, ty + SLOT.h, ['steam', 'steamWhite'], 14, t + 12, { speed: 2.2, life: 26, size: 2.2, grav: -0.02, shape: 'dot', spread: sg.w });
+        this.fx.flash(tx, ty, sg.w, SLOT.h, ink, t + 12, 18);
+        this.arrive.delete(u.iid);
+      }
       const cur = this.at.get(u.iid) ?? [tx, ty];
       const nx = Math.abs(tx - cur[0]) < 0.5 ? tx : cur[0] + (tx - cur[0]) * 0.25;
       const ny = Math.abs(ty - cur[1]) < 0.5 ? ty : cur[1] + (ty - cur[1]) * 0.25;
       this.at.set(u.iid, [nx, ny]);
-      this.unitTile(g, v, u, Math.round(nx), Math.round(ny), t, this.roleOf(v, u));
+      const [jx, jy] = this.fx.offset(u.iid, t);
+      this.unitTile(g, v, u, Math.round(nx + jx), Math.round(ny + jy), t, this.roleOf(v, u));
     }
   }
 
@@ -1032,42 +1063,234 @@ export class Match {
     }
   }
 
-  /** New log events become floating numbers over what they hit (the log still says it in words). */
+  /** Where a player's cards come from: the middle of their hand. */
+  private sideOrigin(seat: Seat): Pt {
+    return seat === 0 ? [HW / 2, HAND_Y + 30] : [HW / 2, FOE_HAND_Y + 8];
+  }
+
+  private crystalAt(seat: Seat | undefined): Pt {
+    return [66, seat === 0 ? MY_BAR_Y + 12 : 12];
+  }
+
+  /**
+   * New log events become effects (PLAN D26). A batch plays out in order: each event waits for the one before it, and
+   * a new batch waits for the last. Sound is held back to its effect's frame. The log still says it all in words.
+   */
   private spawnFx(v: GameState, t: number): void {
     if (this.seenLog < 0 || this.seenLog > v.log.length) this.seenLog = v.log.length; // a resumed game starts quiet
     const fresh = v.log.slice(this.seenLog);
     this.seenLog = v.log.length;
-    const crystalAt = (seat: Seat | undefined): [number, number] => [66, seat === 0 ? MY_BAR_Y + 12 : 12];
-    const at = (iid?: string) => (iid ? this.pos.get(iid) : undefined);
+    if (fresh.length === 0) return;
+    const fx = this.fx;
+    const base = Math.min(Math.max(t, this.fxEnd), t + 90);
+    let d = 0;
+    let striker: string | undefined;
+    const pos = (iid?: string): Pt | undefined => (iid ? this.pos.get(iid) : undefined);
+    const sg = slotGeo();
+    const side = (seat: Seat | undefined): Ink => (seat === 0 ? 'crystalBright' : 'emberGlow');
+    const isTactic = (id?: string): boolean => !!id && id !== '?' && def(id).type === 'glyph';
+    /** A tactic's effect travels from its caster's side as a bolt; returns the delay until it lands. */
+    const travel = (e: (typeof fresh)[number], to: Pt, ink: Ink, b: number): number => {
+      let from: Pt | undefined;
+      if (isTactic(e.via)) from = this.sideOrigin(this.castBy.get(e.via!) ?? (e.seat === 0 ? 1 : 0));
+      else if (e.unit && e.unit !== striker) from = pos(e.unit);
+      if (!from) return 0;
+      fx.bolt(from, to, ink, b, 12);
+      return 12;
+    };
     for (const e of fresh) {
-      playEvent(e, 0);
-      const sign = (n: number | undefined) => `${(n ?? 0) >= 0 ? '+' : ''}${n ?? 0}`;
-      let p: [number, number] | undefined;
-      if (e.k === 'dmg' && (p = at(e.tunit))) this.fx.push({ x: p[0], y: p[1], text: `-${e.n ?? 0}`, ink: 'emberBright', born: t });
-      else if (e.k === 'heal' && (p = at(e.tunit))) this.fx.push({ x: p[0], y: p[1], text: `+${e.n ?? 0}`, ink: 'crystalBright', born: t });
-      else if (e.k === 'buff' && (p = at(e.tunit))) this.fx.push({ x: p[0], y: p[1] - 10, text: `${sign(e.n)}|${sign(e.m)}`, ink: 'brassGlint', born: t });
-      else if (e.k === 'spireDmg') { p = crystalAt(e.seat); this.fx.push({ x: p[0], y: p[1], text: `-${e.n ?? 0}`, ink: 'emberGlow', born: t }); }
-      else if (e.k === 'spireHeal') { p = crystalAt(e.seat); this.fx.push({ x: p[0], y: p[1], text: `+${e.n ?? 0}`, ink: 'crystalBright', born: t }); }
-      else if (e.k === 'die' && (p = at(e.unit))) this.fx.push({ x: p[0], y: p[1], text: '', ink: 'emberGlow', born: t, flash: true });
-    }
-  }
-
-  private drawFx(g: Gfx, t: number): void {
-    this.fx = this.fx.filter((f) => t - f.born < 50);
-    for (const f of this.fx) {
-      const age = t - f.born;
-      const fade = Math.max(0, 1 - age / 50);
-      if (f.flash) {
-        const sw = slotGeo().w;
-        g.ctx.save();
-        g.ctx.globalAlpha = fade;
-        frame(g, f.x - sw / 2, f.y - SLOT.h / 2, sw, SLOT.h, f.ink, 4, true);
-        g.wash(f.x - sw / 2, f.y - SLOT.h / 2, sw, SLOT.h, f.ink, 0.25 * fade);
-        g.ctx.restore();
-        continue;
+      let b = base + d;
+      const sound = b;
+      let gap = 2;
+      let p: Pt | undefined;
+      switch (e.k) {
+        case 'cast': {
+          this.castBy.set(e.card!, e.seat ?? 0);
+          const o = this.sideOrigin(e.seat ?? 0);
+          fx.banner(this.name(e.card!, e.seat ?? 0), e.seat === 0 ? 'You play' : 'The foe plays', side(e.seat), b, cardArt(e.card!, false), (MID_Y + MY_LINE_Y) / 2 - 4, 55);
+          fx.ring(o[0], o[1], side(e.seat), b, 6, 50, 22);
+          fx.burst(o[0], o[1], [side(e.seat), 'steamWhite'], 18, b, { speed: 3, life: 26 });
+          gap = 16;
+          break;
+        }
+        case 'play':
+          if (e.seat === 1) {
+            fx.banner(this.name(e.card!, 1), 'The foe plays', 'emberGlow', b, cardArt(e.card!, false), (MID_Y + MY_LINE_Y) / 2 - 4, 45);
+            gap = 12;
+          }
+          break;
+        case 'summon':
+          if (e.unit) this.arrive.set(e.unit, { born: b, seat: e.seat ?? 0 });
+          gap = 8;
+          break;
+        case 'strike': {
+          striker = e.unit;
+          const src = pos(e.unit);
+          const dst = e.tunit?.startsWith('spire') ? this.crystalAt(e.tunit === 'spire0' ? 0 : 1) : pos(e.tunit);
+          if (src && dst && e.unit) {
+            const dx = dst[0] - src[0], dy = dst[1] - src[1];
+            const len = Math.hypot(dx, dy) || 1;
+            const reach = Math.min(22, len * 0.4);
+            fx.jolt(e.unit, (dx / len) * reach, (dy / len) * reach, b, 18, 'lunge');
+            const hit: Pt = [src[0] + (dx / len) * Math.min(len, len * 0.55), src[1] + (dy / len) * Math.min(len, len * 0.55)];
+            const at = e.tunit?.startsWith('spire') ? dst : [(hit[0] + dst[0]) / 2, (hit[1] + dst[1]) / 2] as Pt;
+            fx.slash(at[0], at[1], 'brassGlint', b + 5);
+            fx.burst(at[0], at[1], ['emberBright', 'brassGlint', 'steamWhite'], 14, b + 5, { speed: 3.2, life: 20 });
+            fx.shake(1.8, b + 5, 10);
+          }
+          gap = 6;
+          break;
+        }
+        case 'dmg':
+          if ((p = pos(e.tunit))) {
+            b += travel(e, p, 'emberBright', b);
+            fx.float(p[0], p[1], `-${e.n ?? 0}`, 'emberBright', b);
+            fx.burst(p[0], p[1], ['ember', 'emberBright'], 12, b, { speed: 2.6, life: 22 });
+            fx.flash(p[0] - sg.w / 2, p[1] - SLOT.h / 2, sg.w, SLOT.h, 'ember', b, 12);
+            if (e.tunit) fx.jolt(e.tunit, 3, 2, b, 14, 'shake');
+          }
+          gap = b - (base + d) + 8;
+          break;
+        case 'spireDmg':
+          p = this.crystalAt(e.seat);
+          b += travel(e, p, 'emberBright', b);
+          fx.float(p[0] + 18, p[1] + 6, `-${e.n ?? 0}`, 'emberGlow', b, 2.2);
+          fx.burst(p[0], p[1], ['ember', 'emberGlow', 'brassGlint'], 24, b, { speed: 3.6, life: 30 });
+          fx.ring(p[0], p[1], 'emberGlow', b, 6, 46, 24, 3);
+          fx.shake((e.n ?? 0) >= 3 ? 4 : 2.2, b, 16);
+          fx.vignette(e.seat === 1, 'ember', b);
+          gap = b - (base + d) + 10;
+          break;
+        case 'heal':
+          if ((p = pos(e.tunit))) {
+            b += travel(e, p, 'crystalBright', b);
+            fx.float(p[0], p[1], `+${e.n ?? 0}`, 'crystalBright', b);
+            fx.rise(p[0], p[1], ['crystalBright', 'crystalWhite'], 12, b, sg.w * 0.8);
+            fx.ring(p[0], p[1], 'crystalBright', b, 6, 34, 20, 2);
+          }
+          gap = b - (base + d) + 4;
+          break;
+        case 'spireHeal':
+          p = this.crystalAt(e.seat);
+          fx.float(p[0] + 18, p[1] + 6, `+${e.n ?? 0}`, 'crystalBright', b);
+          fx.rise(p[0], p[1], ['crystalBright', 'crystalWhite'], 12, b, 30);
+          gap = 4;
+          break;
+        case 'buff':
+          if ((p = pos(e.tunit))) {
+            b += travel(e, p, 'brassGlint', b);
+            const sign = (n: number | undefined) => `${(n ?? 0) >= 0 ? '+' : ''}${n ?? 0}`;
+            fx.float(p[0], p[1] - 10, `${sign(e.n)}|${sign(e.m)}`, 'brassGlint', b);
+            fx.ring(p[0], p[1], 'brassGlint', b, 8, 40, 22, 2.5);
+            fx.rise(p[0], p[1], ['brassGlint', 'brassLight'], 8, b, sg.w * 0.7);
+          }
+          gap = b - (base + d) + 4;
+          break;
+        case 'grant':
+          if ((p = pos(e.tunit))) {
+            b += travel(e, p, 'crystalBright', b);
+            const kw = (e.s ?? '').split(',')[0] as keyof typeof KEYWORD_HELP;
+            fx.ring(p[0], p[1], 'crystalBright', b, 8, 38, 22, 2);
+            fx.float(p[0], p[1] - 14, KEYWORD_HELP[kw]?.name ?? '', 'crystalBright', b, 1.2);
+          }
+          gap = b - (base + d) + 4;
+          break;
+        case 'ward':
+        case 'absorb':
+          if ((p = pos(e.tunit))) {
+            fx.ring(p[0], p[1], 'crystalWhite', b, 30, 44, 16, 3);
+            fx.ring(p[0], p[1], 'crystalBright', b + 3, 24, 40, 16, 2);
+            fx.float(p[0], p[1] - 14, e.k === 'ward' ? 'WARD' : 'PLATED', 'crystalWhite', b, 1.2);
+          }
+          gap = 6;
+          break;
+        case 'stasis':
+          if ((p = pos(e.tunit))) {
+            b += travel(e, p, 'crystalWhite', b);
+            fx.ring(p[0], p[1], 'crystalWhite', b, 6, 44, 26, 3);
+            fx.burst(p[0], p[1], ['crystalWhite', 'crystalBright'], 16, b, { speed: 1.2, life: 36, shape: 'dot', grav: 0.02, spread: 30 });
+          }
+          gap = b - (base + d) + 4;
+          break;
+        case 'silence':
+          if ((p = pos(e.tunit))) {
+            b += travel(e, p, 'ironLight', b);
+            fx.ring(p[0], p[1], 'ironLight', b, 40, 8, 18, 2.5);
+            fx.float(p[0], p[1] - 14, 'SILENCED', 'ironLight', b, 1.2);
+          }
+          gap = b - (base + d) + 4;
+          break;
+        case 'destroy':
+          if (e.s !== 'replaced' && (p = pos(e.tunit))) {
+            b += travel(e, p, 'emberDeep', b);
+            fx.ring(p[0], p[1], 'emberGlow', b, 44, 6, 16, 3);
+          }
+          gap = b - (base + d) + 2;
+          break;
+        case 'recall':
+          if ((p = pos(e.tunit))) {
+            fx.rise(p[0], p[1], ['steam', 'steamWhite'], 12, b, sg.w);
+            fx.float(p[0], p[1] - 14, 'RECALLED', 'steam', b, 1.2);
+          }
+          gap = 6;
+          break;
+        case 'die':
+          if ((p = pos(e.unit))) {
+            fx.burst(p[0], p[1], [e.seat === 0 ? 'iron' : 'emberDeep', 'emberGlow', 'brassLight'], 26, b, { speed: 3.2, life: 42, size: 2.4, grav: 0.14, shape: 'shard', spread: sg.w * 0.6 });
+            fx.burst(p[0], p[1], ['steam'], 10, b, { speed: 1.2, life: 40, size: 3, grav: -0.03, shape: 'dot', spread: sg.w * 0.5 });
+            fx.flash(p[0] - sg.w / 2, p[1] - SLOT.h / 2, sg.w, SLOT.h, 'emberGlow', b, 20);
+            fx.ring(p[0], p[1], 'emberGlow', b, 10, 56, 22, 3);
+            fx.shake(2.2, b, 12);
+          }
+          gap = 8;
+          break;
+        case 'attack':
+          for (const pr of v.combat?.pairs ?? []) {
+            if ((p = pos(pr.att))) {
+              fx.ring(p[0], p[1], 'emberBright', b, 20, 60, 20, 2.5);
+              fx.burst(p[0], p[1], ['emberBright', 'brassGlint'], 8, b, { speed: 2, life: 18 });
+            }
+          }
+          if (e.seat === 1) fx.banner('THE FOE ATTACKS', '', 'emberGlow', b, null, (MID_Y + MY_LINE_Y) / 2 - 2, 34);
+          gap = 10;
+          break;
+        case 'blocks':
+          for (const pr of v.combat?.pairs ?? []) {
+            if (pr.blk && (p = pos(pr.blk))) fx.ring(p[0], p[1], 'brassGlint', b, 20, 56, 20, 2.5);
+          }
+          gap = 6;
+          break;
+        case 'ascend': {
+          const u = v.players[e.seat ?? 0].line.find((x) => x.card === e.card);
+          const x = (u && pos(u.iid)?.[0]) ?? HW / 2;
+          fx.column(x, 'brassGlint', b, 60);
+          fx.rise(x, (u && pos(u.iid)?.[1]) ?? 200, ['brassGlint', 'brassLight', 'steamWhite'], 30, b, 50);
+          fx.banner('ASCENDED', this.name(e.card!, e.seat ?? 0), 'brassGlint', b + 6, cardArt(e.card!, true), (MID_Y + MY_LINE_Y) / 2 - 4, 70);
+          fx.shake(3, b, 18);
+          gap = 24;
+          break;
+        }
+        case 'negate':
+        case 'fizzle':
+          fx.float(HW / 2, MID_Y + 30, e.k === 'negate' ? 'NEGATED' : 'FIZZLED', 'ironLight', b, 1.6);
+          fx.burst(HW / 2, MID_Y + 34, ['steam', 'iron'], 14, b, { speed: 1.5, life: 30, shape: 'dot', grav: -0.02 });
+          gap = 10;
+          break;
+        case 'resolve':
+          if (e.card) this.castBy.delete(e.card);
+          break;
+        case 'round':
+          if ((e.n ?? 0) > 1) fx.banner(`ROUND ${e.n ?? 0}`, '', 'brassLight', b, null, (MID_Y + MY_LINE_Y) / 2 - 2, 36);
+          gap = 8;
+          break;
+        default:
+          break;
       }
-      drawTextCentred(g, f.text, f.x, f.y - age / 2, { color: f.ink, face: 'bold', outline: 'ink', glow: f.ink, scale: 2, alpha: Math.min(1, fade * 1.6) });
+      if (sound <= t) playEvent(e, 0);
+      else window.setTimeout(() => playEvent(e, 0), (sound - t) * (1000 / 60));
+      d += gap;
     }
+    this.fxEnd = base + d;
   }
 
   /** The whole log, or a player's Scrap, newest at the bottom; arrows or the buttons scroll. */
