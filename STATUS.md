@@ -13,7 +13,11 @@ campaign run, a deck builder and the card gallery, with music and sound.
   Crystal (each nation's heart crystal) and a glyph as a tactic; the magic substance is crystal, not "gloam"
   (`docs/RESKIN.md`, audit-checked). Card ids and the spec's internal words are unchanged.
 - **Title (D13):** Vaskor at dusk with the six faction leads; menu CAMPAIGN, QUICK BATTLE, CONTINUE, DECK BUILDER,
-  CARD GALLERY, CREDITS.
+  CARD GALLERY, THE STORY, ART, CREDITS.
+- **Story (D27):** an attract mode (`src/attract.ts`) plays after 25 s untouched on PRESS START, or from THE STORY:
+  eleven pages over the painted fields, from Ardenmoor and the Greying to each nation at war and its lead. The
+  campaign opens each nation with a prologue on why it marches on Vaskor, a line for each act, and an ending when won
+  (`src/story.ts`, spec 20 R-R13). **Not yet read by the owner.**
 - **Quick battle (D17):** 24 premade decks, six single-faction decks and any saved legal deck, against a chosen or
   random foe deck at three AI levels. The 512 x 448 battle screen draws attack and block lines, floating damage and
   repair numbers, a log viewer (LOG or L) and a Scrap viewer (click a Scrap count). Autosaves after every move;
@@ -23,7 +27,8 @@ campaign run, a deck builder and the card gallery, with music and sound.
   QUICK BATTLE.
 - **Campaign (D18, spec 20):** pick a faction, then three acts of seven floors (skirmish, elite, event, rest, supply
   depot, boss) with one growing deck and a Crystal that carries its damage; a won battle repairs it by 3. Eight events
-  (R-R11), a briefing before each battle with the foe's deck (R-R12), boss intros with the boss's portrait. Balance
+  (R-R11), a briefing before each battle with the foe's deck (R-R12), boss intros with the boss's portrait, nation
+  prologues, act cards and endings (R-R13). Balance
   R-2: 7 of 18 stand-in runs get past act 1 and 2 win.
 - **Look (D25):** the interface no longer looks 8/16-bit: real type (Cinzel headings and buttons, Fira Sans text,
   sentence case), smoked-glass panels in brass frames, brass buttons, rounded card frames with stat badges, a crystal gem
@@ -39,6 +44,7 @@ campaign run, a deck builder and the card gallery, with music and sound.
   `feat/flux-studio-lora` of `dragoonant/local-ai-studio` (not merged).
 
 ## Waiting on the owner
+- Read the story: THE STORY on the title menu, and each nation's prologue in CAMPAIGN.
 - Listen to the music and effects; play-test the battles, the campaign's difficulty (R-2) and the deck builder.
 - Q2 interface concept and Q5 re-skin map (`PLAN.md`), kept as built for now.
 - ElevenLabs: its CLI sign-in needs the owner's approval in the browser before it can replace the local sound.

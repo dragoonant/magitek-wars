@@ -40,6 +40,11 @@ battles of spec 10 against the AI. Rule ids (R-R...) are cited in code and tests
   below the 10-card minimum. Random cards come from the run's generator and are never heroes or tokens.
 - **R-R12 Briefing.** Before a battle the player sees the foe's name, factions, deck size, Crystal and AI level, and can
   look at the foe's whole deck (open information); a boss gets an introduction.
+- **R-R13 Story.** Picking a faction opens its prologue (`src/story.ts`): its lead, and why it marches from
+  Thrumhollow across the Flats to Vaskor. BEGIN THE MARCH starts the run; CHOOSE ANOTHER NATION returns to the pick.
+  As each act begins (act 1 included), a card names the act and gives the nation's line for it; MARCH ON closes it.
+  A won run's end panel adds the nation's ending. The story text never changes a number.
+  RULING: the act card is shown once per act on this screen; a run reopened from its save does not show it again.
 - **R-R10 Saving.** The run saves after every node and every battle move (KB rule 22) in its own slot, separate from
   the single-battle save.
 

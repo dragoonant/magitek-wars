@@ -10,6 +10,7 @@ import { BattleSetup, type DeckOption } from './match/setup';
 import { Session, readStoredSave, clearSave } from './match/session';
 import type { Difficulty } from './ai/ai';
 import { RunScreen } from './run/screen';
+import { Attract } from './attract';
 import { DeckBuilder } from './deckbuilder/screen';
 import { isDetail, onDetailChange, setDetail } from './detail';
 import { installAudioUnlock, isMuted, loadSamples, setMusic, setMuted, type MusicMood } from './audio/audio';
@@ -89,7 +90,7 @@ function moodNow(): MusicMood {
     if (st.phase === 'over') return st.winner === 0 ? 'victory' : 'defeat';
     return m.mood;
   }
-  return screen === 'title' || screen === 'gallery' ? 'title' : 'calm';
+  return screen === 'title' || screen === 'gallery' || screen === 'attract' ? 'title' : 'calm';
 }
 
 const scene = new Scene();
@@ -99,8 +100,12 @@ let setup: BattleSetup | null = null;
 let match: Match | null = null;
 let run: RunScreen | null = null;
 let builder: DeckBuilder | null = null;
+let attract: Attract | null = null;
+/** The attract mode (PLAN D27) starts when the PRESS START screen has waited this long with no input. */
+const IDLE_MS = 25000;
+let idleSince = performance.now();
 let lastBattle: { mine: DeckOption; foe: DeckOption; level: Difficulty } | null = null;
-type Screen = 'title' | 'gallery' | 'setup' | 'match' | 'run' | 'decks';
+type Screen = 'title' | 'gallery' | 'setup' | 'match' | 'run' | 'decks' | 'attract';
 let screen: Screen = 'title';
 let failed = '';
 Promise.all([loadFonts(), scene.load(), title.load(), gallery.load()]).catch((e: unknown) => {
@@ -230,7 +235,16 @@ function route(): void {
     } else if (o === 'run') {
       run = new RunScreen();
       screen = 'run';
+    } else if (o === 'story') {
+      attract = new Attract('menu');
+      screen = 'attract';
     }
+  }
+  if (attract?.exit) {
+    title.mode = { kind: attract.from === 'menu' ? 'menu' : 'press' };
+    attract = null;
+    idleSince = performance.now();
+    screen = 'title';
   }
   if (builder?.result) {
     builder = null;
@@ -270,6 +284,7 @@ function route(): void {
 const typing = (): boolean => screen === 'decks' && builder?.debug().mode === 'name';
 
 window.addEventListener('keydown', (e) => {
+  idleSince = performance.now();
   if (e.repeat) return;
   if (e.code === 'KeyP' && !typing()) {
     setDetail(!isDetail());
@@ -286,6 +301,7 @@ window.addEventListener('keydown', (e) => {
   }
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Enter', 'Tab', 'PageUp', 'PageDown'].includes(e.code)) e.preventDefault();
   if (screen === 'gallery') gallery.key(e.code);
+  else if (screen === 'attract') attract?.key(e.code);
   else if (screen === 'setup') setup?.key(e.code);
   else if (screen === 'match') match?.key(e.code);
   else if (screen === 'run') run?.key(e.code);
@@ -294,6 +310,7 @@ window.addEventListener('keydown', (e) => {
   route();
 });
 canvas.addEventListener('pointermove', (e) => {
+  idleSince = performance.now();
   if (screen === 'title') title.pointerMove(...logical(e));
   else if (screen === 'match') match?.pointerMove(...logical(e));
   else if (screen === 'run') run?.pointerMove(...logical(e));
@@ -310,6 +327,7 @@ canvas.addEventListener('pointerup', (e) => {
 });
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
+  idleSince = performance.now();
   const [x, y] = logical(e);
   if (e.pointerType === 'touch') {
     const hold = { x, y, held: false, timer: 0 };
@@ -326,6 +344,7 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 function press(x: number, y: number, button: number): void {
   if (screen === 'gallery') gallery.pointerDown(x, y);
+  else if (screen === 'attract') attract?.pointerDown(x, y);
   else if (screen === 'setup') setup?.pointerDown(x, y);
   else if (screen === 'match') match?.pointerDown(x, y);
   else if (screen === 'run') run?.pointerDown(x, y);
@@ -375,6 +394,10 @@ function frame(now: number): void {
 }
 let crash = '';
 function drawFrame(now: number): void {
+  if (screen === 'title' && title.mode.kind === 'press' && scene.ready && now - idleSince > IDLE_MS) {
+    attract = new Attract('idle');
+    screen = 'attract';
+  }
   if (screen === 'match' && match) match.update(now);
   if (screen === 'run' && run) run.update(now);
   const wide = isWide();
@@ -388,6 +411,9 @@ function drawFrame(now: number): void {
     route();
   } else if (screen === 'decks' && builder) {
     builder.draw(g, t);
+    route();
+  } else if (screen === 'attract' && attract) {
+    attract.draw(g, t);
     route();
   } else if (screen === 'setup' && setup) setup.draw(g);
   else {
@@ -412,6 +438,7 @@ requestAnimationFrame(frame);
   failed: () => failed,
   crash: () => crash,
   screen: () => screen,
+  attract: () => (attract ? { page: attract.page, pages: attract.pages.length, from: attract.from } : null),
   gallery: () => ({ faction: gallery.faction, index: gallery.index, view: gallery.view.kind }),
   /** Play-test hook: start a battle between two deck indices of the setup list (used with ?auto&fast). */
   battle: (mine: number, foe: number) => {

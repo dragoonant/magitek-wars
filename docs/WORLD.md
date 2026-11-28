@@ -64,6 +64,18 @@ Tone: serious and grounded. Soot, rivets, frost on brass, hard choices on every 
 3. **The Rimeglass Flats.** The war's great battle. Who stands where depends on the player's choices.
 4. **The Great Crystal.** The ending is a choice about the Great Crystal: starve it, shatter it, or bargain for time.
 
+## Why each nation marches on Vaskor (PLAN D27)
+The campaign (spec 20) runs Thrumhollow, the Rimeglass Flats, Vaskor for every nation; Venn's survey (eleven years) is
+what sets all six marching. The full text, act lines and endings are in `src/story.ts`.
+| Nation | Why it marches | Its ending |
+|---|---|---|
+| **Cindral Dominion** (Corrow) | The northern line is cut, the survey is loose, the Sovereign unseen and the city watch bought; the Marshal goes home to hold the Great Crystal. | Bargain: she cuts the draw by a third. |
+| **The Free Gauge** (Wren) | Wren holds the survey; the union would sell it for a truce. She will read it from the Citadel steps. | The truth is out; the yards stop. |
+| **The Sedgekin** (Ulla) | The Ninth Root under Sedgemere is going quiet; it runs to the Great Crystal. The clans go to sing it to sleep. | Starve: the Great Crystal is banked; the root answers. |
+| **The Gale Exchange** (Quill) | The survey sets the price of crystal for eleven years, and Kitebarrow floats on crystal lift. Quill goes to sell time. | Bargain: half the draw, thirty years, a fee for Kitebarrow. |
+| **The Ashen Choir** (Ebbe) | Eleven years is a date, not a warning; better one fire than the slow Greying. | Shatter: Vaskor goes dark. |
+| **The Blackwick** (Vell) | The Dominion's war debts are secured on the Great Crystal's light; she calls them in before it goes out. | She owns it, and rations it. |
+
 ## In the card game (PLAN D4, D12)
 The engine is Annals of Scrivenearth's, so the game is a hero-driven card battler against an AI. The six factions
 above (the Blackwick included) are the six decks, matched to the engine's archetypes in PLAN D12, and the characters

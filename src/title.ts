@@ -9,7 +9,7 @@ import {
 
 export type Mode = { kind: 'press' } | { kind: 'menu' } | { kind: 'dialog'; id: MenuId };
 
-const MENU_BOX = { x: 72, y: 124, w: 112, h: 86 };
+const MENU_BOX = { x: 72, y: 114, w: 112, h: 96 };
 const WORDMARK_CAP = 18;
 const WORDMARK_Y = 43;
 const ITEM_X = MENU_BOX.x + 22;
@@ -25,7 +25,7 @@ export class Title {
   mode: Mode = { kind: 'press' };
   cursor = 0;
   /** A screen the player asked for; main.ts switches to it and clears this. */
-  open: 'cards' | 'new' | 'continue' | 'run' | 'decks' | null = null;
+  open: 'cards' | 'new' | 'continue' | 'run' | 'decks' | 'story' | null = null;
 
   constructor(private readonly hasSave: () => boolean) {}
 
@@ -41,7 +41,7 @@ export class Title {
     const item = MENU[this.cursor];
     if (!this.enabled(item.id)) return;
     if (item.id === 'art') setDetail(!isDetail());
-    else if (item.id === 'cards' || item.id === 'new' || item.id === 'continue' || item.id === 'run' || item.id === 'decks') this.open = item.id;
+    else if (item.id === 'cards' || item.id === 'new' || item.id === 'continue' || item.id === 'run' || item.id === 'decks' || item.id === 'story') this.open = item.id;
     else this.mode = { kind: 'dialog', id: item.id };
   }
 

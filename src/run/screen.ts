@@ -19,6 +19,7 @@ import {
   leaveSupply, newRun, rest, takeReward, chooseEvent, removeForEvent, FACTION_NAMES, type MapNode, type RunState,
 } from './run';
 import { BOSS_INTRO, EVENTS } from './events';
+import { NATIONS } from '../story';
 
 export const RUN_KEY = 'magitek-wars.run';
 const ACT_FIELDS: Field[] = ['thrumhollow', 'rimeglass', 'vaskor'];
@@ -77,6 +78,10 @@ export class RunScreen {
   private hots: Hot[] = [];
   private hover: string | null = null;
   private savedActions = -1;
+  /** The nation whose prologue is open on the pick screen, before the run begins (R-R13). */
+  private preview: FactionId | null = null;
+  /** The act whose opening line has been read; a later act shows its line first (R-R13). */
+  private seenAct = 0;
   /** Set when the player leaves for the title. */
   exit = false;
 
@@ -85,6 +90,7 @@ export class RunScreen {
     if (r && 'problem' in r) this.problem = r.problem;
     else if (r) {
       this.run = r.run;
+      this.seenAct = r.run.act;
       if (r.run.phase === 'battle' && r.run.battle && r.actions.length) this.resumeBattle(r.actions as never[]);
     }
   }
@@ -157,7 +163,8 @@ export class RunScreen {
       return;
     }
     if (code === 'Escape') {
-      if (this.deckOpen || this.removing) { this.deckOpen = false; this.removing = false; }
+      if (this.preview) this.preview = null;
+      else if (this.deckOpen || this.removing) { this.deckOpen = false; this.removing = false; }
       else this.exit = true;
     }
   }
@@ -175,12 +182,17 @@ export class RunScreen {
     const [k, v] = h.id.split('|');
     const r = this.run;
     if (k === 'title') { this.exit = true; return; }
-    if (k === 'faction') {
-      this.run = newRun(v as FactionId, (Math.random() * 0x7fffffff) >>> 0);
+    if (k === 'faction') { this.preview = v as FactionId; return; }
+    if (k === 'pickagain') { this.preview = null; return; }
+    if (k === 'begin' && this.preview) {
+      this.run = newRun(this.preview, (Math.random() * 0x7fffffff) >>> 0);
+      this.preview = null;
+      this.seenAct = 0;
       this.save();
       return;
     }
     if (!r) return;
+    if (k === 'marchon') { this.seenAct = r.act; return; }
     if (k === 'deck') { this.deckOpen = !this.deckOpen; return; }
     if (k === 'close') { this.deckOpen = false; this.removing = false; return; }
     if (k === 'abandon') { this.confirmAbandon = true; return; }
@@ -232,7 +244,11 @@ export class RunScreen {
     }
     this.hots = [];
     const r = this.run;
-    if (!r) { this.drawPick(g, t); return; }
+    if (!r) {
+      if (this.preview) this.drawPrologue(g, this.preview);
+      else this.drawPick(g, t);
+      return;
+    }
     backdrop(g, HW, HH, ACT_FIELDS[Math.min(2, r.act - 1)], 0.5);
     if (r.phase === 'won' || r.phase === 'lost') this.drawEnd(g, r);
     else {
@@ -245,6 +261,7 @@ export class RunScreen {
       if (r.phase === 'supply') this.drawSupply(g, r);
       if (r.phase === 'event' || r.phase === 'eventRemove') this.drawEvent(g, r);
       if (r.phase === 'battle') this.drawBriefing(g, r);
+      if (r.phase === 'map' && r.act > this.seenAct) this.drawActCard(g, r);
     }
     if (this.deckOpen || this.removing || r.phase === 'eventRemove') this.drawDeck(g, r);
     if (this.note) {
@@ -279,7 +296,7 @@ export class RunScreen {
   private drawPick(g: Gfx, t: number): void {
     backdrop(g, HW, HH, 'vaskor', 0.55);
     drawTextCentred(g, 'THE MARCH ON VASKOR', HW / 2, 9, { color: 'brassGlint', scale: 2, shadow: 'ink' });
-    drawTextCentred(g, 'Choose your faction. Your deck grows with every battle; your Crystal only heals at rest stops and depots.', HW / 2, 32, { color: 'steam', scale: 0.95 });
+    drawTextCentred(g, 'Choose a nation to read why it marches. Your deck grows with every battle; your Crystal heals at rests and depots.', HW / 2, 32, { color: 'steam', scale: 0.95 });
     if (this.problem) drawTextCentred(g, fitText(this.problem, HW - 20), HW / 2, 44, { color: 'emberGlow', face: 'bold' });
     FACTIONS.forEach((f, i) => {
       const x = 8 + (i % 3) * 168, y = 56 + Math.floor(i / 3) * 186;
@@ -297,6 +314,45 @@ export class RunScreen {
     });
     void t;
     this.button(g, 'BACK', 8, HH - 24, 'title');
+  }
+
+  /** A nation's prologue (R-R13): who leads it and why it marches on Vaskor, before the run begins. */
+  private drawPrologue(g: Gfx, f: FactionId): void {
+    const fac = FACTIONS.find((q) => q.engine === f)!;
+    const story = NATIONS[f];
+    backdrop(g, HW, HH, fac.field as Field, 0.6);
+    panel(g, 20, 12, 472, 424, { glow: 'brass' });
+    const em = emblem(fac.key);
+    if (em) { drawPic(g, em, 34, 24); drawPic(g, em, HW - 34 - 28, 24); }
+    drawTextCentred(g, fac.name, HW / 2, 26, { color: 'brassGlint', scale: 2, face: 'display', shadow: 'ink' });
+    drawTextCentred(g, story.lead, HW / 2, 48, { color: 'steam', face: 'display' });
+    this.pic(g, cardArt(LEADS[f], false, true), HW / 2 - 96, 64, 192, 144, 'brass', true);
+    drawTextCentred(g, story.title, HW / 2, 218, { color: 'emberGlow', scale: 1.3, face: 'display', shadow: 'ink' });
+    rule(g, 60, 234, 392);
+    let y = 242;
+    for (const para of story.prologue) {
+      for (const l of wrapPx(para, 440)) { drawText(g, l, 36, y, { color: 'steamWhite' }); y += 11.5; }
+      y += 5;
+    }
+    this.button(g, 'CHOOSE ANOTHER NATION', 36, 410, 'pickagain');
+    const label = 'BEGIN THE MARCH';
+    this.button(g, label, HW - 36 - (textWidth(label, 1, 'display') + 16), 410, 'begin');
+  }
+
+  /** The opening of an act (R-R13): where the march has reached, and what it means for this nation. */
+  private drawActCard(g: Gfx, r: RunState): void {
+    this.hots = []; // the map waits under the card
+    g.wash(0, 0, HW, HH, 'ink', 0.55);
+    const lines = wrapPx(NATIONS[r.faction].acts[r.act - 1], 380, 1.1);
+    const h = 92 + lines.length * 13;
+    const y0 = Math.round((HH - h) / 2);
+    panel(g, 56, y0, 400, h, { glow: 'brass' });
+    drawTextCentred(g, `ACT ${r.act}`, HW / 2, y0 + 14, { color: 'emberGlow', face: 'display', shadow: 'ink' });
+    drawTextCentred(g, ACT_NAMES[r.act - 1], HW / 2, y0 + 28, { color: 'brassGlint', scale: 2, face: 'display', shadow: 'ink' });
+    rule(g, 96, y0 + 52, 320);
+    lines.forEach((l, i) => drawTextCentred(g, l, HW / 2, y0 + 60 + i * 13, { color: 'steamWhite', scale: 1.1 }));
+    const label = 'MARCH ON';
+    this.button(g, label, HW / 2 - (textWidth(label, 1, 'display') + 16) / 2, y0 + h - 26, 'marchon');
   }
 
   private nodePos(r: RunState, n: MapNode): [number, number] {
@@ -578,11 +634,18 @@ export class RunScreen {
 
   private drawEnd(g: Gfx, r: RunState): void {
     const won = r.phase === 'won';
-    panel(g, 80, 140, 352, 128, { glow: won ? 'brassGlint' : 'ember' });
-    drawTextCentred(g, won ? 'THE MARCH IS WON' : 'THE MARCH IS OVER', HW / 2, 156, { color: won ? 'brassGlint' : 'emberGlow', scale: 2, glow: won ? 'brass' : 'ember' });
-    drawTextCentred(g, `${FACTION_INFO[r.faction].name}: act ${r.act}, ${r.wins} battles won, ${r.deck.length} cards`, HW / 2, 186, { color: 'steamWhite' });
-    wrapPx(r.log[r.log.length - 1] ?? '', 330).slice(0, 2).forEach((l, i) => drawTextCentred(g, l, HW / 2, 200 + i * 11, { color: 'steam' }));
-    this.button(g, 'NEW RUN', 150, 240, 'newrun');
-    this.button(g, 'TITLE', 300, 240, 'title');
+    // a won run closes with its nation's ending (R-R13)
+    const ending = won ? wrapPx(NATIONS[r.faction].ending, 330) : [];
+    const extra = ending.length ? ending.length * 11.5 + 10 : 0;
+    const h = 128 + extra;
+    const y0 = Math.round((HH - h) / 2) - 20;
+    panel(g, 80, y0, 352, h, { glow: won ? 'brassGlint' : 'ember' });
+    drawTextCentred(g, won ? 'THE MARCH IS WON' : 'THE MARCH IS OVER', HW / 2, y0 + 16, { color: won ? 'brassGlint' : 'emberGlow', scale: 2, glow: won ? 'brass' : 'ember' });
+    drawTextCentred(g, `${FACTION_INFO[r.faction].name}: act ${r.act}, ${r.wins} battles won, ${r.deck.length} cards`, HW / 2, y0 + 46, { color: 'steamWhite' });
+    wrapPx(r.log[r.log.length - 1] ?? '', 330).slice(0, 2).forEach((l, i) => drawTextCentred(g, l, HW / 2, y0 + 60 + i * 11, { color: 'steam' }));
+    if (ending.length) rule(g, 120, y0 + 86, 272);
+    ending.forEach((l, i) => drawTextCentred(g, l, HW / 2, y0 + 94 + i * 11.5, { color: 'steamWhite' }));
+    this.button(g, 'NEW RUN', 150, y0 + h - 28, 'newrun');
+    this.button(g, 'TITLE', 300, y0 + h - 28, 'title');
   }
 }
