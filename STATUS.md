@@ -14,8 +14,10 @@ campaign run, a deck builder and the card gallery, with music and sound.
   deck retuned by decklist into a 45-55% band: on fresh seeds all 24 sit at 45.7-53.7% (`tools/tourney.ts`,
   about 1240 games a deck). `tools/cardstats.ts` measures each card's value. Campaign bench unchanged.
 - **Heroes (D32):** every hero's level condition is measured with `npm run herosim`: a hero that reaches the Line
-  ascends in 51-96% of its games, around round 6-8, on a counter its own nation feeds (before: 11 of 24 under half, Otto
-  Brandt 10%, Maudrey Hale 8%). Four premades changed to feed their heroes (BALANCE B-8). **Not yet played by the owner.**
+  ascends in 50-96% of its games, around round 6-9, on a counter its own nation feeds (before: 11 of 24 under half,
+  Otto Brandt 10%, Maudrey Hale 8%). The value pass rerun shrank Hoarhorn's and Maudrey's ascended faces, and 13
+  premades swapped cards to stay in D31's band: on fresh seeds 23 of 24 sit at 47.7-53.5% and Floodgate at about
+  46-47% (BALANCE B-8). **Not yet played by the owner.**
 - **Re-skin (D12, D16, D24):** every card and hero has its Magitek Wars name and text; the Spire is printed as the
   Crystal (each nation's heart crystal) and a glyph as a tactic; the magic substance is crystal, not "gloam"
   (`docs/RESKIN.md`, audit-checked). Card ids and the spec's internal words are unchanged.

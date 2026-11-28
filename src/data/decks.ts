@@ -53,7 +53,8 @@ export function autoDeck(a: FactionId, b: FactionId): string[] {
 
 /**
  * The first five premades: built by autoDeck from the original 150-card pool, then retuned by hand into the 45-55% band
- * (PLAN D31, BALANCE B-7), which gave each a top end. Names and order stay (`?decks=` indices rely on them).
+ * (PLAN D31, BALANCE B-7), which gave each a top end, then retuned again for the D32 hero bars (BALANCE B-8). Names
+ * and order stay (`?decks=` indices rely on them).
  */
 const CURVE: { name: string; cards: Record<string, number> }[] = [
   { name: 'Rampart and Reed', cards: { 'prism-ysolde': 3, 'coil-aruvi': 3, 'prism-facet-initiate': 1, 'coil-rootling': 1, 'prism-glasswarden': 1, 'coil-sap-surge': 1, 'prism-hold-the-line': 1, 'coil-sprout-tender': 1, 'prism-lampkeeper': 1, 'coil-bristle': 1, 'prism-bracewright': 1, 'coil-duel-of-thorns': 1, 'prism-call-out': 1, 'prism-mirror-ward': 1, 'coil-sap-engine': 1, 'prism-pane-mender': 1, 'coil-tuskhide': 2, 'prism-tierguard': 1, 'coil-vinewhip': 1, 'prism-choir-of-facets': 1, 'coil-bloomcaller': 1, 'prism-chorus-warden': 1, 'coil-crownmaw': 1, 'prism-crystal-bulwark': 1, 'coil-lash-out': 1, 'prism-lightwall-oath': 1, 'coil-lashvine': 1, 'prism-sentinel-lens': 1, 'coil-overgrowth': 1, 'prism-aegis-colossus': 1, 'coil-grafting': 1, 'coil-spore-herald': 1, 'coil-domewyrm': 1, 'prism-patch-the-pane': 1, 'coil-thornback-cub': 1 } },
@@ -175,7 +176,7 @@ export const HAND_BUILT: HandDeck[] = [
     name: 'Floodgate', about: 'The Gale Exchange alone: draw deep, freeze or haul off whatever attacks, and win the long game.',
     cards: {
       'tide-ilvane': 3, 'tide-sefa': 3,
-      'tide-sluicepage': 3, 'tide-mirroreel': 3, 'tide-wardtender': 2, 'tide-heldbreath': 3, 'tide-quickcurrent': 1, 'tide-lockkeeper': 1, 'tide-glassarchivist': 3, 'tide-stillwaterbailiff': 2, 'tide-pearlsentinel': 3, 'tide-deepwateroracle': 2, 'tide-frostmeremagistrate': 1, 'tide-gateleviathan': 1, 'tide-deepstudy': 1, 'tide-lorewhale': 1, 'tide-rifflethestacks': 2, 'tide-siltnewt': 1, 'tide-floodwallcolossus': 1, 'tide-hushwateradept': 1, 'tide-tallyframe': 1, 'tide-shelfwarden': 1,
+      'tide-sluicepage': 3, 'tide-mirroreel': 3, 'tide-wardtender': 1, 'tide-heldbreath': 3, 'tide-quickcurrent': 1, 'tide-lockkeeper': 1, 'tide-glassarchivist': 3, 'tide-stillwaterbailiff': 2, 'tide-pearlsentinel': 3, 'tide-deepwateroracle': 2, 'tide-gateleviathan': 2, 'tide-deepstudy': 1, 'tide-rifflethestacks': 2, 'tide-floodwallcolossus': 1, 'tide-hushwateradept': 1, 'tide-tallyframe': 3, 'tide-shelfwarden': 1, 'tide-siltnewt': 1,
     },
   },
 ];
