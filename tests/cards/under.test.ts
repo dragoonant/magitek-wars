@@ -286,11 +286,11 @@ describe('under cards (strict)', () => {
     expect(s.players[1].spire).toBe(16);
     expect(s.players[0].spire).toBe(14);
     expect(isAscended(s, 0, 'under-vex')).toBe(false);
-    // Ascend: Spire 5, healed 4 -> strike heals 4 (8 total) and ascends: 3 drained from a grunt (heals 3, full amount) and from the ogre (3)
+    // Ascend: Spire 5, 1 repaired so far -> the strike heals 4 (5, the level) and ascends: 3 drained from a grunt (heals 3, full amount) and from the ogre (3)
     const a = board({ line: [['under-vex'], ['zz-grunt', 'zz-ogre']] });
     a.players[0].heroes = ['under-vex'];
     a.players[0].spire = 5;
-    a.players[0].seen.spireHealed = 4;
+    a.players[0].seen.spireHealed = 1;
     attack(a, [unit(a, 0, 'under-vex')]);
     resolveCombat(a);
     expect(isAscended(a, 0, 'under-vex')).toBe(true);
@@ -571,7 +571,7 @@ describe('under cards (strict)', () => {
 });
 
 describe('under cards (First Light additions)', () => {
-  it('under-marrow: Dread; Assault deals 1 to the weakest enemy; 3 kills ascend him and Ascend destroys every damaged enemy', () => {
+  it('under-marrow: Dread; Assault deals 1 to the weakest enemy; the 6th enemy destroyed ascends him and Ascend destroys every damaged enemy', () => {
     const s = board({ line: [['under-marrow'], ['zz-ogre', 'zz-grunt']] });
     const m = unit(s, 0, 'under-marrow');
     expect(st(s, m)).toMatchObject({ power: 2, health: 3 });
@@ -579,11 +579,11 @@ describe('under cards (First Light additions)', () => {
     declare(s, m.iid);
     expect(unit(s, 1, 'zz-grunt').dmg).toBe(1); // Assault: the grunt is the weakest
     expect(unit(s, 1, 'zz-ogre').dmg).toBe(0);
-    // level: 2 kills so far; the Assault ping finishes a grunt (3rd kill); Ascend destroys the damaged ogre
+    // level: 5 enemies destroyed so far; the Assault ping finishes a grunt (the 6th); Ascend destroys the damaged ogre
     const a = board({ line: [['under-marrow'], ['zz-grunt', 'zz-ogre', 'zz-vanguard']] });
     a.players[0].heroes = ['under-marrow'];
     const h = unit(a, 0, 'under-marrow');
-    h.seen.kills = 2;
+    a.players[0].seen.enemiesDied = 5;
     h.dmg = 2;
     unit(a, 1, 'zz-grunt').dmg = 1;
     unit(a, 1, 'zz-ogre').dmg = 1;
@@ -601,15 +601,20 @@ describe('under cards (First Light additions)', () => {
     expect(unit(b, 1, 'zz-ogre').dmg).toBe(0);
   });
 
-  it('under-marrow: a kill by his Assault counts on his own counter; 1 kill does not ascend him', () => {
+  it('under-marrow: every enemy destroyed counts, by him or by anything else of yours, even with him off the Line', () => {
     const s = board({ line: [['under-marrow'], ['zz-grunt', 'zz-ogre']] });
     s.players[0].heroes = ['under-marrow'];
+    s.players[0].seen.enemiesDied = 4;
     unit(s, 1, 'zz-grunt').dmg = 1;
-    const m = unit(s, 0, 'under-marrow');
-    declare(s, m.iid);
+    declare(s, unit(s, 0, 'under-marrow').iid); // his Assault finishes the grunt: 5
     expect(cards(s, 1)).toEqual(['zz-ogre']);
-    expect(m.seen.kills).toBe(1);
     expect(isAscended(s, 0, 'under-marrow')).toBe(false);
+    const t = board({ hand: [['zz-zap', 'under-marrow'], []], line: [[], ['zz-grunt']] });
+    t.players[0].heroes = ['under-marrow'];
+    t.players[0].seen.enemiesDied = 5;
+    unit(t, 1, 'zz-grunt').dmg = 1;
+    play(t, 'zz-zap', [unit(t, 1, 'zz-grunt').iid]); // a tactic, with Graff still in hand: 6
+    expect(isAscended(t, 0, 'under-marrow')).toBe(true);
   });
 
   it('under-penn: Dusk drains 1 per glyph cast this round (at most 2); 10 glyph damage ascends her; Ascend drains 1 per card in hand (at most 4); ascended Dusk drains up to 4', () => {

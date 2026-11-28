@@ -74,7 +74,7 @@ export function invariants(s: GameState): string[] {
   return out;
 }
 
-export function playGame(setup: Setup, policies: [Policy, Policy], opts: { maxActions?: number; checkReplay?: boolean } = {}): GameResult {
+export function playGame(setup: Setup, policies: [Policy, Policy], opts: { maxActions?: number; checkReplay?: boolean; observe?: (s: GameState) => void } = {}): GameResult {
   const t0 = Date.now();
   const s = createGame(setup);
   const rnd = mulberry((setup.seed ^ 0x9e3779b9) >>> 0);
@@ -128,6 +128,7 @@ export function playGame(setup: Setup, policies: [Policy, Policy], opts: { maxAc
       if (e.k === 'blocks' && e.seat !== undefined && (e.n ?? 0) > 0) res.blocksMade[e.seat] += 1;
       if (e.k === 'cast' && e.seat !== undefined) res.glyphs[e.seat] += 1;
     }
+    opts.observe?.(s);
     const inv = invariants(s);
     if (inv.length) { problems.push(...inv.slice(0, 3)); break; }
   }

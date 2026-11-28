@@ -7,7 +7,7 @@ export const tide: CardDef[] = [
     tribe: 'mage',
     text: 'When you play a tactic, I get +1|+0 this round.',
     abilities: [{ on: 'glyphCast', ops: [{ op: 'buff', to: 'self', power: 1, dur: 'round' }] }],
-    level: { who: 'you', stat: 'glyphsCast', n: 6, text: "You've played 6+ tactics" },
+    level: { who: 'you', stat: 'glyphsCast', n: 4, text: "You've played 4+ tactics" },
     ascended: {
       name: 'Quill, Broker of Skies', power: 3, health: 5,
       text: 'Your tactics cost 1 less. When you play a tactic, I get +1|+1. Ascend: draw 2.',
@@ -170,7 +170,7 @@ export const tide: CardDef[] = [
     tribe: 'mage',
     text: 'Strike: draw 1.',
     abilities: [{ on: 'strike', ops: [{ op: 'draw', n: 1 }] }],
-    level: { who: 'you', stat: 'cardsDrawn', n: 14, text: "You've drawn 14+ cards" },
+    level: { who: 'you', stat: 'cardsDrawn', n: 10, text: "You've drawn 10+ cards" },
     ascended: {
       name: 'Rook, Keeper of Debts', power: 4, health: 7,
       text: 'Strike: draw 1. Dusk: draw 1. Ascend: deal damage to the strongest enemy equal to the cards in your hand.',
@@ -190,7 +190,7 @@ export const tide: CardDef[] = [
       targets: [{ what: 'unit', side: 'ally' }, { what: 'unit', side: 'enemy' }],
       ops: [{ op: 'recall', to: 'target0' }, { op: 'stasis', to: 'target1' }],
     }],
-    level: { who: 'you', stat: 'recalled', n: 5, text: "You've returned 5+ units to a hand" },
+    level: { who: 'you', stat: 'recalled', n: 4, text: "You've returned 4+ units to a hand" },
     ascended: {
       name: 'Tollhook, Lord of Winches', power: 4, health: 6,
       text: 'Your units cost 1 less. Deploy: return another allied unit to your hand and put an enemy unit in Stasis. ' +

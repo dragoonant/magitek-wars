@@ -239,7 +239,7 @@ describe('tide cards (strict)', () => {
     expect(st(o, unit(o, 0, 'tide-maren')).power).toBe(2);
   });
 
-  it('tide-maren: ascended she gets +1|+1 (lasting) per cast, glyphs cost 1 less; the 6th cast still gives the unascended +1|+0 round trigger', () => {
+  it('tide-maren: ascended she gets +1|+1 (lasting) per cast, glyphs cost 1 less; the 4th cast still gives the unascended +1|+0 round trigger', () => {
     const s = board({ hand: [['zz-pump', 'zz-pump'], []], line: [['tide-maren'], []] });
     s.players[0].heroes = ['tide-maren'];
     s.players[0].ascended = ['tide-maren'];
@@ -251,10 +251,10 @@ describe('tide cards (strict)', () => {
     expect(st(s, m)).toMatchObject({ power: 4, health: 5 + 1 + 3 });
     endRound(s);
     expect(st(s, m)).toMatchObject({ power: 4, health: 6 }); // +1|+1 lasts, the +0|+3 does not
-    // sixth cast: ascension happens during that cast, the already queued unascended trigger fires
+    // fourth cast: ascension happens during that cast, the already queued unascended trigger fires
     const t = board({ hand: [['zz-pump'], []], line: [['tide-maren'], []] });
     t.players[0].heroes = ['tide-maren'];
-    t.players[0].seen.glyphsCast = 5;
+    t.players[0].seen.glyphsCast = 3;
     const tm = unit(t, 0, 'tide-maren');
     play(t, 'zz-pump', [tm.iid]);
     expect(isAscended(t, 0, 'tide-maren')).toBe(true);
@@ -523,7 +523,7 @@ describe('tide cards (strict)', () => {
 });
 
 describe('tide cards (First Light additions)', () => {
-  it('tide-sefa: Strike draws 1; 14 cards drawn ascends her, Ascend hits the strongest enemy for the hand size, then Dusk draws', () => {
+  it('tide-sefa: Strike draws 1; 10 cards drawn ascends her, Ascend hits the strongest enemy for the hand size, then Dusk draws', () => {
     const s = board({ line: [['tide-sefa'], ['zz-wall']] });
     s.players[0].heroes = ['tide-sefa'];
     const h = unit(s, 0, 'tide-sefa');
@@ -535,9 +535,9 @@ describe('tide cards (First Light additions)', () => {
 
     const t = board({ hand: [['zz-rite', 'zz-grunt', 'zz-grunt', 'zz-grunt'], []], line: [['tide-sefa'], ['zz-ogre', 'zz-grunt']] });
     t.players[0].heroes = ['tide-sefa'];
-    t.players[0].seen.cardsDrawn = 13;
+    t.players[0].seen.cardsDrawn = 9;
     play(t, 'zz-rite');
-    pass(t); // the Ritual resolves: the 14th card drawn
+    pass(t); // the Ritual resolves: the 10th card drawn
     expect(isAscended(t, 0, 'tide-sefa')).toBe(true);
     expect(t.players[0].hand.length).toBe(4);
     expect(unit(t, 1, 'zz-ogre').dmg).toBe(4); // Ascend: 4 cards in hand
@@ -547,7 +547,7 @@ describe('tide cards (First Light additions)', () => {
     expect(t.players[0].hand.length).toBe(6);
   });
 
-  it('tide-corra: Deploy returns an ally and freezes an enemy; the 5th return ascends her, Ascend returns small enemies, units cost 1 less', () => {
+  it('tide-corra: Deploy returns an ally and freezes an enemy; the 4th return ascends her, Ascend returns small enemies, units cost 1 less', () => {
     const s = board({ hand: [['tide-corra'], []], line: [['tide-sluicepage'], ['zz-grunt']] });
     s.players[0].heroes = ['tide-corra'];
     play(s, 'tide-corra', [unit(s, 0, 'tide-sluicepage').iid, unit(s, 1, 'zz-grunt').iid]);
@@ -560,7 +560,7 @@ describe('tide cards (First Light additions)', () => {
 
     const t = board({ hand: [['tide-corra'], []], line: [['tide-sluicepage'], ['zz-ogre', 'tide-pearlsentinel']] });
     t.players[0].heroes = ['tide-corra'];
-    t.players[0].seen.recalled = 4;
+    t.players[0].seen.recalled = 3;
     play(t, 'tide-corra', [unit(t, 0, 'tide-sluicepage').iid, unit(t, 1, 'zz-ogre').iid]);
     expect(isAscended(t, 0, 'tide-corra')).toBe(true);
     expect(t.players[1].line.map((u) => u.card)).toEqual(['zz-ogre']);

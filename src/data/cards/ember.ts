@@ -169,7 +169,7 @@ export const ember: CardDef[] = [
     keywords: ['vanguard', 'dueler'], tribe: 'smith',
     text: 'Vanguard, Dueler. Strike: I get +0|+1.',
     abilities: [{ on: 'strike', ops: [{ op: 'buff', to: 'self', health: 1 }] }],
-    level: { who: 'self', stat: 'strikes', n: 5, text: "I've struck 5+ times" },
+    level: { who: 'self', stat: 'strikes', n: 3, text: "I've struck 3+ times" },
     ascended: {
       name: 'Hask, Ember Penitent', power: 4, health: 5, keywords: ['vanguard', 'dueler'],
       text: 'Vanguard, Dueler. Strike: deal 1 to the enemy Crystal. Ascend: I strike every enemy unit.',
@@ -184,7 +184,7 @@ export const ember: CardDef[] = [
     tribe: 'artificer',
     text: 'Dawn: gain 1 Reserve.',
     abilities: [{ on: 'dawn', ops: [{ op: 'reserve', n: 1 }] }],
-    level: { who: 'you', stat: 'chargeSpent', n: 30, text: "You've spent 30+ Charge" },
+    level: { who: 'you', stat: 'chargeSpent', n: 24, text: "You've spent 24+ Charge" },
     ascended: {
       name: 'Oriel, the Banked Fire', power: 5, health: 6,
       text: 'Dawn: gain 1 Reserve, then gain Charge equal to your Reserve. Ascend: gain 4 Charge.',

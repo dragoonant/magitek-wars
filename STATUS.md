@@ -13,6 +13,11 @@ roguelike campaign, Hero Expeditions in the shape of Path of Champions, a deck b
   Ledger-Hand costs 2, Launch Chief 6, Cantor Ebbe ascends later and smaller, and four more), then every premade
   deck retuned by decklist into a 45-55% band: on fresh seeds all 24 sit at 45.7-53.7% (`tools/tourney.ts`,
   about 1240 games a deck). `tools/cardstats.ts` measures each card's value. Campaign bench unchanged.
+- **Heroes (D32):** every hero's level condition is measured with `npm run herosim`: a hero that reaches the Line
+  ascends in 50-96% of its games, around round 6-9, on a counter its own nation feeds (before: 11 of 24 under half,
+  Otto Brandt 10%, Maudrey Hale 8%). The value pass rerun shrank Hoarhorn's and Maudrey's ascended faces, and 13
+  premades swapped cards to stay in D31's band: on fresh seeds 23 of 24 sit at 47.7-53.5% and Floodgate at about
+  46-47% (BALANCE B-8). **Not yet played by the owner.**
 - **Re-skin (D12, D16, D24):** every card and hero has its Magitek Wars name and text; the Spire is printed as the
   Crystal (each nation's heart crystal) and a glyph as a tactic; the magic substance is crystal, not "gloam"
   (`docs/RESKIN.md`, audit-checked). Card ids and the spec's internal words are unchanged.
@@ -28,8 +33,8 @@ roguelike campaign, Hero Expeditions in the shape of Path of Champions, a deck b
 - **Campaign (D18, spec 20):** pick a faction, then three acts of seven floors (skirmish, elite, event, rest, supply
   depot, boss) with one growing deck and a Crystal that carries its damage; a won battle repairs it by 3. Eight events
   (R-R11), a briefing before each battle with the foe's deck (R-R12), boss intros with the boss's portrait. Balance
-  R-2: 7 of 18 stand-in runs get past act 1 and 2 win. Kept as it was by D33.
-- **Expeditions (D32, D33, spec 21; EXPEDITIONS on the title menu):** pick one of the six faction-lead heroes and a handmade
+  R-2: 7 of 18 stand-in runs get past act 1 and 2 win. Kept as it was by D34.
+- **Expeditions (D33, D34, spec 21; EXPEDITIONS on the title menu):** pick one of the six faction-lead heroes and a handmade
   expedition (The Thrumhollow Road 1 star, Across the Rimeglass 2, The Gates of Vaskor 3; each opens when the one
   before is won). A 24-card starter built around the hero, who is always drawn early (engine R-X4); the Crystal carries
   between battles. Stops: battle, elite, boss, rest, depot, event, command post (pick 1 of 3 **Orders**, powers for the
@@ -52,14 +57,14 @@ roguelike campaign, Hero Expeditions in the shape of Path of Champions, a deck b
   `feat/flux-studio-lora` of `dragoonant/local-ai-studio` (not merged).
 
 ## Waiting on the owner
-- Listen to the music and effects; play-test the B-6 card changes and the retuned premades (B-7), the battles, the new Expeditions mode (D32: difficulty R-3, the six starters and the Order and Fitting lists) and the deck builder.
+- Listen to the music and effects; play-test the B-6 card changes and the retuned premades (B-7), whether heroes now ascend often enough (D32), the battles, the campaign's difficulty (R-2), the new Expeditions mode (D33: difficulty R-3, the six starters and the Order and Fitting lists) and the deck builder.
 - Q2 interface concept and Q5 re-skin map (`PLAN.md`), kept as built for now.
 - ElevenLabs: its CLI sign-in needs the owner's approval in the browser before it can replace the local sound.
 - Flux Studio: merge `feat/flux-studio-lora` (fast-forward) and restart the studio.
 - Verdict on LoRA v3 (`lora/runs/v3-compare.webp`).
 
 ## Next
-1. Expeditions: owner play-test of D32; Captain Dasha Quill (Gale Exchange) is far the hardest hero (R-3); more
+1. Expeditions: owner play-test of D33; Captain Dasha Quill (Gale Exchange) is far the hardest hero (R-3); more
    expeditions and hero-specific level-up powers once the owner has played the first three. Campaign: act 1 elites
    (24 cards, Veteran) are still its main wall (R-2).
 2. Art: a prompt pass for cards that drifted to modern-war looks, now with v3.

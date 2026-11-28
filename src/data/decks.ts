@@ -53,14 +53,15 @@ export function autoDeck(a: FactionId, b: FactionId): string[] {
 
 /**
  * The first five premades: built by autoDeck from the original 150-card pool, then retuned by hand into the 45-55% band
- * (PLAN D31, BALANCE B-7), which gave each a top end. Names and order stay (`?decks=` indices rely on them).
+ * (PLAN D31, BALANCE B-7), which gave each a top end, then retuned again for the D32 hero bars (BALANCE B-8). Names
+ * and order stay (`?decks=` indices rely on them).
  */
 const CURVE: { name: string; cards: Record<string, number> }[] = [
-  { name: 'Rampart and Reed', cards: { 'prism-ysolde': 3, 'coil-aruvi': 3, 'prism-facet-initiate': 1, 'coil-rootling': 1, 'prism-glasswarden': 1, 'coil-sap-surge': 1, 'prism-hold-the-line': 1, 'coil-sprout-tender': 1, 'prism-lampkeeper': 1, 'coil-thornback-cub': 1, 'coil-bristle': 1, 'prism-bracewright': 1, 'coil-duel-of-thorns': 1, 'prism-call-out': 1, 'prism-mirror-ward': 1, 'coil-sap-engine': 1, 'prism-pane-mender': 1, 'coil-spearhorn': 1, 'prism-tierguard': 1, 'coil-vinewhip': 1, 'prism-choir-of-facets': 1, 'coil-bloomcaller': 1, 'prism-chorus-warden': 1, 'coil-crownmaw': 1, 'prism-crystal-bulwark': 1, 'coil-lash-out': 1, 'prism-lightwall-oath': 1, 'coil-lashvine': 1, 'prism-sentinel-lens': 1, 'coil-overgrowth': 1, 'prism-aegis-colossus': 1, 'coil-grafting': 1, 'coil-spore-herald': 1, 'prism-tier-sovereign': 1, 'coil-domewyrm': 1, 'prism-patch-the-pane': 1 } },
-  { name: 'Pyre Express', cards: { 'ember-kessa': 3, 'storm-jax': 3, 'ember-ashrunner': 1, 'storm-flagbearer': 1, 'ember-cinderscamp': 1, 'storm-signalkite': 1, 'ember-kilnhand': 1, 'storm-tickettaker': 1, 'ember-fuseguard': 1, 'ember-pinprick': 1, 'ember-scrapburst': 1, 'storm-railglider': 1, 'ember-slagbolt': 1, 'ember-slagsmith': 1, 'storm-airmail': 1, 'ember-sparkforge': 1, 'storm-crosswind': 1, 'ember-arcwelder': 1, 'storm-galecourier': 1, 'ember-furnacebrute': 1, 'storm-galesurge': 1, 'ember-furnacetender': 1, 'ember-heatlance': 1, 'storm-sparkrider': 1, 'ember-ventburst': 1, 'storm-squadcaller': 1, 'ember-blastminer': 1, 'ember-overpressure': 1, 'ember-slaggladiator': 2, 'ember-meltdowngolem': 2, 'storm-gliderdrop': 1, 'ember-overdrive': 1, 'ember-moltentorrent': 1, 'ember-pitpromoter': 1 } },
-  { name: 'Cold Ledger', cards: { 'tide-maren': 3, 'under-sable': 3, 'tide-mirroreel': 1, 'tide-ripplescribe': 1, 'under-fuserunner': 1, 'tide-slipunder': 1, 'under-leechtick': 1, 'tide-sluicepage': 1, 'under-acidbath': 1, 'tide-eddycourier': 1, 'under-acidlamplighter': 1, 'tide-heldbreath': 1, 'under-burnledger': 1, 'tide-quickcurrent': 1, 'under-pitaccountant': 1, 'tide-tidalveil': 1, 'tide-wardtender': 1, 'under-siphontap': 1, 'under-backalleyenforcer': 1, 'tide-glassarchivist': 1, 'under-furnacehand': 1, 'under-leechwiresurgeon': 1, 'tide-lockkeeper': 1, 'under-snuffedfuse': 1, 'tide-unwrite': 1, 'tide-pearlsentinel': 1, 'under-bleeddry': 1, 'under-leechharvest': 1, 'tide-gateleviathan': 1, 'under-debtassessor': 1, 'tide-rifflethestacks': 1, 'tide-hushwateradept': 1, 'tide-driftseer': 1, 'under-mainlinedynamo': 1, 'tide-deepstudy': 1, 'under-ratwrangler': 1 } },
+  { name: 'Rampart and Reed', cards: { 'prism-ysolde': 3, 'coil-aruvi': 3, 'prism-facet-initiate': 1, 'coil-rootling': 1, 'prism-glasswarden': 1, 'coil-sap-surge': 1, 'prism-hold-the-line': 1, 'coil-sprout-tender': 1, 'prism-lampkeeper': 1, 'coil-bristle': 1, 'prism-bracewright': 1, 'coil-duel-of-thorns': 1, 'prism-call-out': 1, 'prism-mirror-ward': 1, 'coil-sap-engine': 1, 'prism-pane-mender': 1, 'coil-tuskhide': 2, 'prism-tierguard': 1, 'coil-vinewhip': 1, 'prism-choir-of-facets': 1, 'coil-bloomcaller': 1, 'prism-chorus-warden': 1, 'coil-crownmaw': 1, 'prism-crystal-bulwark': 1, 'coil-lash-out': 1, 'prism-lightwall-oath': 1, 'coil-lashvine': 1, 'prism-sentinel-lens': 1, 'coil-overgrowth': 1, 'prism-aegis-colossus': 1, 'coil-grafting': 1, 'coil-spore-herald': 1, 'coil-domewyrm': 1, 'prism-patch-the-pane': 1, 'coil-thornback-cub': 1 } },
+  { name: 'Pyre Express', cards: { 'ember-kessa': 3, 'storm-jax': 3, 'ember-ashrunner': 1, 'storm-flagbearer': 1, 'ember-cinderscamp': 1, 'storm-signalkite': 1, 'ember-kilnhand': 1, 'storm-tickettaker': 1, 'ember-fuseguard': 1, 'ember-pinprick': 1, 'ember-scrapburst': 1, 'storm-railglider': 1, 'ember-slagbolt': 1, 'ember-slagsmith': 1, 'storm-airmail': 1, 'ember-sparkforge': 1, 'storm-crosswind': 1, 'ember-arcwelder': 1, 'storm-galecourier': 1, 'ember-furnacebrute': 1, 'ember-furnacetender': 1, 'ember-heatlance': 1, 'storm-sparkrider': 1, 'ember-ventburst': 1, 'storm-squadcaller': 1, 'ember-blastminer': 1, 'ember-overpressure': 1, 'ember-slaggladiator': 2, 'ember-meltdowngolem': 2, 'storm-gliderdrop': 1, 'ember-overdrive': 1, 'ember-moltentorrent': 1, 'ember-pitpromoter': 1, 'ember-foundrytitan': 1 } },
+  { name: 'Cold Ledger', cards: { 'tide-maren': 3, 'under-sable': 3, 'tide-mirroreel': 1, 'tide-ripplescribe': 1, 'under-fuserunner': 1, 'tide-slipunder': 1, 'under-leechtick': 1, 'tide-sluicepage': 1, 'under-acidbath': 1, 'tide-eddycourier': 1, 'under-acidlamplighter': 1, 'tide-heldbreath': 1, 'under-burnledger': 1, 'tide-quickcurrent': 1, 'under-pitaccountant': 1, 'tide-tidalveil': 1, 'tide-wardtender': 1, 'under-siphontap': 1, 'under-backalleyenforcer': 1, 'tide-glassarchivist': 1, 'under-furnacehand': 1, 'under-leechwiresurgeon': 1, 'tide-lockkeeper': 1, 'under-snuffedfuse': 1, 'tide-unwrite': 1, 'tide-pearlsentinel': 1, 'under-bleeddry': 1, 'under-leechharvest': 1, 'tide-gateleviathan': 1, 'under-debtassessor': 1, 'tide-rifflethestacks': 1, 'tide-hushwateradept': 1, 'under-mainlinedynamo': 1, 'tide-deepstudy': 1, 'under-ratwrangler': 1, 'tide-tallyframe': 1 } },
   { name: 'Skywatch', cards: { 'storm-jax': 3, 'prism-ysolde': 3, 'storm-flagbearer': 1, 'prism-facet-initiate': 1, 'storm-signalkite': 1, 'prism-glasswarden': 1, 'prism-hold-the-line': 1, 'storm-tickettaker': 1, 'prism-lampkeeper': 1, 'prism-bracewright': 1, 'storm-railglider': 1, 'prism-call-out': 1, 'prism-mirror-ward': 1, 'storm-airmail': 1, 'prism-pane-mender': 1, 'storm-crosswind': 1, 'prism-tierguard': 1, 'storm-galecourier': 1, 'prism-choir-of-facets': 1, 'storm-galesurge': 1, 'prism-chorus-warden': 1, 'prism-crystal-bulwark': 2, 'prism-lightwall-oath': 1, 'storm-sparkrider': 1, 'prism-sentinel-lens': 1, 'storm-squadcaller': 1, 'prism-aegis-colossus': 1, 'prism-tier-rally': 1, 'prism-gilded-phalanx': 1, 'prism-vault-captain': 1, 'prism-lightwall-matron': 1, 'storm-gustcaller': 1, 'storm-tailwind': 1, 'prism-patch-the-pane': 1, 'storm-updraft': 1 } },
-  { name: 'Burning Marsh', cards: { 'coil-aruvi': 3, 'ember-kessa': 3, 'coil-rootling': 1, 'ember-ashrunner': 1, 'ember-cinderscamp': 1, 'ember-kilnhand': 1, 'coil-thornback-cub': 1, 'coil-bristle': 1, 'ember-fuseguard': 1, 'coil-duel-of-thorns': 1, 'ember-pinprick': 1, 'ember-scrapburst': 1, 'coil-sap-engine': 1, 'ember-slagbolt': 1, 'coil-spearhorn': 1, 'ember-slagsmith': 1, 'coil-vinewhip': 1, 'ember-sparkforge': 1, 'ember-arcwelder': 1, 'coil-crownmaw': 1, 'ember-furnacebrute': 1, 'coil-lash-out': 1, 'ember-furnacetender': 1, 'coil-lashvine': 1, 'ember-heatlance': 1, 'coil-overgrowth': 1, 'coil-grafting': 1, 'ember-ventburst': 1, 'coil-spore-herald': 1, 'ember-blastminer': 1, 'ember-moltentorrent': 1, 'coil-domewyrm': 1, 'coil-canopy-titan': 1, 'ember-moltenwarden': 1, 'coil-sprout-tender': 1, 'coil-sap-surge': 1 } },
+  { name: 'Burning Marsh', cards: { 'coil-aruvi': 3, 'ember-kessa': 3, 'coil-rootling': 1, 'ember-ashrunner': 1, 'ember-cinderscamp': 1, 'ember-kilnhand': 1, 'coil-bristle': 1, 'ember-fuseguard': 1, 'coil-duel-of-thorns': 1, 'ember-pinprick': 1, 'ember-scrapburst': 1, 'coil-sap-engine': 1, 'ember-slagbolt': 1, 'coil-tuskhide': 2, 'ember-slagsmith': 1, 'coil-vinewhip': 1, 'ember-sparkforge': 1, 'ember-arcwelder': 1, 'coil-crownmaw': 1, 'ember-furnacebrute': 1, 'coil-lash-out': 1, 'ember-furnacetender': 1, 'coil-lashvine': 1, 'ember-heatlance': 1, 'coil-overgrowth': 1, 'coil-grafting': 1, 'ember-ventburst': 1, 'coil-spore-herald': 1, 'ember-blastminer': 1, 'ember-moltentorrent': 1, 'coil-domewyrm': 1, 'coil-canopy-titan': 1, 'ember-moltenwarden': 1, 'coil-sprout-tender': 1, 'coil-sap-surge': 1 } },
 ];
 
 type HandDeck = { name: string; about: string; cards: Record<string, number> };
@@ -103,8 +104,8 @@ export const HAND_BUILT: HandDeck[] = [
   {
     name: 'Tithe Wall', about: 'Drain the enemy a little every turn behind Plated lines; every repair to your Crystal brings Grane closer.',
     cards: {
-      'prism-oren': 3, 'under-vex': 3,
-      'prism-glasswarden': 3, 'prism-lampkeeper': 2, 'prism-tierguard': 2, 'prism-pane-mender': 2, 'prism-crystal-bulwark': 3, 'prism-sentinel-lens': 2, 'prism-chorus-warden': 2, 'prism-aegis-colossus': 2, 'prism-spire-keeper': 2, 'prism-spire-mantle': 1,
+      'prism-oren': 2, 'under-vex': 3,
+      'prism-glasswarden': 3, 'prism-lampkeeper': 3, 'prism-tierguard': 2, 'prism-pane-mender': 2, 'prism-crystal-bulwark': 3, 'prism-sentinel-lens': 2, 'prism-chorus-warden': 2, 'prism-aegis-colossus': 2, 'prism-spire-keeper': 2, 'prism-spire-mantle': 1,
       'under-leechtick': 3, 'under-siphontap': 3, 'under-leechwiresurgeon': 3, 'under-bleeddry': 1, 'under-vaultpawnbroker': 1, 'under-leechoverseer': 1, 'under-acidlamplighter': 1,
     },
   },
@@ -120,8 +121,8 @@ export const HAND_BUILT: HandDeck[] = [
     name: 'Pawn Market', about: 'Spend your own units: tokens and fuses that pay out on the way to the Scrap, and Corva Lusk grows on every loss.',
     cards: {
       'under-sable': 3, 'ember-crucible': 3,
-      'under-fuserunner': 3, 'under-burnoutrunner': 3, 'under-ratwrangler': 3, 'under-pitaccountant': 2, 'under-furnacehand': 2, 'under-wiremarket': 2, 'under-leechharvest': 1, 'under-syndicatebroker': 1, 'under-pullplug': 1,
-      'ember-cinderscamp': 3, 'ember-kilnhand': 2, 'ember-fuseguard': 3, 'ember-scrapburst': 2, 'ember-furnacetender': 2, 'ember-sparkcascade': 2, 'ember-blastminer': 1, 'ember-crucibleherald': 1,
+      'under-fuserunner': 3, 'under-burnoutrunner': 3, 'under-ratwrangler': 3, 'under-pitaccountant': 2, 'under-furnacehand': 2, 'under-wiremarket': 2, 'under-leechharvest': 1, 'under-syndicatebroker': 1, 
+      'ember-cinderscamp': 3, 'ember-kilnhand': 2, 'ember-fuseguard': 3, 'ember-scrapburst': 2, 'ember-furnacetender': 2, 'ember-sparkcascade': 2, 'ember-blastminer': 1, 'ember-crucibleherald': 1, 'under-mainlinedynamo': 1,
     },
   },
   {
@@ -129,15 +130,15 @@ export const HAND_BUILT: HandDeck[] = [
     cards: {
       'tide-ilvane': 3, 'coil-aruvi': 3,
       'coil-sprout-tender': 3, 'coil-rootling': 2, 'coil-sap-engine': 3, 'coil-hothouse-bloom': 2, 'coil-spearhorn': 2, 'coil-crownmaw': 2, 'coil-tuskhide': 3, 'coil-canopy-titan': 2, 'coil-behemoth': 1,
-      'tide-mirroreel': 2, 'tide-heldbreath': 3, 'tide-lockkeeper': 2, 'tide-glassarchivist': 2, 'tide-stillwaterbailiff': 2, 'tide-sluiceclose': 2, 'tide-frostmeremagistrate': 1,
+      'tide-mirroreel': 2, 'tide-heldbreath': 3, 'tide-lockkeeper': 2, 'tide-glassarchivist': 2, 'tide-stillwaterbailiff': 2, 'tide-sluiceclose': 1, 'tide-frostmeremagistrate': 1, 'tide-gateleviathan': 1,
     },
   },
   {
     name: 'Crosscurrent', about: 'Fly over the Line and haul blockers away; Wren ascends on Crystal hits and attacks twice.',
     cards: {
       'storm-jax': 3, 'tide-maren': 3,
-      'storm-tickettaker': 3, 'storm-railglider': 3, 'storm-galecourier': 3, 'storm-sparkrider': 2, 'storm-thunderkite': 2, 'storm-gliderdrop': 1, 'storm-stormcaller': 1, 'storm-signalkite': 2,
-      'tide-sluicepage': 3, 'tide-ripplescribe': 2, 'tide-heldbreath': 3, 'tide-quickcurrent': 2, 'tide-backwash': 2, 'tide-lockkeeper': 2, 'tide-rifflethestacks': 1, 'tide-gateleviathan': 1, 'tide-siltnewt': 1,
+      'storm-tickettaker': 3, 'storm-railglider': 3, 'storm-galecourier': 3, 'storm-sparkrider': 2, 'storm-thunderkite': 2, 'storm-gliderdrop': 1, 'storm-stormcaller': 1, 'storm-signalkite': 1, 'storm-reroute': 1, 'storm-updraft': 1,
+      'tide-sluicepage': 3, 'tide-ripplescribe': 2, 'tide-heldbreath': 3, 'tide-quickcurrent': 3, 'tide-backwash': 2, 'tide-lockkeeper': 1, 'tide-rifflethestacks': 1, 'tide-gateleviathan': 1,
     },
   },
   {
@@ -161,21 +162,21 @@ export const HAND_BUILT: HandDeck[] = [
     cards: {
       'under-sable': 3, 'storm-corvane': 2,
       'under-burnoutrunner': 3, 'under-fuserunner': 2, 'under-ratwrangler': 3, 'under-acidlamplighter': 2, 'under-backalleyenforcer': 3, 'under-wiremarket': 2, 'under-snuffedfuse': 3, 'under-interestcollector': 1,
-      'storm-tickettaker': 3, 'storm-flagbearer': 3, 'storm-railglider': 3, 'storm-sparkrider': 2, 'storm-squadcaller': 2, 'storm-galesurge': 1, 'storm-stormcaller': 2,
+      'storm-tickettaker': 3, 'storm-flagbearer': 3, 'storm-railglider': 3, 'storm-sparkrider': 2, 'storm-squadcaller': 2, 'storm-stormcaller': 2, 'under-blackgatejuggernaut': 1,
     },
   },
   {
     name: 'Choir of Ash', about: 'The Ashen Choir alone: burn every blocker, push damage at the Crystal, finish with a firestorm.',
     cards: {
-      'ember-kessa': 3, 'ember-crucible': 2,
-      'ember-cinderscamp': 3, 'ember-ashrunner': 3, 'ember-kilnhand': 3, 'ember-slagsmith': 3, 'ember-sparkforge': 2, 'ember-slagbolt': 3, 'ember-furnacebrute': 3, 'ember-arcwelder': 2, 'ember-furnacetender': 2, 'ember-heatlance': 1, 'ember-sparkcascade': 1, 'ember-pyrelancer': 2, 'ember-cinderhail': 2, 'ember-moltenwarden': 1, 'ember-firestorm': 1, 'ember-foundrytitan': 1, 'ember-ringcrier': 1, 'ember-pinprick': 1,
+      'ember-kessa': 3, 'ember-crucible': 3,
+      'ember-cinderscamp': 3, 'ember-ashrunner': 3, 'ember-kilnhand': 3, 'ember-slagsmith': 3, 'ember-sparkforge': 2, 'ember-slagbolt': 3, 'ember-furnacebrute': 3, 'ember-arcwelder': 2, 'ember-furnacetender': 2, 'ember-heatlance': 1, 'ember-pyrelancer': 2, 'ember-cinderhail': 2, 'ember-moltenwarden': 1, 'ember-firestorm': 1, 'ember-foundrytitan': 1, 'ember-pinprick': 1, 'ember-boilercolossus': 1,
     },
   },
   {
     name: 'Floodgate', about: 'The Gale Exchange alone: draw deep, freeze or haul off whatever attacks, and win the long game.',
     cards: {
       'tide-ilvane': 3, 'tide-sefa': 3,
-      'tide-sluicepage': 3, 'tide-mirroreel': 3, 'tide-wardtender': 2, 'tide-heldbreath': 3, 'tide-quickcurrent': 1, 'tide-lockkeeper': 2, 'tide-glassarchivist': 3, 'tide-stillwaterbailiff': 2, 'tide-pearlsentinel': 3, 'tide-deepwateroracle': 2, 'tide-frostmeremagistrate': 1, 'tide-gateleviathan': 1, 'tide-turnofthelocks': 1, 'tide-deepstudy': 1, 'tide-lorewhale': 1, 'tide-rifflethestacks': 2, 'tide-siltnewt': 1, 'tide-floodwallcolossus': 1, 'tide-hushwateradept': 1,
+      'tide-sluicepage': 3, 'tide-mirroreel': 3, 'tide-wardtender': 1, 'tide-heldbreath': 3, 'tide-quickcurrent': 1, 'tide-lockkeeper': 1, 'tide-glassarchivist': 3, 'tide-stillwaterbailiff': 2, 'tide-pearlsentinel': 3, 'tide-deepwateroracle': 2, 'tide-gateleviathan': 2, 'tide-deepstudy': 1, 'tide-rifflethestacks': 2, 'tide-floodwallcolossus': 1, 'tide-hushwateradept': 1, 'tide-tallyframe': 3, 'tide-shelfwarden': 1, 'tide-siltnewt': 1,
     },
   },
 ];
@@ -189,8 +190,8 @@ export const NEW_HERO_DECKS: HandDeck[] = [
     name: 'Banner Wing', about: 'Drill a wide line of small wardens and kites, buffing them every round until both captains ascend.',
     cards: {
       'prism-tamsin': 3, 'storm-odile': 3,
-      'prism-shieldline-cadet': 3, 'prism-rank-drummer': 2, 'prism-shield-sergeant': 2, 'prism-rampart-herald': 2, 'prism-tier-pikeman': 1, 'prism-cohort-drillmaster': 3, 'prism-gilded-phalanx': 1, 'prism-lock-shields': 1, 'prism-grand-muster': 1, 'prism-tier-rally': 1, 'prism-vault-captain': 1, 'prism-lightwall-matron': 1, 'prism-aegis-colossus': 1,
-      'storm-ribbonkite': 2, 'storm-skirmishkite': 2, 'storm-windrigger': 2, 'storm-gyrekite': 2, 'storm-glidetutor': 2, 'storm-aeriecarrier': 1, 'storm-closeechelon': 2, 'storm-gliderdrop': 1,
+      'prism-shieldline-cadet': 3, 'prism-rank-drummer': 2, 'prism-shield-sergeant': 2, 'prism-rampart-herald': 2, 'prism-tier-pikeman': 1, 'prism-cohort-drillmaster': 3, 'prism-gilded-phalanx': 1, 'prism-grand-muster': 1, 'prism-tier-rally': 1, 'prism-vault-captain': 1, 'prism-lightwall-matron': 1, 'prism-aegis-colossus': 1,
+      'storm-ribbonkite': 2, 'storm-skirmishkite': 2, 'storm-windrigger': 2, 'storm-gyrekite': 2, 'storm-glidetutor': 2, 'storm-aeriecarrier': 1, 'storm-closeechelon': 1, 'storm-gliderdrop': 1, 'storm-stormcaller': 1, 'prism-tier-sovereign': 1,
     },
   },
   {

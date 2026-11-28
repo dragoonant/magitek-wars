@@ -27,16 +27,16 @@ describe('heroes', () => {
     expect(s.priority).toBe(0);
   });
 
-  it('prism-ysolde: Dusk repair; ascends on 6 ally survivals; aura +1|+1 and Ward for all', () => {
+  it('prism-ysolde: Dusk repair; ascends on 3 ally survivals; aura +1|+1 and Ward for all', () => {
     const s = board({ line: [['prism-ysolde', 'zz-ogre'], []] });
     s.players[0].heroes = ['prism-ysolde'];
     const o = unit(s, 0, 'zz-ogre');
     o.dmg = 2;
-    s.players[0].seen.allySurvivals = 5;
+    s.players[0].seen.allySurvivals = 2;
     pass(s); pass(s);
     expect(o.dmg).toBe(1);
     expect(isAscended(s, 0, 'prism-ysolde')).toBe(false);
-    s.players[0].seen.allySurvivals = 6;
+    s.players[0].seen.allySurvivals = 3;
     pass(s); pass(s);
     expect(isAscended(s, 0, 'prism-ysolde')).toBe(true);
     expect(st(s, o)).toMatchObject({ power: 6, health: 6 });
@@ -44,16 +44,21 @@ describe('heroes', () => {
     expect(st(s, unit(s, 0, 'prism-ysolde'))).toMatchObject({ power: 3, health: 5 });
   });
 
-  it('prism-oren: grows when he survives; ascends on his 3rd survival and repairs the Spire by 4', () => {
-    const s = board({ hand: [['zz-zap', 'zz-zap', 'zz-zap'], []], line: [['zz-grunt'], ['prism-oren']], first: 0 });
+  it('prism-oren: grows when she survives; ascends on the 3rd survival by any of her units and repairs the Spire by 4', () => {
+    const s = board({ hand: [['zz-zap', 'zz-zap', 'zz-zap'], []], line: [['zz-grunt'], ['prism-oren', 'zz-wall']], first: 0 });
     s.players[1].heroes = ['prism-oren'];
     s.players[1].spire = 10;
     const o = unit(s, 1, 'prism-oren');
-    for (let i = 0; i < 3; i++) play(s, 'zz-zap', [o.iid]);
+    const w = unit(s, 1, 'zz-wall');
+    play(s, 'zz-zap', [w.iid]);
+    play(s, 'zz-zap', [o.iid]);
+    expect(isAscended(s, 1, 'prism-oren')).toBe(false); // 2 survivals: the wall's and hers
+    expect(st(s, o).power).toBe(3 + 1);
+    play(s, 'zz-zap', [w.iid]); // the wall's survival is the 3rd
     expect(isAscended(s, 1, 'prism-oren')).toBe(true);
     expect(s.players[1].spire).toBe(14);
     expect(o.dmg).toBe(0); // R-H5 repaired on ascending
-    expect(st(s, o).power).toBe(5 + 3);
+    expect(st(s, o).power).toBe(4 + 1);
     expect(st(s, o).keywords).toContain('plated');
   });
 
@@ -98,7 +103,7 @@ describe('heroes', () => {
   it('tide-maren: glyphs pump her; ascended she makes glyphs cost 1 less and draws 2', () => {
     const s = board({ hand: [['zz-pump', 'zz-pump'], []], line: [['tide-maren'], []] });
     s.players[0].heroes = ['tide-maren'];
-    s.players[0].seen.glyphsCast = 4;
+    s.players[0].seen.glyphsCast = 2;
     const m = unit(s, 0, 'tide-maren');
     play(s, 'zz-pump', [m.iid]);
     expect(st(s, m).power).toBe(3);
@@ -123,10 +128,10 @@ describe('heroes', () => {
     expect(applyAction(s, { type: 'declare', unit: unit(s, 1, 'zz-ogre').iid }).error).toMatch(/Stasis/);
   });
 
-  it('coil-aruvi: big allies arrive bigger; ascends at 3 big summons: +2|+2 to all and Pierce for 5+ power', () => {
+  it('coil-aruvi: big allies arrive bigger; ascends at 2 big summons: +2|+2 to all and Pierce for 5+ power', () => {
     const s = board({ hand: [['zz-ogre'], []], line: [['coil-aruvi'], []] });
     s.players[0].heroes = ['coil-aruvi'];
-    s.players[0].seen.bigSummoned = 2;
+    s.players[0].seen.bigSummoned = 1;
     play(s, 'zz-ogre');
     const o = unit(s, 0, 'zz-ogre');
     expect(isAscended(s, 0, 'coil-aruvi')).toBe(true);
@@ -135,11 +140,10 @@ describe('heroes', () => {
     expect(st(s, unit(s, 0, 'coil-aruvi'))).toMatchObject({ power: 6, health: 8 });
   });
 
-  it('coil-brakk: ascends after dealing 10 damage, mid-attack, and may attack again', () => {
+  it('coil-brakk: ascends after dealing 6 damage, mid-attack, and may attack again', () => {
     const s = board({ line: [['coil-brakk'], ['zz-wall']] });
     s.players[0].heroes = ['coil-brakk'];
     const b = unit(s, 0, 'coil-brakk');
-    b.seen.damageDealt = 4;
     attack(s, [b]);
     resolveCombat(s);
     expect(s.players[1].spire).toBe(14);
@@ -148,8 +152,8 @@ describe('heroes', () => {
     pass(s); // defender
     attack(s, [b], [[unit(s, 1, 'zz-wall'), b]]);
     resolveCombat(s);
-    expect(s.players[1].spire).toBe(14 - 2); // 8 power into a 6-health wall, Pierce 2
-    expect(st(s, b)).toMatchObject({ power: 9, health: 9 }); // Strike: +1|+1
+    expect(s.players[1].spire).toBe(14 - 1); // 7 power into a 6-health wall, Pierce 1
+    expect(st(s, b)).toMatchObject({ power: 8, health: 8 }); // Strike: +1|+1
   });
 
   it('under-sable: ascends when 4 allies have died, summons 2 Wire Rats, then drains on each ally death', () => {
@@ -169,11 +173,11 @@ describe('heroes', () => {
     expect(s.players[1].spire).toBe(16);
   });
 
-  it('under-vex: Siphon; ascends at 8 Spire repaired, drains 3 from every enemy, then 2 from the Spire each Dusk', () => {
+  it('under-vex: Siphon; ascends at 5 Spire repaired, drains 3 from every enemy, then 2 from the Spire each Dusk', () => {
     const s = board({ line: [['under-vex'], ['zz-grunt', 'zz-ogre']] });
     s.players[0].heroes = ['under-vex'];
     s.players[0].spire = 5;
-    s.players[0].seen.spireHealed = 4;
+    s.players[0].seen.spireHealed = 1;
     attack(s, [unit(s, 0, 'under-vex')]); // unblocked? defender may block; none assigned
     resolveCombat(s);
     expect(isAscended(s, 0, 'under-vex')).toBe(true);
@@ -183,10 +187,10 @@ describe('heroes', () => {
     expect(s.players[1].spire).toBe(20 - 4 - 2);
   });
 
-  it('storm-jax: ascends at 8 Spire damage and rallies; then grows on each Spire strike', () => {
+  it('storm-jax: ascends at 6 Spire damage and rallies; then grows on each Spire strike', () => {
     const s = board({ line: [['storm-jax'], []] });
     s.players[0].heroes = ['storm-jax'];
-    s.players[0].seen.spireDamage = 5;
+    s.players[0].seen.spireDamage = 3;
     const j = unit(s, 0, 'storm-jax');
     attack(s, [j]);
     resolveCombat(s);
@@ -200,10 +204,10 @@ describe('heroes', () => {
     expect(st(s, j).keywords).toEqual(expect.arrayContaining(['aerial', 'vanguard']));
   });
 
-  it('storm-corvane: Assault pumps attackers; ascends at 10 declared attackers and summons 2 Wingmates', () => {
+  it('storm-corvane: Assault pumps attackers; ascends at 7 declared attackers and summons 2 Wingmates', () => {
     const s = board({ line: [['storm-corvane', 'zz-grunt'], []] });
     s.players[0].heroes = ['storm-corvane'];
-    s.players[0].seen.attackersDeclared = 8;
+    s.players[0].seen.attackersDeclared = 5;
     attack(s, [unit(s, 0, 'storm-corvane'), unit(s, 0, 'zz-grunt')]);
     expect(isAscended(s, 0, 'storm-corvane')).toBe(true);
     expect(s.players[0].line.map((u) => u.card)).toEqual(['storm-corvane', 'zz-grunt', 'storm-wingmate', 'storm-wingmate']);
@@ -229,7 +233,7 @@ describe('heroes', () => {
     s.players[0].heroes = ['coil-brakk'];
     s.players[0].ascended = ['coil-brakk'];
     const b = unit(s, 0, 'coil-brakk');
-    b.dmg = 7; // 1 health left
+    b.dmg = 6; // 1 health left
     attack(s, [b], [[unit(s, 1, 'zz-ogre'), b]]);
     resolveCombat(s);
     expect(s.players[0].line.length).toBe(0);

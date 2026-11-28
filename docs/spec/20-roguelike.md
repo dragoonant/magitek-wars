@@ -1,6 +1,6 @@
 # Magitek Wars: the campaign run (spec 20)
 
-The roguelike mode (PLAN D18; kept by D33, with the Path of Champions-style mode beside it in spec 21): one run is a march across Ardenmoor with a single growing deck, fighting the card
+The roguelike mode (PLAN D18; kept by D34, with the Path of Champions-style mode beside it in spec 21): one run is a march across Ardenmoor with a single growing deck, fighting the card
 battles of spec 10 against the AI. Rule ids (R-R...) are cited in code and tests. Ambiguities become `RULING:` lines.
 
 ## Run (R-R)

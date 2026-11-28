@@ -1,6 +1,6 @@
 # Magitek Wars: Hero Expeditions (spec 21)
 
-Hero Expeditions (PLAN D32, D33) is its own mode on the title menu, beside the roguelike campaign of spec 20, which
+Hero Expeditions (PLAN D33, D34) is its own mode on the title menu, beside the roguelike campaign of spec 20, which
 stays as it is. It follows the shape of Path of Champions: you lead one hero on a
 handmade expedition, grow a deck, an arsenal of Orders and Fittings along the way, and the hero keeps a rank between
 runs. Only the mechanics are borrowed; every name, card, map and word is ours. The battles are the spec 10 battles

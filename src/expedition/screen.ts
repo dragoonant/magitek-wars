@@ -1,4 +1,4 @@
-// The Hero Expeditions screens (spec 21, PLAN D32, D33), hi-res 512 x 448: hero pick, expedition pick, the expedition map, rewards,
+// The Hero Expeditions screens (spec 21, PLAN D33, D34), hi-res 512 x 448: hero pick, expedition pick, the expedition map, rewards,
 // Orders, Fittings, recruits, rest, depot, events, briefings and the end of a run. Battles use the match screen; this
 // controller starts them and reads their result. The hero profile (ranks, R-E13) is kept in its own browser slot.
 import { drawPic } from '../detail';

@@ -257,13 +257,13 @@ describe('ember cards', () => {
     expect(isAscended(s, 0, 'ember-torva')).toBe(false);
   });
 
-  it('ember-torva: ascends on its 5th strike, strikes every enemy unit, and each strike then burns the Spire', () => {
+  it('ember-torva: ascends on its 3rd strike, strikes every enemy unit, and each strike then burns the Spire', () => {
     const s = board({ line: [['ember-torva'], ['zz-grunt', 'zz-wall']] });
     s.players[0].heroes = ['ember-torva'];
     const t = unit(s, 0, 'ember-torva');
-    t.seen.strikes = 4;
+    t.seen.strikes = 2;
     t.dmg = 2;
-    attack(s, [t]); // unblocked: strikes the Spire for 2 (5th strike)
+    attack(s, [t]); // unblocked: strikes the Spire for 2 (3rd strike)
     resolveCombat(s);
     expect(isAscended(s, 0, 'ember-torva')).toBe(true);
     expect(face(s, 0, 'ember-torva').name).toBe('Hask, Ember Penitent');
@@ -271,11 +271,11 @@ describe('ember cards', () => {
     expect(s.players[1].line.map((u) => u.card)).toEqual(['zz-wall']); // Ascend: 4 to the grunt and the wall
     expect(unit(s, 1, 'zz-wall').dmg).toBe(4);
     expect(s.players[1].spire).toBe(20 - 2 - 2); // one Spire point per Ascend strike
-    expect(st(s, t)).toMatchObject({ power: 4, health: 6 }); // 4|5 plus the +0|+1 from the 5th strike
+    expect(st(s, t)).toMatchObject({ power: 4, health: 6 }); // 4|5 plus the +0|+1 from the 3rd strike
     expect(kinds(s)).toContain('ascend');
   });
 
-  it('ember-yarrow: Dawn gains 1 Reserve; ascends at 30 Charge spent and gains 4 Charge', () => {
+  it('ember-yarrow: Dawn gains 1 Reserve; ascends at 24 Charge spent and gains 4 Charge', () => {
     const s = board({ charge: 0, line: [['ember-yarrow'], []] });
     s.players[0].heroes = ['ember-yarrow'];
     pass(s); pass(s); // round 2: 1 Charge, no Reserve banked, then Dawn
@@ -283,7 +283,7 @@ describe('ember cards', () => {
     expect(s.players[0].charge).toBe(1);
     const t = board({ hand: [['zz-pump'], []], line: [['ember-yarrow'], []] });
     t.players[0].heroes = ['ember-yarrow'];
-    t.players[0].seen.chargeSpent = 29;
+    t.players[0].seen.chargeSpent = 23;
     play(t, 'zz-pump', [unit(t, 0, 'ember-yarrow').iid]);
     expect(isAscended(t, 0, 'ember-yarrow')).toBe(true);
     expect(t.players[0].charge).toBe(10 - 1 + 4);

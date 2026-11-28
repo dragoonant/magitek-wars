@@ -1,4 +1,4 @@
-// Hero Expeditions (docs/spec/21-expeditions.md, PLAN D32, D33), the Path of Champions-style mode. Pure data and rules: no DOM, no storage. Everything random
+// Hero Expeditions (docs/spec/21-expeditions.md, PLAN D33, D34), the Path of Champions-style mode. Pure data and rules: no DOM, no storage. Everything random
 // comes from the run's own seeded generator, stored in the run, so a run replays from its seed (R-E1).
 import type { FactionId, Fitting, Order, Seat, Setup } from '../engine/types';
 import { LIMITS } from '../engine/types';
