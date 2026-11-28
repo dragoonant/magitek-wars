@@ -24,8 +24,12 @@ roguelike campaign, Hero Expeditions in the shape of Path of Champions, a deck b
 - **Title (D13):** Vaskor at dusk with the six faction leads; menu CAMPAIGN, QUICK BATTLE, CONTINUE, DECK BUILDER,
   CARD GALLERY, CREDITS.
 - **Quick battle (D17):** 24 premade decks, six single-faction decks and any saved legal deck, against a chosen or
-  random foe deck at three AI levels. The 512 x 448 battle screen draws attack and block lines, floating damage and
-  repair numbers, a log viewer (LOG or L) and a Scrap viewer (click a Scrap count). Autosaves after every move;
+  random foe deck at three AI levels. The battle screen is the **Clockface** (D37): each player is a dial (the
+  Crystal at the hub, ten Charge segments around it, three Reserve arcs inside, a brass hand for the Initiative), the
+  foe's at the top and yours at the bottom with your hand split around it, Deck and Scrap piles at the corners (click
+  to see the cards, D29); holding a card pulses what it would spend. Cards are dragged onto any open slot or target,
+  enlarge in place on hover or hold, combat shows on the board, the log is a drawer (LOG or L), and effects play from
+  the log (D26). **Clockface not yet play-tested by the owner.** Autosaves after every move;
   CONTINUE reopens it. `?auto&fast` lets the AI play both seats: all 30 decks played a full battle this way with no
   error.
 - **Deck builder (D19):** build and save decks from the 300 cards with the engine's deck rules; legal decks show up in
