@@ -1,6 +1,6 @@
 import { drawPic, loadArt, picSize } from './detail';
 import { Gfx, H, W, rng } from './gfx';
-import type { Ink } from './palette';
+import { rgba } from './palette';
 
 // The title backdrop (PLAN D13): Vaskor's Gear Citadel at dusk between two cliffs, rendered with the house style
 // LoRA and snapped to the 256 x 224 grid (tools/art/snap.mjs), with the six faction leads standing on the cliff tops.
@@ -60,14 +60,18 @@ export class Scene {
       return;
     }
     drawPic(g, this.bg, 0, 0, W, H);
+    // stars twinkle as soft points of light (PLAN D25)
+    const ctx = g.ctx;
     for (const s of this.stars) {
       const p = (t + s.phase) % 96;
-      const c: Ink | null = p < 4 ? 'steamWhite' : p < 8 ? 'steam' : p < 12 ? 'duskLow' : null;
-      if (c) g.px(s.x, s.y, c);
-      if (p < 3) {
-        g.px(s.x - 1, s.y, 'duskLow');
-        g.px(s.x + 1, s.y, 'duskLow');
-      }
+      if (p >= 12) continue;
+      const a = p < 4 ? 1 : p < 8 ? 0.6 : 0.3;
+      const r = p < 3 ? 1.4 : 0.8;
+      const gr = ctx.createRadialGradient(s.x + 0.5, s.y + 0.5, 0, s.x + 0.5, s.y + 0.5, r);
+      gr.addColorStop(0, rgba('steamWhite', a));
+      gr.addColorStop(1, rgba('steamWhite', 0));
+      ctx.fillStyle = gr;
+      ctx.fillRect(s.x + 0.5 - r, s.y + 0.5 - r, r * 2, r * 2);
     }
     for (const c of this.cast) drawPic(g, c.img, c.x, c.y);
   }

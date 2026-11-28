@@ -3,13 +3,12 @@ import type { CardDef } from './engine/types';
 import { ALL_CARDS } from './data/cards/index';
 import { CARD_ART } from './data/cardart';
 import { FACTIONS, type Faction } from './data/factions';
-import { drawText, drawTextCentred, textWidth } from './font';
-import { Gfx, H, W, drawSprite } from './gfx';
-import { wrap } from './gallery-text';
+import { drawText, drawTextCentred, drawTextRight, textWidth, wrapPx } from './font';
+import { Gfx, H, W } from './gfx';
+import { PALETTE, rgba } from './palette';
+import { clipRound, fillRound, frame, panel, rule } from './ui';
 import { drawPic, isDetail, loadArt } from './detail';
-import { CURSOR, CURSOR_LEGEND } from './sprites';
 import { GALLERY } from './strings';
-import { drawWindow } from './title';
 
 // Card gallery: every card's art (PLAN D13/D14 pipeline), its proposed name (D12) and its engine numbers and text.
 // Every number shown comes from the card definition (KB rule 8).
@@ -110,11 +109,11 @@ export class Gallery {
       else this.view = { kind: 'grid' };
       return;
     }
-    if (y < 15 && x >= W - 4 - textWidth(GALLERY.factionKeys)) {
-      this.switchFaction(x < W - 4 - textWidth(GALLERY.factionKeys) / 2 ? -1 : 1);
+    if (y < 15 && x >= W - 4 - textWidth(GALLERY.factionKeys, 0.85)) {
+      this.switchFaction(x < W - 4 - textWidth(GALLERY.factionKeys, 0.85) / 2 ? -1 : 1);
       return;
     }
-    if (y >= 15 && y < 30 && x >= W - 4 - textWidth(GALLERY.back)) {
+    if (y >= 15 && y < 30 && x >= W - 4 - textWidth(GALLERY.back, 0.85)) {
       this.exit = true;
       return;
     }
@@ -135,7 +134,14 @@ export class Gallery {
     const field = this.fields.get(this.f.key);
     if (field) drawPic(g, field, 0, 0, W, H);
     else g.rect(0, 0, W, H, 'duskZenith');
-    g.dither50(0, 0, W, H, 'ink');
+    const ctx = g.ctx;
+    const gr = ctx.createLinearGradient(0, 0, 0, H);
+    gr.addColorStop(0, rgba('ink', 0.75));
+    gr.addColorStop(0.3, rgba('ink', 0.45));
+    gr.addColorStop(0.8, rgba('ink', 0.55));
+    gr.addColorStop(1, rgba('ink', 0.85));
+    ctx.fillStyle = gr;
+    ctx.fillRect(0, 0, W, H);
   }
 
   draw(g: Gfx, t: number): void {
@@ -147,73 +153,95 @@ export class Gallery {
   private drawGrid(g: Gfx, t: number): void {
     const emblem = this.emblems.get(this.f.key);
     if (emblem) drawPic(g, emblem, 4, 0);
-    drawText(g, this.f.name, 40, 6, { color: 'brassLight', outline: 'ink' });
-    const count = `${this.index + 1}/${this.cards.length}`;
-    drawText(g, count, 40, 17, { color: 'steam', outline: 'ink' });
-    drawText(g, GALLERY.factionKeys, W - 4 - textWidth(GALLERY.factionKeys), 6, { color: 'brassGlint', outline: 'ink' });
-    drawText(g, GALLERY.back, W - 4 - textWidth(GALLERY.back), 17, { color: 'steam', outline: 'ink' });
+    drawText(g, this.f.name.toUpperCase(), 40, 5, { color: 'brassGlint', face: 'display', scale: 1.2, shadow: 'ink' });
+    const count = `${this.index + 1} of ${this.cards.length}`;
+    drawText(g, count, 40, 18, { color: 'steam', shadow: 'ink', scale: 0.85 });
+    drawTextRight(g, GALLERY.factionKeys, W - 5, 5, { color: 'brassGlint', shadow: 'ink', scale: 0.85 });
+    drawTextRight(g, GALLERY.back, W - 5, 16, { color: 'steam', shadow: 'ink', scale: 0.85 });
 
     const page = Math.floor(this.index / PAGE) * PAGE;
     for (let i = 0; i < PAGE && page + i < this.cards.length; i++) {
       const c = this.cards[page + i];
       const gx = GRID.x + (i % COLS) * GRID.dx, gy = GRID.y + Math.floor(i / COLS) * GRID.dy;
       const on = page + i === this.index;
-      g.rect(gx - 2, gy - 2, 68, 52, on ? 'brassGlint' : 'ink');
-      g.rect(gx - 1, gy - 1, 66, 50, on ? 'brass' : 'ironDark');
+      const ctx = g.ctx;
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetY = 1.5;
+      fillRound(g, gx, gy, 64, 48, 'ironNight', 1, 2.5);
+      ctx.restore();
       const img = CARD_ART[c.id].art ? this.art(c.id, false) : null;
+      const unclip = clipRound(g, gx, gy, 64, 48, 2.5);
       if (img) drawPic(g, img, gx, gy, 64, 48);
-      else {
-        g.rect(gx, gy, 64, 48, 'ironNight');
-        drawTextCentred(g, this.artLabel(c.id, false), gx + 32, gy + 20, { color: 'iron' });
-      }
-      g.rect(gx, gy, 9, 9, 'ink');
-      drawText(g, String(c.cost), gx + 2, gy + 1, { color: 'brassGlint' });
+      else drawTextCentred(g, this.artLabel(c.id, false), gx + 32, gy + 20, { color: 'iron', scale: 0.85 });
+      if (!on) g.wash(gx, gy, 64, 48, 'ink', 0.15);
+      unclip();
+      frame(g, gx, gy, 64, 48, on ? 'brassGlint' : 'brassDark', 2.5, on);
+      costGem(g, gx + 5, gy + 5, c.cost);
     }
-    if (page > 0) drawText(g, GALLERY.pageLeft, 6, 205, { color: 'brassGlint', outline: 'ink' });
-    if (page + PAGE < this.cards.length) drawText(g, GALLERY.pageRight, W - 11, 205, { color: 'brassGlint', outline: 'ink' });
+    if (page > 0) drawText(g, GALLERY.pageLeft, 6, 203, { color: 'brassGlint', face: 'display', scale: 1.4, shadow: 'ink', alpha: 0.6 + 0.4 * Math.sin(t / 12) });
+    if (page + PAGE < this.cards.length) drawTextRight(g, GALLERY.pageRight, W - 6, 203, { color: 'brassGlint', face: 'display', scale: 1.4, shadow: 'ink', alpha: 0.6 + 0.4 * Math.sin(t / 12) });
 
     const c = this.card;
-    const name = CARD_ART[c.id].name.toUpperCase();
-    drawTextCentred(g, name, W / 2, 198, { color: 'steamWhite', outline: 'ink' });
-    drawTextCentred(g, statLine(c), W / 2, 210, { color: 'brassLight', outline: 'ink' });
-    const bob = (t >> 4) % 2;
-    const cx = GRID.x + (this.index % PAGE % COLS) * GRID.dx, cy = GRID.y + Math.floor((this.index % PAGE) / COLS) * GRID.dy;
-    drawSprite(g, CURSOR, CURSOR_LEGEND, cx - 11 + bob, cy + 20);
+    drawTextCentred(g, CARD_ART[c.id].name, W / 2, 196, { color: 'steamWhite', face: 'bold', shadow: 'ink' });
+    drawTextCentred(g, statLine(c), W / 2, 208, { color: 'brassLight', shadow: 'ink', scale: 0.85 });
   }
 
   private drawDetail(g: Gfx, ascended: boolean): void {
     const c = this.card;
     const a = ascended && c.ascended ? c.ascended : null;
     const artId = a ? `${c.id}@asc` : c.id;
-    drawWindow(g, 2, 2, W - 4, H - 4);
-    g.rect(7, 7, 130, 98, 'ink');
+    panel(g, 3, 3, W - 6, H - 6, { tone: 'dark' });
     const img = CARD_ART[c.id].art ? this.art(artId, true) : null;
+    const unclip = clipRound(g, 8, 8, 128, 96, 3);
     if (img) drawPic(g, img, 8, 8, 128, 96);
     else drawTextCentred(g, this.artLabel(artId, true), 72, 52, { color: 'iron' });
+    unclip();
+    frame(g, 8, 8, 128, 96, 'brassDark', 3);
 
-    const name = (a ? CARD_ART[c.id].ascendedName ?? c.ascended?.name ?? '' : CARD_ART[c.id].name).toUpperCase();
-    const nameLines = wrap(name, 18);
-    nameLines.forEach((l, i) => drawText(g, l, 142, 10 + i * 10, { color: 'brassGlint' }));
-    let y = 14 + nameLines.length * 10;
-    drawText(g, c.type.toUpperCase() + (c.token ? GALLERY.token : ''), 142, y, { color: 'steam' });
+    const name = a ? CARD_ART[c.id].ascendedName ?? c.ascended?.name ?? '' : CARD_ART[c.id].name;
+    const nameLines = wrapPx(name, 106, 1.05, 'bold');
+    nameLines.forEach((l, i) => drawText(g, l, 143, 10 + i * 11, { color: 'brassGlint', face: 'bold', scale: 1.05 }));
+    let y = 14 + nameLines.length * 11;
+    drawText(g, (c.type === 'glyph' ? 'Tactic' : c.type === 'hero' ? 'Hero' : 'Unit') + (c.token ? GALLERY.token : ''), 143, y, { color: 'steam', scale: 0.9 });
     y += 12;
-    drawText(g, `COST ${c.cost}`, 142, y, { color: 'steamWhite' });
+    drawText(g, `Cost ${c.cost}`, 143, y, { color: 'steamWhite' });
     if (c.type !== 'glyph') {
       const power = a ? a.power : c.power;
       const health = a ? a.health : c.health;
-      drawText(g, `POWER ${power}`, 142, y + 10, { color: 'steamWhite' });
-      drawText(g, `HEALTH ${health}`, 142, y + 20, { color: 'steamWhite' });
+      drawText(g, `Power ${power}`, 143, y + 10, { color: 'steamWhite' });
+      drawText(g, `Health ${health}`, 143, y + 20, { color: 'steamWhite' });
     }
-    if (c.ascended) drawText(g, a ? GALLERY.toBase : GALLERY.toAscended, 142, 88, { color: 'brassLight' });
+    if (c.ascended) drawText(g, a ? GALLERY.toBase : GALLERY.toAscended, 143, 90, { color: 'brassLight', scale: 0.9 });
 
-    const text = (a ? a.text : c.text).toUpperCase();
-    const lines = wrap(text, 39);
-    lines.forEach((l, i) => drawText(g, l, 10, 112 + i * 10, { color: 'steamWhite' }));
-    if (c.level && !a) wrap(`${GALLERY.ascendsWhen}${c.level.text}`.toUpperCase(), 39)
-      .forEach((l, i) => drawText(g, l, 10, 116 + (lines.length + i) * 10, { color: 'crystalBright' }));
+    rule(g, 8, 109, W - 16);
+    const text = a ? a.text : c.text;
+    const lines = wrapPx(text, W - 22, 0.95);
+    lines.forEach((l, i) => drawText(g, l, 11, 115 + i * 10, { color: 'steamWhite', scale: 0.95 }));
+    if (c.level && !a) wrapPx(`${GALLERY.ascendsWhen}${c.level.text}`, W - 22, 0.95)
+      .forEach((l, i) => drawText(g, l, 11, 119 + (lines.length + i) * 10, { color: 'crystalBright', scale: 0.95 }));
   }
 }
 
+/** The cost in a small crystal disc. */
+function costGem(g: Gfx, cx: number, cy: number, n: number): void {
+  const ctx = g.ctx;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
+  const gr = ctx.createRadialGradient(cx - 1.5, cy - 1.5, 0.3, cx, cy, 4.5);
+  gr.addColorStop(0, PALETTE.crystal);
+  gr.addColorStop(1, PALETTE.crystalDeep);
+  ctx.fillStyle = gr;
+  ctx.fill();
+  ctx.lineWidth = 0.6;
+  ctx.strokeStyle = PALETTE.crystalWhite;
+  ctx.stroke();
+  ctx.restore();
+  drawTextCentred(g, String(n), cx, cy - 2.7, { color: 'steamWhite', face: 'bold', scale: 0.78 });
+}
+
 function statLine(c: CardDef): string {
-  return c.type === 'glyph' ? `GLYPH  COST ${c.cost}` : `COST ${c.cost}  POWER ${c.power}  HEALTH ${c.health}`;
+  return c.type === 'glyph' ? `Tactic · cost ${c.cost}` : `Cost ${c.cost} · power ${c.power} · health ${c.health}`;
 }

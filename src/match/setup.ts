@@ -7,10 +7,9 @@ import { def } from '../engine/query';
 import { autoDeck, premadeDecks, FACTION_INFO } from '../data/decks';
 import { FACTIONS } from '../data/factions';
 import { DIFFICULTIES, type Difficulty } from '../ai/ai';
-import { drawText, drawTextCentred, textWidth } from '../font';
+import { drawText, drawTextCentred, fitText, wrapPx } from '../font';
 import type { Gfx } from '../gfx';
-import { wrap } from '../gallery-text';
-import { drawWindow } from '../title';
+import { backdrop, button, highlight, panel } from '../ui';
 import { emblem } from './art';
 import { savedLegalDecks } from '../deckbuilder/edit';
 import { HH, HW } from './board';
@@ -71,55 +70,49 @@ export class BattleSetup {
 
   draw(g: Gfx): void {
     this.hots = [];
-    g.rect(0, 0, HW, HH, 'duskZenith');
-    g.dither25(0, 0, HW, HH, 'crystalDeep');
-    drawTextCentred(g, 'CHOOSE YOUR BATTLE', HW / 2, 8, { color: 'brassGlint', scale: 2 });
+    backdrop(g, HW, HH, 'kitebarrow');
+    drawTextCentred(g, 'CHOOSE YOUR BATTLE', HW / 2, 7, { color: 'brassGlint', scale: 2, shadow: 'ink' });
     this.list(g, 'YOUR DECK', 6, this.mine, 'mine', false);
     this.list(g, 'FOE DECK', 260, this.foe, 'foe', true);
     const d = this.decks[this.mine];
     const y = 372;
-    drawWindow(g, 4, y, 300, 72);
-    wrap(d.about.toUpperCase(), 46).slice(0, 5).forEach((l, i) => drawText(g, l, 12, y + 9 + i * 10, { color: 'steamWhite' }));
+    panel(g, 4, y, 300, 72);
+    drawText(g, d.name, 13, y + 9, { color: 'brassGlint', face: 'bold' });
+    wrapPx(d.about, 282).slice(0, 4).forEach((l, i) => drawText(g, l, 13, y + 22 + i * 10.5, { color: 'steamWhite' }));
     let bx = 312;
-    drawText(g, 'FOE LEVEL', bx, y + 2, { color: 'ironLight' });
+    drawText(g, 'FOE LEVEL', bx, y + 1, { color: 'brassLight', face: 'display', shadow: 'ink' });
     for (const lv of DIFFICULTIES) {
-      const w = textWidth(lv.name.toUpperCase()) + 10;
       const on = lv.id === this.level;
-      g.rect(bx, y + 12, w, 14, on ? 'brassLight' : 'ink');
-      g.rect(bx + 1, y + 13, w - 2, 12, on ? 'brassDark' : 'ironNight');
-      drawText(g, lv.name.toUpperCase(), bx + 5, y + 16, { color: on ? 'brassGlint' : 'steam' });
-      this.hots.push({ x: bx, y: y + 12, w, h: 14, id: `level:${lv.id}` });
+      const w = button(g, lv.name.toUpperCase(), bx, y + 12, { h: 15, state: on ? 'picked' : 'off' });
+      this.hots.push({ x: bx, y: y + 12, w, h: 15, id: `level:${lv.id}` });
       bx += w + 4;
     }
-    const blurb = DIFFICULTIES.find((l) => l.id === this.level)!.blurb.toUpperCase();
-    wrap(blurb, 32).slice(0, 2).forEach((l, i) => drawText(g, l, 312, y + 30 + i * 9, { color: 'ironLight' }));
+    const blurb = DIFFICULTIES.find((l) => l.id === this.level)!.blurb;
+    wrapPx(blurb, 196).slice(0, 2).forEach((l, i) => drawText(g, l, 312, y + 31 + i * 10, { color: 'steam', shadow: 'ink' }));
     this.button(g, 'START BATTLE', 400, y + 52, 'start');
     this.button(g, 'BACK', 312, y + 52, 'back');
   }
 
   private button(g: Gfx, label: string, x: number, y: number, id: string): void {
-    const w = textWidth(label) + 14;
-    g.rect(x, y, w, 16, 'ink');
-    g.rect(x + 1, y + 1, w - 2, 14, 'brassDark');
-    g.rect(x + 1, y + 1, w - 2, 1, 'brassLight');
-    drawText(g, label, x + 7, y + 5, { color: 'brassGlint' });
-    this.hots.push({ x, y, w, h: 16, id });
+    const w = button(g, label, x, y, { h: 17 });
+    this.hots.push({ x, y, w, h: 17, id });
   }
 
   private list(g: Gfx, head: string, x: number, sel: number, id: string, random: boolean): void {
-    drawText(g, head, x + 4, 28, { color: 'brassLight' });
+    panel(g, x - 2, 24, 250, 342, { tone: 'dark' });
+    drawText(g, head, x + 7, 30, { color: 'brassLight', face: 'display' });
     const rows: { i: number; label: string; facs: string[] }[] = [];
-    if (random) rows.push({ i: -1, label: 'RANDOM DECK', facs: [] });
-    this.decks.forEach((d, i) => rows.push({ i, label: d.name.toUpperCase(), facs: d.factions }));
+    if (random) rows.push({ i: -1, label: 'Random deck', facs: [] });
+    this.decks.forEach((d, i) => rows.push({ i, label: d.name, facs: d.factions }));
     rows.forEach((r, k) => {
-      const y = LIST_Y + k * ROW;
+      const y = LIST_Y + 2 + k * ROW;
       const on = r.i === sel;
-      g.rect(x, y - 1, 246, ROW - 1, on ? 'brassDark' : 'ironNight');
+      if (on) highlight(g, x + 2, y - 1.5, 242, ROW - 0.5);
       r.facs.forEach((f, j) => {
         const em = emblem(f);
-        if (em) drawPic(g, em, x + 2 + j * 11, y - 1, 9, 9);
+        if (em) drawPic(g, em, x + 5 + j * 11, y - 1, 9, 9);
       });
-      drawText(g, r.label.slice(0, 34), x + 26, y + 1, { color: on ? 'brassGlint' : 'steamWhite' });
+      drawText(g, fitText(r.label, 212), x + 29, y + 0.5, { color: on ? 'brassGlint' : 'steamWhite', face: on ? 'bold' : 'body', scale: 0.95 });
       this.hots.push({ x, y: y - 1, w: 246, h: ROW - 1, id: `${id}:${r.i}` });
     });
   }

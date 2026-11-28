@@ -3,7 +3,7 @@ import { PALETTE, type Ink } from './palette';
 export const W = 256;
 export const H = 224;
 
-/** Whole-pixel drawing on a 256x224 logical canvas, house palette only. */
+/** Drawing on a logical canvas in house colours; the backing canvas has several device pixels per logical one (PLAN D25). */
 export class Gfx {
   constructor(readonly ctx: CanvasRenderingContext2D) {}
 
@@ -17,22 +17,23 @@ export class Gfx {
     this.ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
   }
 
-  /** 25% ordered dither of colour c over a rectangle (ART-STYLE section 4). */
+  /** A 25% wash of colour c over a rectangle (PLAN D25: was an ordered dither). */
   dither25(x: number, y: number, w: number, h: number, c: Ink): void {
-    for (let j = 0; j < h; j++) {
-      for (let i = 0; i < w; i++) {
-        const X = x + i;
-        const Y = y + j;
-        if (Y % 2 === 0 && (X + Y / 2) % 2 === 0) this.px(X, Y, c);
-      }
-    }
+    this.wash(x, y, w, h, c, 0.25);
   }
 
-  /** 50% checker dither of colour c over a rectangle. */
+  /** A 50% wash of colour c over a rectangle (PLAN D25: was a checker dither). */
   dither50(x: number, y: number, w: number, h: number, c: Ink): void {
-    for (let j = 0; j < h; j++) {
-      for (let i = 0; i < w; i++) if ((x + i + y + j) % 2 === 0) this.px(x + i, y + j, c);
-    }
+    this.wash(x, y, w, h, c, 0.5);
+  }
+
+  /** Colour c over a rectangle at opacity a. */
+  wash(x: number, y: number, w: number, h: number, c: Ink, a: number): void {
+    this.ctx.save();
+    this.ctx.globalAlpha = a;
+    this.ctx.fillStyle = PALETTE[c];
+    this.ctx.fillRect(x, y, w, h);
+    this.ctx.restore();
   }
 }
 

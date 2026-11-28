@@ -1,6 +1,6 @@
 import './style.css';
 import './data/cards/index';
-import { drawText } from './font';
+import { drawText, loadFonts } from './font';
 import { Gfx, H, W } from './gfx';
 import { Scene } from './scene';
 import { Title } from './title';
@@ -103,7 +103,7 @@ let lastBattle: { mine: DeckOption; foe: DeckOption; level: Difficulty } | null 
 type Screen = 'title' | 'gallery' | 'setup' | 'match' | 'run' | 'decks';
 let screen: Screen = 'title';
 let failed = '';
-Promise.all([scene.load(), title.load(), gallery.load()]).catch((e: unknown) => {
+Promise.all([loadFonts(), scene.load(), title.load(), gallery.load()]).catch((e: unknown) => {
   failed = e instanceof Error ? e.message : String(e);
   console.error(e);
 });
@@ -142,7 +142,7 @@ function fit(): void {
   const k = Math.max(1, Math.ceil(devScale - 0.001));
   up.width = FW * k;
   up.height = HH * k;
-  sizeOffscreen(isDetail() ? k : 1);
+  sizeOffscreen(k); // PLAN D25: the interface is always drawn at the screen's resolution, whatever the art
 }
 window.addEventListener('resize', fit);
 fit();
@@ -363,7 +363,7 @@ function frame(now: number): void {
   if (crash) {
     ctx!.fillStyle = '#080810';
     ctx!.fillRect(0, HH - 12, FW, 12);
-    drawText(hi, `ERROR: ${crash}`.toUpperCase().replace(/[^A-Z0-9 .,:'()/+|-]/g, ' ').slice(0, 84), 2, HH - 10, { color: 'emberGlow' });
+    drawText(hi, `Error: ${crash}`.slice(0, 140), 4, HH - 10, { color: 'emberGlow' });
   }
   present();
   requestAnimationFrame(frame);

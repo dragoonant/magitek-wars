@@ -2,17 +2,15 @@
 // the log and the prompt. Every choice comes from legalActions: a click narrows the legal actions, so the screen can
 // never offer a move the engine would refuse, and never makes a choice for the player (KB rules 8 and 12).
 import { drawCover, drawPic } from '../detail';
-import type { Action, GameState, Keyword, Seat, Unit } from '../engine/types';
+import type { Action, GameState, Seat, Unit } from '../engine/types';
 import { LIMITS, spireId } from '../engine/types';
 import { legalActions, whyNotPlay, whyNotDeclare } from '../engine/rules';
 import { costOf, def, face, stats } from '../engine/query';
 import { view } from '../engine/view';
-import { drawText, drawTextCentred, textWidth } from '../font';
-import { Gfx, drawSprite } from '../gfx';
-import type { Ink } from '../palette';
-import { wrap } from '../gallery-text';
-import { CURSOR, CURSOR_LEGEND } from '../sprites';
-import { drawWindow } from '../title';
+import { drawText, drawTextCentred, fitText, textWidth, wrapPx } from '../font';
+import type { Gfx } from '../gfx';
+import { PALETTE, rgba, type Ink } from '../palette';
+import { button, clipRound, fillRound, frame, highlight, panel, rule } from '../ui';
 import { FACTIONS } from '../data/factions';
 import { CARD_ART } from '../data/cardart';
 import { cardArt, emblem, field, isMissing } from './art';
@@ -59,11 +57,6 @@ const logX = (): number => Math.round((HW * 300) / BASE_W);
 
 interface Hot { x: number; y: number; w: number; h: number; id: string; kind: 'hand' | 'unit' | 'spire' | 'stack' | 'button' | 'hero' }
 interface Button { id: string; label: string; enabled: boolean }
-
-const KW_SHORT: Record<Keyword, string> = {
-  vanguard: 'VAN', pierce: 'PRC', aerial: 'AIR', spotter: 'SPT', plated: 'PLT', siphon: 'SPH',
-  ward: 'WRD', dueler: 'DUL', dread: 'DRD', unstable: 'UNS', mend: 'MND', corrosive: 'COR',
-};
 
 /** The click path of an action, in the order the player gives it: targets, then the unit to scrap. */
 function pathOf(a: Action): string[] {
@@ -387,7 +380,7 @@ export class Match {
     }
   }
 
-  // ---------- drawing ----------
+  // ---------- drawing (PLAN D25: smooth panels, real type, rounded cards over the battlefield art) ----------
 
   draw(g: Gfx, t: number): void {
     this.hots = [];
@@ -395,7 +388,7 @@ export class Match {
     const bg = field(FACTIONS.find((f) => f.engine === def(v.players[0].heroes[0] ?? v.players[0].deckList[0]).faction)?.field ?? 'vaskor');
     if (bg) drawCover(g, bg, HW, HH);
     else g.rect(0, 0, HW, HH, 'duskZenith');
-    g.dither50(0, 0, HW, HH, 'ink');
+    g.wash(0, 0, HW, HH, 'ink', 0.42);
 
     this.drawBar(g, v, 1, 0);
     this.drawLine(g, v, 1, FOE_LINE_Y, t);
@@ -413,88 +406,194 @@ export class Match {
     if (this.menu) this.drawMenu(g);
   }
 
+  /** A crystal gem: the thing each side defends (PLAN D24). */
+  private gem(g: Gfx, cx: number, cy: number, r: number, hurt: boolean): void {
+    const ctx = g.ctx;
+    ctx.save();
+    ctx.shadowColor = rgba(hurt ? 'emberBright' : 'crystalBright', 0.8);
+    ctx.shadowBlur = 5;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r);
+    ctx.lineTo(cx + r * 0.62, cy - r * 0.35);
+    ctx.lineTo(cx + r * 0.5, cy + r * 0.55);
+    ctx.lineTo(cx, cy + r);
+    ctx.lineTo(cx - r * 0.5, cy + r * 0.55);
+    ctx.lineTo(cx - r * 0.62, cy - r * 0.35);
+    ctx.closePath();
+    const gr = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+    gr.addColorStop(0, PALETTE[hurt ? 'emberGlow' : 'crystalWhite']);
+    gr.addColorStop(0.45, PALETTE[hurt ? 'emberBright' : 'crystalBright']);
+    gr.addColorStop(1, PALETTE[hurt ? 'emberDeep' : 'crystalDark']);
+    ctx.fillStyle = gr;
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.lineWidth = 0.75;
+    ctx.strokeStyle = rgba('ink', 0.8);
+    ctx.stroke();
+    // a facet line
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.62, cy - r * 0.35);
+    ctx.lineTo(cx, cy - r * 0.05);
+    ctx.lineTo(cx + r * 0.62, cy - r * 0.35);
+    ctx.moveTo(cx, cy - r * 0.05);
+    ctx.lineTo(cx, cy + r);
+    ctx.strokeStyle = rgba('crystalWhite', 0.45);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** A round stat badge: power in brass, health in iron (ember when hurt). */
+  private badge(g: Gfx, cx: number, cy: number, value: number, kind: 'power' | 'health' | 'hurt' | 'cost' | 'costMod'): void {
+    const ctx = g.ctx;
+    const r = 6.5;
+    const ramp: Record<typeof kind, [Ink, Ink]> = {
+      power: ['brassLight', 'brassDark'], health: ['iron', 'ironNight'], hurt: ['ember', 'emberNight'],
+      cost: ['crystal', 'crystalDeep'], costMod: ['crystalBright', 'crystalDark'],
+    };
+    const [a, b] = ramp[kind];
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    ctx.shadowBlur = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    const gr = ctx.createRadialGradient(cx - 2, cy - 2, 0.5, cx, cy, r);
+    gr.addColorStop(0, PALETTE[a]);
+    gr.addColorStop(1, PALETTE[b]);
+    ctx.fillStyle = gr;
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = PALETTE[kind === 'power' ? 'brassGlint' : kind === 'cost' || kind === 'costMod' ? 'crystalWhite' : 'steam'];
+    ctx.globalAlpha = 0.85;
+    ctx.stroke();
+    ctx.restore();
+    const s = String(value);
+    drawTextCentred(g, s, cx, cy - 3.6, { color: kind === 'power' ? 'ink' : 'steamWhite', face: 'bold', scale: 1.05, shadow: kind === 'power' ? undefined : 'ink' });
+  }
+
   private drawBar(g: Gfx, v: GameState, seat: Seat, y: number): void {
     const p = v.players[seat];
-    g.rect(0, y, HW, 22, 'ironNight');
-    g.rect(0, y + 21, HW, 1, 'brassDark');
+    const ctx = g.ctx;
+    const gr = ctx.createLinearGradient(0, y, 0, y + 22);
+    gr.addColorStop(0, rgba('ironDark', 0.92));
+    gr.addColorStop(1, rgba('ironNight', 0.95));
+    ctx.fillStyle = gr;
+    ctx.fillRect(0, y, HW, 22);
+    rule(g, 0, seat === 1 ? y + 21 : y, HW);
     const fk = p.deckList.length ? factionOf(p.deckList[0]) : 'dominion';
     const em = emblem(fk);
     if (em) drawPic(g, em, 2, y + 1, 20, 20);
     const who = seat === 0 ? 'YOU' : 'FOE';
-    drawText(g, who, 26, y + 2, { color: seat === 0 ? 'brassGlint' : 'emberGlow' });
+    drawText(g, who, 26, y + 4, { color: seat === 0 ? 'brassGlint' : 'emberGlow', face: 'display', shadow: 'ink' });
     if (v.initiative === seat) {
-      // the Initiative: a small brass diamond beside the name
-      g.rect(48, y + 4, 3, 1, 'brassGlint');
-      g.rect(47, y + 5, 5, 1, 'brassGlint');
-      g.rect(48, y + 6, 3, 1, 'brassGlint');
-      this.hots.push({ x: 44, y: y + 1, w: 10, h: 10, id: 'initiative', kind: 'button' });
+      // the Initiative: a glowing brass diamond beside the name
+      const dx = 26 + textWidth(who, 1, 'display') + 6 - 49.5;
+      ctx.save();
+      ctx.translate(dx, 0);
+      ctx.shadowColor = rgba('brassGlint', 0.9);
+      ctx.shadowBlur = 4;
+      ctx.beginPath();
+      ctx.moveTo(49.5, y + 4); ctx.lineTo(52.5, y + 7.5); ctx.lineTo(49.5, y + 11); ctx.lineTo(46.5, y + 7.5);
+      ctx.closePath();
+      ctx.fillStyle = PALETTE.brassGlint;
+      ctx.fill();
+      ctx.restore();
+      this.hots.push({ x: 44 + dx, y: y + 1, w: 10, h: 10, id: 'initiative', kind: 'button' });
     }
     // the Crystal: a click target for "unit or Crystal" cards
     const bx = 56;
     const bossOn = this.nextChoices().has(spireId(seat));
-    g.rect(bx, y + 1, 64, 19, bossOn ? 'brassGlint' : 'ink');
-    g.rect(bx + 1, y + 2, 62, 17, p.spire <= 5 ? 'emberDeep' : 'ironDark');
-    drawText(g, `CRYSTAL ${p.spire}`, bx + 3, y + 7, { color: p.spire <= 5 ? 'emberGlow' : 'steamWhite' });
+    const low = p.spire <= 5;
+    fillRound(g, bx, y + 1.5, 64, 19, low ? 'emberNight' : 'ink', 0.85, 4);
+    frame(g, bx, y + 1.5, 64, 19, bossOn ? 'brassGlint' : low ? 'ember' : 'crystalDark', 4, bossOn);
+    this.gem(g, bx + 10, y + 11, 7, low);
+    drawText(g, String(p.spire), bx + 22, y + 5, { color: low ? 'emberGlow' : 'steamWhite', face: 'bold', scale: 1.5, shadow: 'ink' });
+    drawText(g, 'Crystal', bx + 22 + textWidth(String(p.spire), 1.5, 'bold') + 3, y + 8, { color: low ? 'emberGlow' : 'crystalBright', scale: 0.85 });
     this.hots.push({ x: bx, y: y + 1, w: 64, h: 19, id: spireId(seat), kind: 'spire' });
-    const info = `CHARGE ${p.charge}/${p.maxCharge}  RES ${p.reserve}  HAND ${p.hand.length}  DECK ${p.deck.length}  SCRAP ${p.scrap.length}`;
-    drawText(g, info, 126, y + 2, { color: 'steam' });
-    // SCRAP opens the Scrap viewer for this player
-    const sx = 126 + textWidth(info.slice(0, info.indexOf('SCRAP')));
-    this.hots.push({ x: sx - 2, y: y + 1, w: textWidth(`SCRAP ${p.scrap.length}`) + 4, h: 9, id: `scrap${seat}`, kind: 'button' });
+    const parts: [string, string][] = [['Charge', `${p.charge}/${p.maxCharge}`], ['Reserve', `${p.reserve}`], ['Hand', `${p.hand.length}`], ['Deck', `${p.deck.length}`], ['Scrap', `${p.scrap.length}`]];
+    let ix = 128;
+    for (const [k, val] of parts) {
+      const start = ix;
+      drawText(g, k, ix, y + 2.5, { color: 'ironLight', scale: 0.9 });
+      ix += textWidth(k, 0.9) + 3;
+      drawText(g, val, ix, y + 2.5, { color: k === 'Charge' ? 'crystalBright' : 'steamWhite', face: 'bold', scale: 0.9 });
+      ix += textWidth(val, 0.9, 'bold') + 10;
+      // Scrap opens the Scrap viewer for this player
+      if (k === 'Scrap') this.hots.push({ x: start - 2, y: y + 1, w: ix - start - 6, h: 9, id: `scrap${seat}`, kind: 'button' });
+    }
     // hero progress, open information (R-H3)
-    let hx = 126;
+    let hx = 128;
     for (const h of p.heroes) {
       const d = def(h);
       const asc = p.ascended.includes(h);
       const lv = d.level;
       const have = lv ? (lv.who === 'you' ? p.seen[lv.stat] ?? 0 : 0) : 0;
       const words = face(v, seat, h).name.split(',')[0].split(' ');
-      const short = (words.length > 2 ? words.slice(1) : words).join(' ').toUpperCase();
-      const label = `${short} ${asc ? 'ASCENDED' : lv ? `${Math.min(have, lv.n)}/${lv.n}` : ''}`;
-      drawText(g, label, hx, y + 12, { color: asc ? 'brassGlint' : 'ironLight' });
-      this.hots.push({ x: hx, y: y + 11, w: textWidth(label), h: 9, id: h, kind: 'hero' });
-      hx += textWidth(label) + 12;
+      const short = (words.length > 2 ? words.slice(1) : words).join(' ');
+      const label = `${short} ${asc ? 'ascended' : lv ? `${Math.min(have, lv.n)}/${lv.n}` : ''}`;
+      drawText(g, label, hx, y + 12.5, { color: asc ? 'brassGlint' : 'steam', scale: 0.9 });
+      this.hots.push({ x: hx, y: y + 11, w: textWidth(label, 0.9), h: 9, id: h, kind: 'hero' });
+      hx += textWidth(label, 0.9) + 12;
     }
     if (seat === 0) {
-      const lbl = 'MENU';
-      const mx = HW - textWidth(lbl) - 10;
-      g.rect(mx - 4, y + 3, textWidth(lbl) + 8, 15, 'ink');
-      drawText(g, lbl, mx, y + 7, { color: 'brassLight' });
-      this.hots.push({ x: mx - 4, y: y + 3, w: textWidth(lbl) + 8, h: 15, id: 'menu', kind: 'button' });
-      const ll = 'LOG';
-      const lx = mx - textWidth(ll) - 18;
-      g.rect(lx - 4, y + 3, textWidth(ll) + 8, 15, 'ink');
-      drawText(g, ll, lx, y + 7, { color: 'brassLight' });
-      this.hots.push({ x: lx - 4, y: y + 3, w: textWidth(ll) + 8, h: 15, id: 'log', kind: 'button' });
+      const mw = button(g, 'MENU', HW - 6 - (textWidth('MENU', 1, 'display') + 16), y + 3, { h: 15 });
+      const mx = HW - 6 - mw;
+      this.hots.push({ x: mx, y: y + 3, w: mw, h: 15, id: 'menu', kind: 'button' });
+      const lw = textWidth('LOG', 1, 'display') + 16;
+      const lx = mx - 6 - lw;
+      button(g, 'LOG', lx, y + 3, { h: 15 });
+      this.hots.push({ x: lx, y: y + 3, w: lw, h: 15, id: 'log', kind: 'button' });
     }
   }
 
   private unitTile(g: Gfx, v: GameState, u: Unit, x: number, y: number, t: number, role: string): void {
     const sw = slotGeo().w;
-    const ax = x + Math.floor((sw - 64) / 2);
-    const nameMax = Math.floor((sw - 4) / 6);
     const st = stats(v, u);
     const f = face(v, u.owner, u.card);
     const next = this.nextChoices();
     const choosable = next.has(u.iid) || next.has(`R:${u.iid}`) || (this.picked?.mode === 'duel' && u.owner === 1);
-    const pulse = (t >> 4) % 2 === 0;
-    const edge: Ink = choosable ? (pulse ? 'brassGlint' : 'emberBright') : this.picked?.iid === u.iid ? 'crystalBright' : role ? 'emberGlow' : f.ascended ? 'brassLight' : 'ink';
-    g.rect(x, y, sw, SLOT.h, edge);
-    g.rect(x + 1, y + 1, sw - 2, SLOT.h - 2, u.owner === 0 ? 'ironDark' : 'emberNight');
-    const name = f.name.toUpperCase();
-    drawText(g, name.length > nameMax ? name.slice(0, nameMax - 1) + '.' : name, x + 3, y + 3, { color: 'steamWhite' });
+    const pulse = 0.5 + 0.5 * Math.sin(t / 6);
+    const edge: Ink = choosable ? 'brassGlint' : this.picked?.iid === u.iid ? 'crystalBright' : role ? 'emberGlow' : f.ascended ? 'brassLight' : u.owner === 0 ? 'brassDark' : 'emberDeep';
+    const ctx = g.ctx;
+    // the card body
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    ctx.shadowBlur = 5;
+    ctx.shadowOffsetY = 2;
+    fillRound(g, x, y, sw, SLOT.h, u.owner === 0 ? 'ironNight' : 'emberNight', 0.95, 4);
+    ctx.restore();
+    // the art fills the top of the card
     const art = cardArt(u.card, f.ascended);
-    if (art) drawPic(g, art, ax, y + 12);
-    else g.rect(ax, y + 12, 64, 48, 'ironNight');
-    if (u.stasis) { g.dither50(ax, y + 12, 64, 48, 'crystalWhite'); drawTextCentred(g, 'STASIS', ax + 32, y + 32, { color: 'ink' }); }
-    if (u.ward) { g.rect(ax - 1, y + 11, 66, 1, 'crystalBright'); g.rect(ax - 1, y + 60, 66, 1, 'crystalBright'); g.rect(ax - 1, y + 11, 1, 50, 'crystalBright'); g.rect(ax + 64, y + 11, 1, 50, 'crystalBright'); }
-    const kws = st.keywords.map((k) => KW_SHORT[k]).join(' ');
-    drawText(g, kws.length > nameMax ? kws.slice(0, nameMax) : kws, x + 3, y + 64, { color: 'crystalBright' });
-    if (role) drawText(g, role, x + 3, y + 74, { color: 'emberGlow' });
-    drawText(g, String(st.power), x + 6, y + 86, { color: 'brassGlint', scale: 2 });
-    const hp = String(st.hp);
-    drawText(g, hp, x + sw - 6 - textWidth(hp, 2), y + 86, { color: st.hp < st.health ? 'emberBright' : 'steamWhite', scale: 2 });
-    if (u.silenced) drawText(g, 'SIL', x + Math.floor(sw / 2) - 7, y + 90, { color: 'iron' });
+    const artH = 62;
+    const unclip = clipRound(g, x + 1, y + 1, sw - 2, SLOT.h - 2, 3.5);
+    if (art) {
+      const k = Math.max((sw - 2) / 64, artH / 48);
+      const sw0 = (sw - 2) / k, sh0 = artH / k;
+      drawPic(g, art, x + 1, y + 1, sw - 2, artH, { x: (64 - sw0) / 2, y: (48 - sh0) / 2, w: sw0, h: sh0 });
+    } else g.rect(x + 1, y + 1, sw - 2, artH, 'ironDark');
+    // name plate fading up over the art
+    const ng = ctx.createLinearGradient(0, y + 1, 0, y + 15);
+    ng.addColorStop(0, rgba('ink', 0.85));
+    ng.addColorStop(1, rgba('ink', 0));
+    ctx.fillStyle = ng;
+    ctx.fillRect(x + 1, y + 1, sw - 2, 15);
+    const lg = ctx.createLinearGradient(0, y + artH - 14, 0, y + artH + 2);
+    lg.addColorStop(0, rgba(u.owner === 0 ? 'ironNight' : 'emberNight', 0));
+    lg.addColorStop(1, rgba(u.owner === 0 ? 'ironNight' : 'emberNight', 1));
+    ctx.fillStyle = lg;
+    ctx.fillRect(x + 1, y + artH - 14, sw - 2, 16);
+    if (u.stasis) { g.wash(x + 1, y + 1, sw - 2, artH, 'crystalWhite', 0.55); drawTextCentred(g, 'STASIS', x + sw / 2, y + 28, { color: 'crystalDeep', face: 'display' }); }
+    unclip();
+    drawText(g, fitText(f.name, sw - 8, 0.95, 'bold'), x + 4, y + 3.5, { color: 'steamWhite', face: 'bold', scale: 0.95, shadow: 'ink' });
+    if (u.ward) frame(g, x + 2, y + 2, sw - 4, artH - 2, 'crystalBright', 3, true);
+    const kws = st.keywords.map((k) => KEYWORD_HELP[k].name).join(' · ');
+    if (kws) drawText(g, fitText(kws, sw - 8, 0.85), x + 4, y + artH + 2, { color: 'crystalBright', scale: 0.85 });
+    if (role) drawText(g, role, x + 4, y + artH + 12, { color: 'emberGlow', face: 'bold', scale: 0.85 });
+    if (u.silenced) drawTextCentred(g, 'silenced', x + sw / 2, y + SLOT.h - 13, { color: 'ironLight', scale: 0.85 });
+    this.badge(g, x + 10, y + SLOT.h - 10, st.power, 'power');
+    this.badge(g, x + sw - 10, y + SLOT.h - 10, st.hp, st.hp < st.health ? 'hurt' : 'health');
+    frame(g, x, y, sw, SLOT.h, edge, 4, choosable || role !== '' || this.picked?.iid === u.iid);
+    if (choosable && pulse > 0.5) frame(g, x - 1.5, y - 1.5, sw + 3, SLOT.h + 3, 'brassGlint', 5, true);
     this.hots.push({ x, y, w: sw, h: SLOT.h, id: u.iid, kind: 'unit' });
     this.pos.set(u.iid, [x + sw / 2, y + SLOT.h / 2]);
   }
@@ -503,9 +602,9 @@ export class Match {
     const c = v.combat;
     if (!c) return '';
     const pr = c.pairs.find((p) => p.att === u.iid);
-    if (pr) return `ATTACK ${c.pairs.indexOf(pr) + 1}`;
+    if (pr) return `Attack ${c.pairs.indexOf(pr) + 1}`;
     const bl = c.pairs.find((p) => p.blk === u.iid);
-    if (bl) return `BLOCK ${c.pairs.indexOf(bl) + 1}`;
+    if (bl) return `Block ${c.pairs.indexOf(bl) + 1}`;
     return '';
   }
 
@@ -517,90 +616,125 @@ export class Match {
       const u = line[i];
       if (u) this.unitTile(g, v, u, x, y, t, this.roleOf(v, u));
       else {
-        g.rect(x, y, sg.w, SLOT.h, 'ink');
-        g.dither25(x + 1, y + 1, sg.w - 2, SLOT.h - 2, 'ironDark');
+        fillRound(g, x, y, sg.w, SLOT.h, 'ink', 0.35, 4);
+        g.ctx.save();
+        g.ctx.setLineDash([3, 3]);
+        frame(g, x + 1, y + 1, sg.w - 2, SLOT.h - 2, seat === 0 ? 'brassShadow' : 'emberNight', 4);
+        g.ctx.restore();
       }
     }
   }
 
   private drawMiddle(g: Gfx, v: GameState, t: number): void {
-    g.rect(0, MID_Y - 4, HW, MY_LINE_Y - MID_Y + 2, 'ink');
-    g.dither50(0, MID_Y - 4, HW, MY_LINE_Y - MID_Y + 2, 'duskZenith');
+    const ctx = g.ctx;
+    const top = MID_Y - 4, h = MY_LINE_Y - MID_Y + 2;
+    const gr = ctx.createLinearGradient(0, top, 0, top + h);
+    gr.addColorStop(0, rgba('ink', 0.55));
+    gr.addColorStop(0.5, rgba('duskZenith', 0.78));
+    gr.addColorStop(1, rgba('ink', 0.55));
+    ctx.fillStyle = gr;
+    ctx.fillRect(0, top + 2, HW, h - 4);
     const lx = logX();
     const pr = this.note || this.prompt();
-    const lines = wrap(pr.toUpperCase(), Math.floor((lx - 12) / 6));
-    lines.slice(0, 2).forEach((l, i) => drawText(g, l, 6, MID_Y - 1 + i * 9, { color: this.note ? 'emberGlow' : 'brassGlint' }));
+    const lines = wrapPx(pr, lx - 14, 1, 'bold');
+    lines.slice(0, 2).forEach((l, i) => drawText(g, l, 8, MID_Y + i * 10, { color: this.note ? 'emberGlow' : 'brassGlint', face: 'bold', shadow: 'ink' }));
     // stack, newest on top
-    let sy = MID_Y + 20;
-    drawText(g, v.stack.length ? 'STACK (NEWEST FIRST)' : `ROUND ${v.round}`, 6, sy, { color: 'ironLight' });
-    sy += 10;
+    let sy = MID_Y + 22;
+    drawText(g, v.stack.length ? 'Stack (newest first)' : `Round ${v.round}`, 8, sy, { color: 'ironLight', face: v.stack.length ? 'body' : 'display' });
+    sy += 11;
     const next = this.nextChoices();
     for (const it of [...v.stack].reverse().slice(0, 5)) {
-      const label = `${it.owner === 0 ? 'YOU' : 'FOE'}: ${this.name(it.card, it.owner).toUpperCase()}`;
+      const label = `${it.owner === 0 ? 'You' : 'Foe'}: ${this.name(it.card, it.owner)}`;
       const on = next.has(it.sid);
-      g.rect(4, sy - 1, lx - 10, 10, on ? 'brassDark' : 'ironNight');
-      drawText(g, label.slice(0, Math.floor((lx - 12) / 6)), 6, sy, { color: on ? 'brassGlint' : 'steamWhite' });
+      if (on) highlight(g, 4, sy - 2, lx - 12, 10.5, 'brass');
+      else fillRound(g, 4, sy - 2, lx - 12, 10.5, 'ironNight', 0.75, 2);
+      drawText(g, fitText(label, lx - 20), 8, sy, { color: on ? 'brassGlint' : 'steamWhite' });
       this.hots.push({ x: 4, y: sy - 1, w: lx - 10, h: 10, id: it.sid, kind: 'stack' });
-      sy += 10;
+      sy += 11;
     }
     // log: the latest lines
     const log = v.log.slice(-60);
     const out: string[] = [];
-    for (const e of log) {
-      const txt = lineText(e, (id) => face(this.s, e.seat ?? 0, id).name).toUpperCase();
-      out.push(...wrap(txt, Math.floor((HW - lx - 8) / 6)));
-    }
-    const shown = out.slice(-8);
-    g.rect(lx, MID_Y - 3, 1, 80, 'brassDark');
-    shown.forEach((l, i) => drawText(g, l, lx + 4, MID_Y - 1 + i * 9, { color: i === shown.length - 1 ? 'steamWhite' : 'ironLight' }));
+    for (const e of log) out.push(...wrapPx(lineText(e, (id) => face(this.s, e.seat ?? 0, id).name), HW - lx - 12));
+    const shown = out.slice(-7);
+    ctx.fillStyle = rgba('brass', 0.6);
+    ctx.fillRect(lx, MID_Y - 2, 1, 78);
+    shown.forEach((l, i) => drawText(g, l, lx + 6, MID_Y + i * 10, { color: i === shown.length - 1 ? 'steamWhite' : 'steam', alpha: i === shown.length - 1 ? 1 : 0.55 + (0.4 * i) / shown.length }));
     void t;
   }
 
-  private drawHand(g: Gfx, v: GameState, t: number): void {
+  private drawHand(g: Gfx, v: GameState, _t: number): void {
     const p = v.players[0];
     const acts = this.acts();
     const cg = cardGeo();
-    const cw = cg.w, aw = Math.min(64, cw - 2), sx0 = Math.floor((64 - aw) / 2);
+    const cw = cg.w;
+    const ctx = g.ctx;
     for (let i = 0; i < p.hand.length; i++) {
       const h = p.hand[i];
       const x = Math.round(cg.x0 + i * cg.dx);
-      const y = HAND_Y - (this.armed?.iid === h.iid ? 6 : 0);
+      const armed = this.armed?.iid === h.iid;
+      const y = HAND_Y - (armed ? 6 : 0);
       const d = def(h.card);
       const f = face(v, 0, h.card);
       const playable = acts.some((a) => (a.type === 'play' || a.type === 'channel') && a.iid === h.iid);
       const marked = this.mull.has(h.iid);
-      g.rect(x, y, cw, CARD.h, this.armed?.iid === h.iid ? 'crystalBright' : marked ? 'emberBright' : playable ? 'brassLight' : 'ink');
-      g.rect(x + 1, y + 1, cw - 2, CARD.h - 2, d.type === 'glyph' ? 'duskHigh' : 'ironDark');
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetY = 2;
+      fillRound(g, x, y, cw, CARD.h, d.type === 'glyph' ? 'duskHigh' : 'ironNight', 0.97, 4);
+      ctx.restore();
       const art = cardArt(h.card, f.ascended);
-      if (art) drawPic(g, art, x + 1, y + 12, aw, 48, { x: sx0, y: 0, w: aw, h: 48 });
-      const cost = String(costOf(this.s, 0, h.card));
-      g.rect(x + 1, y + 1, 12, 10, 'ink');
-      drawText(g, cost, x + 4, y + 3, { color: cost === String(d.cost) ? 'brassGlint' : 'crystalBright' });
-      drawText(g, d.type === 'glyph' ? (d.speed ?? '').slice(0, 1).toUpperCase() : d.type === 'hero' ? 'H' : 'U', x + cw - 8, y + 3, { color: 'ironLight' });
-      wrap(f.name.toUpperCase(), Math.max(8, Math.floor((cw - 3) / 6))).slice(0, 3).forEach((l, j) => drawText(g, l, x + 2, y + 62 + j * 9, { color: 'steamWhite' }));
-      if (d.type !== 'glyph') drawText(g, `${f.power}|${f.health}`, x + 3, y + 93, { color: 'brassLight' });
-      if (marked) drawText(g, 'SWAP', x + Math.floor(cw / 2) - 12, y + 30, { color: 'emberGlow', outline: 'ink' });
+      const artH = 56;
+      const unclip = clipRound(g, x + 1, y + 1, cw - 2, CARD.h - 2, 3.5);
+      if (art) {
+        const k = Math.max((cw - 2) / 64, artH / 48);
+        const sw0 = (cw - 2) / k, sh0 = artH / k;
+        drawPic(g, art, x + 1, y + 1, cw - 2, artH, { x: (64 - sw0) / 2, y: (48 - sh0) / 2, w: sw0, h: sh0 });
+      }
+      const lg = ctx.createLinearGradient(0, y + artH - 12, 0, y + artH + 2);
+      lg.addColorStop(0, rgba(d.type === 'glyph' ? 'duskHigh' : 'ironNight', 0));
+      lg.addColorStop(1, rgba(d.type === 'glyph' ? 'duskHigh' : 'ironNight', 1));
+      ctx.fillStyle = lg;
+      ctx.fillRect(x + 1, y + artH - 12, cw - 2, 14);
+      if (marked) g.wash(x + 1, y + 1, cw - 2, CARD.h - 2, 'emberNight', 0.55);
+      unclip();
+      const cost = costOf(this.s, 0, h.card);
+      this.badge(g, x + 8.5, y + 8.5, cost, cost === d.cost ? 'cost' : 'costMod');
+      const tag = d.type === 'glyph' ? (d.speed ?? '') : d.type === 'hero' ? 'hero' : '';
+      if (tag) {
+        const tw = textWidth(tag, 0.8) + 6;
+        fillRound(g, x + cw - tw - 3, y + 3, tw, 9, 'ink', 0.75, 3);
+        drawText(g, tag, x + cw - tw, y + 4.5, { color: d.type === 'hero' ? 'brassGlint' : 'crystalBright', scale: 0.8 });
+      }
+      // a name whose longest word does not fit is set smaller rather than broken mid-word
+      const ns = f.name.split(' ').some((wd) => textWidth(wd, 0.95, 'bold') > cw - 7) ? 0.8 : 0.95;
+      wrapPx(f.name, cw - 7, ns, 'bold').slice(0, 2).forEach((l, j) => drawText(g, l, x + 4, y + artH + 3 + j * 9.5, { color: 'steamWhite', face: 'bold', scale: ns, shadow: 'ink' }));
+      if (d.type !== 'glyph') {
+        this.badge(g, x + 9, y + CARD.h - 9, f.power, 'power');
+        this.badge(g, x + cw - 9, y + CARD.h - 9, f.health, 'health');
+      } else drawText(g, 'tactic', x + 4, y + CARD.h - 12, { color: 'ironLight', scale: 0.85 });
+      if (marked) drawTextCentred(g, 'SWAP', x + cw / 2, y + 26, { color: 'emberGlow', face: 'display', outline: 'ink' });
+      const edge: Ink = armed ? 'crystalBright' : marked ? 'emberBright' : playable ? 'brassLight' : 'ink';
+      frame(g, x, y, cw, CARD.h, edge, 4, armed);
       this.hots.push({ x, y, w: cw, h: CARD.h, id: h.iid, kind: 'hand' });
     }
-    if (p.hand.length === 0) drawText(g, 'YOUR HAND IS EMPTY', 6, HAND_Y + 40, { color: 'iron' });
-    void t;
+    if (p.hand.length === 0) drawText(g, 'Your hand is empty', 8, HAND_Y + 40, { color: 'ironLight' });
   }
 
   private drawButtons(g: Gfx): void {
     const btns = this.buttons();
     const over = this.s.phase === 'over';
+    const bw = (b: Button) => textWidth(b.label, 1, 'display') + 20;
     // at the end of a battle the buttons sit inside the result panel, centred
-    let x = over ? HW / 2 + btns.reduce((a, b) => a + textWidth(b.label) + 20, -6) / 2 : HW - 6;
+    let x = over ? HW / 2 + btns.reduce((a, b) => a + bw(b) + 8, -8) / 2 : HW - 8;
     for (const b of [...btns].reverse()) {
-      const w = textWidth(b.label) + 14;
+      const w = bw(b);
       x -= w;
-      const y = over ? 226 : MID_Y + 58;
-      g.rect(x, y, w, 16, 'ink');
-      g.rect(x + 1, y + 1, w - 2, 14, b.enabled ? 'brassDark' : 'ironDark');
-      g.rect(x + 1, y + 1, w - 2, 1, b.enabled ? 'brassLight' : 'iron');
-      drawText(g, b.label, x + 7, y + 5, { color: b.enabled ? 'brassGlint' : 'iron' });
-      if (b.enabled) this.hots.push({ x, y, w, h: 16, id: b.id, kind: 'button' });
-      x -= 6;
+      const y = over ? 226 : MID_Y + 57;
+      button(g, b.label, x, y, { w, h: 17, state: b.enabled ? (this.hover?.id === b.id ? 'hot' : 'on') : 'off' });
+      if (b.enabled) this.hots.push({ x, y, w, h: 17, id: b.id, kind: 'button' });
+      x -= 8;
     }
   }
 
@@ -622,58 +756,90 @@ export class Match {
     if (!cardId || cardId === '?') return;
     const d = def(cardId);
     const f = face(v, seat, cardId);
-    const w = 250, hgt = 250;
-    const x = h.x + h.w / 2 < HW / 2 ? HW - w - 4 : 4;
-    const y = 40;
-    drawWindow(g, x, y, w, hgt);
+    const w = 260, hgt = 262;
+    const x = h.x + h.w / 2 < HW / 2 ? HW - w - 6 : 6;
+    const y = 36;
+    panel(g, x, y, w, hgt, { tone: 'dark' });
     const art = cardArt(cardId, f.ascended, true);
-    if (art) drawPic(g, art, x + 8, y + 8);
-    else drawTextCentred(g, isMissing(cardId, f.ascended, true) || !CARD_ART[cardId]?.art ? 'NO ART' : '...', x + 72, y + 50, { color: 'iron' });
-    const nm = wrap(f.name.toUpperCase(), 17);
-    nm.forEach((l, i) => drawText(g, l, x + 140, y + 10 + i * 9, { color: 'brassGlint' }));
-    let yy = y + 14 + nm.length * 9;
-    drawText(g, d.type === 'glyph' ? `TACTIC ${(d.speed ?? '').toUpperCase()}` : d.type === 'hero' ? (f.ascended ? 'HERO, ASCENDED' : 'HERO') : d.token ? 'TOKEN UNIT' : 'UNIT', x + 140, yy, { color: 'steam' });
-    yy += 11;
-    drawText(g, `COST ${seat === 0 ? costOf(this.s, 0, cardId) : d.cost}`, x + 140, yy, { color: 'steamWhite' });
+    if (art) {
+      const unclip = clipRound(g, x + 8, y + 8, 128, 96, 3);
+      drawPic(g, art, x + 8, y + 8);
+      unclip();
+      frame(g, x + 8, y + 8, 128, 96, 'brassDark', 3);
+    } else drawTextCentred(g, isMissing(cardId, f.ascended, true) || !CARD_ART[cardId]?.art ? 'No art' : '…', x + 72, y + 50, { color: 'iron' });
+    const tx = x + 144, tw = w - 152;
+    const nm = wrapPx(f.name, tw, 1.15, 'bold');
+    nm.forEach((l, i) => drawText(g, l, tx, y + 10 + i * 11, { color: 'brassGlint', face: 'bold', scale: 1.15 }));
+    let yy = y + 14 + nm.length * 11;
+    drawText(g, d.type === 'glyph' ? `Tactic, ${d.speed ?? ''}` : d.type === 'hero' ? (f.ascended ? 'Hero, ascended' : 'Hero') : d.token ? 'Token unit' : 'Unit', tx, yy, { color: 'steam' });
+    yy += 14;
+    const cost = seat === 0 ? costOf(this.s, 0, cardId) : d.cost;
+    this.badge(g, tx + 6, yy + 3, cost, 'cost');
+    drawText(g, 'cost', tx + 15, yy, { color: 'ironLight', scale: 0.9 });
     if (d.type !== 'glyph') {
       const st = unit ? stats(v, unit) : null;
-      drawText(g, `POWER ${st ? st.power : f.power}`, x + 140, yy + 10, { color: 'steamWhite' });
-      drawText(g, `HEALTH ${st ? `${st.hp}/${st.health}` : f.health}`, x + 140, yy + 20, { color: 'steamWhite' });
+      this.badge(g, tx + 6, yy + 19, st ? st.power : f.power, 'power');
+      drawText(g, 'power', tx + 15, yy + 16, { color: 'ironLight', scale: 0.9 });
+      const hp = st ? st.hp : f.health;
+      this.badge(g, tx + 6, yy + 35, hp, st && st.hp < st.health ? 'hurt' : 'health');
+      drawText(g, st ? `health (of ${st.health})` : 'health', tx + 15, yy + 32, { color: 'ironLight', scale: 0.9 });
     }
-    let ty = y + 110;
-    for (const l of wrap(f.text.toUpperCase(), 39)) { drawText(g, l, x + 8, ty, { color: 'steamWhite' }); ty += 9; }
+    let ty = y + 114;
+    rule(g, x + 8, ty - 5, w - 16);
+    for (const l of wrapPx(f.text, w - 18)) { drawText(g, l, x + 9, ty, { color: 'steamWhite' }); ty += 10.5; }
     const kws = unit ? stats(v, unit).keywords : f.keywords;
     for (const k of kws) {
-      for (const l of wrap(`${KEYWORD_HELP[k].name.toUpperCase()}: ${KEYWORD_HELP[k].text.toUpperCase()}`, 39)) {
-        if (ty > y + hgt - 20) break;
-        drawText(g, l, x + 8, ty, { color: 'crystalBright' });
-        ty += 9;
+      ty += 2;
+      const lines = wrapPx(`${KEYWORD_HELP[k].name}: ${KEYWORD_HELP[k].text}`, w - 18, 0.95);
+      for (const [i, l] of lines.entries()) {
+        if (ty > y + hgt - 14) break;
+        if (i === 0) {
+          const kw = `${KEYWORD_HELP[k].name}:`;
+          drawText(g, kw, x + 9, ty, { color: 'crystalBright', face: 'bold', scale: 0.95 });
+          drawText(g, l.slice(kw.length), x + 9 + textWidth(kw, 0.95, 'bold'), ty, { color: 'steam', scale: 0.95 });
+        } else drawText(g, l, x + 9, ty, { color: 'steam', scale: 0.95 });
+        ty += 10;
       }
     }
     if (d.level && !f.ascended && ty < y + hgt - 20) {
       const p = v.players[seat];
       const have = d.level.who === 'you' ? p.seen[d.level.stat] ?? 0 : unit?.seen[d.level.stat] ?? 0;
-      for (const l of wrap(`ASCENDS: ${d.level.text.toUpperCase()} (${Math.min(have, d.level.n)}/${d.level.n})`, 39)) {
-        drawText(g, l, x + 8, ty, { color: 'brassLight' });
-        ty += 9;
+      ty += 3;
+      for (const l of wrapPx(`Ascends: ${d.level.text} (${Math.min(have, d.level.n)}/${d.level.n})`, w - 18)) {
+        drawText(g, l, x + 9, ty, { color: 'brassLight' });
+        ty += 10.5;
       }
     }
-    if (unit?.stasis && ty < y + hgt - 10) drawText(g, 'IN STASIS: CANNOT ATTACK OR BLOCK', x + 8, ty, { color: 'crystalWhite' });
+    if (unit?.stasis && ty < y + hgt - 10) drawText(g, 'In Stasis: cannot attack or block', x + 9, ty, { color: 'crystalWhite' });
   }
 
   /** Attack lines: each attacker to its blocker, or to the defender's Crystal when unblocked. */
   private drawCombat(g: Gfx, v: GameState, t: number): void {
     const c = v.combat;
     if (!c) return;
+    const ctx = g.ctx;
     const line = (a: [number, number], b: [number, number], ink: Ink) => {
-      const steps = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
-      for (let k = 0; k <= steps; k += 2) {
-        if (((k >> 1) + (t >> 2)) % 6 >= 4) continue; // dashes that crawl toward the target
-        g.rect(a[0] + ((b[0] - a[0]) * k) / steps - 1, a[1] + ((b[1] - a[1]) * k) / steps - 1, 3, 3, ink);
-      }
+      ctx.save();
+      ctx.shadowColor = rgba(ink, 0.9);
+      ctx.shadowBlur = 5;
+      ctx.strokeStyle = PALETTE[ink];
+      ctx.lineWidth = 2.25;
+      ctx.lineCap = 'round';
+      ctx.setLineDash([6, 5]);
+      ctx.lineDashOffset = -t * 0.6; // dashes that crawl toward the target
+      ctx.beginPath();
+      ctx.moveTo(a[0], a[1]);
+      ctx.lineTo(b[0], b[1]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(b[0], b[1], 3, 0, Math.PI * 2);
+      ctx.fillStyle = PALETTE[ink];
+      ctx.fill();
+      ctx.restore();
     };
     const defender: Seat = c.attacker === 0 ? 1 : 0;
-    const crystal: [number, number] = [88, defender === 0 ? MY_BAR_Y + 10 : 10];
+    const crystal: [number, number] = [66, defender === 0 ? MY_BAR_Y + 12 : 12];
     for (const pr of c.pairs) {
       const a = this.pos.get(pr.att);
       if (!a) continue;
@@ -687,7 +853,7 @@ export class Match {
     if (this.seenLog < 0 || this.seenLog > v.log.length) this.seenLog = v.log.length; // a resumed game starts quiet
     const fresh = v.log.slice(this.seenLog);
     this.seenLog = v.log.length;
-    const crystalAt = (seat: Seat | undefined): [number, number] => [88, seat === 0 ? MY_BAR_Y + 10 : 10];
+    const crystalAt = (seat: Seat | undefined): [number, number] => [66, seat === 0 ? MY_BAR_Y + 12 : 12];
     const at = (iid?: string) => (iid ? this.pos.get(iid) : undefined);
     for (const e of fresh) {
       playEvent(e, 0);
@@ -706,73 +872,70 @@ export class Match {
     this.fx = this.fx.filter((f) => t - f.born < 50);
     for (const f of this.fx) {
       const age = t - f.born;
+      const fade = Math.max(0, 1 - age / 50);
       if (f.flash) {
-        if ((age >> 2) % 2 === 0) {
-          const sw = slotGeo().w;
-          const x = f.x - sw / 2, y = f.y - SLOT.h / 2;
-          g.rect(x, y, sw, 2, f.ink);
-          g.rect(x, y + SLOT.h - 2, sw, 2, f.ink);
-          g.rect(x, y, 2, SLOT.h, f.ink);
-          g.rect(x + sw - 2, y, 2, SLOT.h, f.ink);
-        }
+        const sw = slotGeo().w;
+        g.ctx.save();
+        g.ctx.globalAlpha = fade;
+        frame(g, f.x - sw / 2, f.y - SLOT.h / 2, sw, SLOT.h, f.ink, 4, true);
+        g.wash(f.x - sw / 2, f.y - SLOT.h / 2, sw, SLOT.h, f.ink, 0.25 * fade);
+        g.ctx.restore();
         continue;
       }
-      drawTextCentred(g, f.text, f.x, f.y - Math.floor(age / 2), { color: f.ink, outline: 'ink', scale: 2 });
+      drawTextCentred(g, f.text, f.x, f.y - age / 2, { color: f.ink, face: 'bold', outline: 'ink', glow: f.ink, scale: 2, alpha: Math.min(1, fade * 1.6) });
     }
   }
 
   /** The whole log, or a player's Scrap, newest at the bottom; arrows or the buttons scroll. */
   private drawPanel(g: Gfx, v: GameState): void {
     const x = 16, y = 30, w = HW - 32, h = HH - 60;
-    drawWindow(g, x, y, w, h);
+    panel(g, x, y, w, h, { tone: 'dark' });
     const p = this.panel!;
     let lines: { text: string; ink: Ink }[];
     if (p.kind === 'log') {
-      lines = v.log.flatMap((e) => wrap(lineText(e, (id) => face(this.s, e.seat ?? 0, id).name).toUpperCase(), 76)
+      lines = v.log.flatMap((e) => wrapPx(lineText(e, (id) => face(this.s, e.seat ?? 0, id).name), w - 24)
         .map((text): { text: string; ink: Ink } => ({ text, ink: e.k === 'round' ? 'brassLight' : 'steamWhite' })));
     } else {
       const scrap = v.players[p.seat].scrap;
-      lines = scrap.map((id, i): { text: string; ink: Ink } => ({ text: `${i + 1}. ${face(v, p.seat, id).name.toUpperCase()} (${def(id).type === 'glyph' ? 'TACTIC' : def(id).type.toUpperCase()}, COST ${def(id).cost})`, ink: 'steamWhite' }));
-      if (lines.length === 0) lines = [{ text: 'NOTHING IN THE SCRAP YET.', ink: 'iron' }];
+      lines = scrap.map((id, i): { text: string; ink: Ink } => ({ text: `${i + 1}. ${face(v, p.seat, id).name} (${def(id).type === 'glyph' ? 'tactic' : def(id).type}, cost ${def(id).cost})`, ink: 'steamWhite' }));
+      if (lines.length === 0) lines = [{ text: 'Nothing in the Scrap yet.', ink: 'iron' }];
     }
     const title = p.kind === 'log' ? 'BATTLE LOG' : `${p.seat === 0 ? 'YOUR' : "THE FOE'S"} SCRAP (${v.players[p.seat].scrap.length})`;
-    drawText(g, title, x + 10, y + 8, { color: 'brassGlint' });
-    const rows = Math.floor((h - 44) / 9);
+    drawText(g, title, x + 12, y + 9, { color: 'brassGlint', face: 'display', scale: 1.4 });
+    rule(g, x + 10, y + 24, w - 20);
+    const rows = Math.floor((h - 50) / 10);
     this.scroll = Math.min(this.scroll, Math.max(0, lines.length - rows));
     const start = Math.max(0, lines.length - rows - this.scroll);
-    lines.slice(start, start + rows).forEach((l, i) => drawText(g, l.text, x + 10, y + 22 + i * 9, { color: l.ink }));
+    lines.slice(start, start + rows).forEach((l, i) => drawText(g, l.text, x + 12, y + 29 + i * 10, { color: l.ink }));
     const btn = (label: string, bx: number, id: string) => {
-      const bw = textWidth(label) + 12;
-      g.rect(bx, y + h - 20, bw, 14, 'ink');
-      g.rect(bx + 1, y + h - 19, bw - 2, 12, 'brassDark');
-      drawText(g, label, bx + 6, y + h - 16, { color: 'brassGlint' });
-      this.hots.push({ x: bx, y: y + h - 20, w: bw, h: 14, id, kind: 'button' });
+      const bw = button(g, label, bx, y + h - 21, { h: 15 });
+      this.hots.push({ x: bx, y: y + h - 21, w: bw, h: 15, id, kind: 'button' });
+      return bw;
     };
-    btn('OLDER', x + 10, 'panel-up');
-    btn('NEWER', x + 70, 'panel-down');
-    btn('CLOSE', x + w - 60, 'panel-close');
-    drawText(g, `${start + 1}-${Math.min(lines.length, start + rows)} OF ${lines.length}`, x + 140, y + h - 16, { color: 'ironLight' });
+    const ow = btn('OLDER', x + 10, 'panel-up');
+    btn('NEWER', x + 16 + ow, 'panel-down');
+    btn('CLOSE', x + w - 10 - (textWidth('CLOSE', 1, 'display') + 16), 'panel-close');
+    drawText(g, `${start + 1}–${Math.min(lines.length, start + rows)} of ${lines.length}`, x + 150, y + h - 17, { color: 'ironLight' });
   }
 
   private drawOver(g: Gfx, v: GameState): void {
-    const w = 300, h = 90, x = (HW - w) / 2, y = 160;
-    drawWindow(g, x, y, w, h);
+    const w = 320, h = 96, x = (HW - w) / 2, y = 156;
+    panel(g, x, y, w, h, { glow: v.winner === 0 ? 'brassGlint' : 'ember' });
     const head = v.winner === 0 ? 'VICTORY' : v.winner === 1 ? 'DEFEAT' : 'DRAW';
-    drawTextCentred(g, head, HW / 2, y + 12, { color: v.winner === 0 ? 'brassGlint' : 'emberGlow', scale: 2 });
-    drawTextCentred(g, (END_REASONS[v.endReason ?? ''] ?? '').toUpperCase(), HW / 2, y + 36, { color: 'steamWhite' });
-    drawTextCentred(g, `${this.title.toUpperCase()}, ROUND ${v.round}`, HW / 2, y + 48, { color: 'ironLight' });
+    drawTextCentred(g, head, HW / 2, y + 12, { color: v.winner === 0 ? 'brassGlint' : 'emberGlow', scale: 2.4, glow: v.winner === 0 ? 'brass' : 'ember' });
+    drawTextCentred(g, END_REASONS[v.endReason ?? ''] ?? '', HW / 2, y + 40, { color: 'steamWhite' });
+    drawTextCentred(g, `${this.title}, round ${v.round}`, HW / 2, y + 52, { color: 'ironLight' });
   }
 
   private drawMenu(g: Gfx): void {
-    const w = 200, h = 96, x = (HW - w) / 2, y = 150;
-    drawWindow(g, x, y, w, h);
+    const w = 210, h = 100, x = (HW - w) / 2, y = 150;
+    g.wash(0, 0, HW, HH, 'ink', 0.45);
+    panel(g, x, y, w, h);
     const items: [string, string][] = [['m-resume', 'RESUME'], ['m-title', 'SAVE AND QUIT TO TITLE'], ['m-concede', 'CONCEDE THIS BATTLE']];
     items.forEach(([id, label], i) => {
-      const yy = y + 16 + i * 22;
-      g.rect(x + 12, yy - 4, w - 24, 16, 'ironNight');
-      drawText(g, label, x + 20, yy, { color: id === 'm-concede' ? 'emberGlow' : 'steamWhite' });
-      this.hots.push({ x: x + 12, y: yy - 4, w: w - 24, h: 16, id, kind: 'button' });
+      const yy = y + 14 + i * 26;
+      button(g, label, x + 14, yy, { w: w - 28, h: 19, state: id === 'm-concede' ? 'danger' : this.hover?.id === id ? 'hot' : 'on' });
+      this.hots.push({ x: x + 14, y: yy, w: w - 28, h: 19, id, kind: 'button' });
     });
-    drawSprite(g, CURSOR, CURSOR_LEGEND, x + 6, y + 16);
   }
 }

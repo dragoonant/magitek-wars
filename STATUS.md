@@ -25,6 +25,10 @@ campaign run, a deck builder and the card gallery, with music and sound.
   depot, boss) with one growing deck and a Crystal that carries its damage; a won battle repairs it by 3. Eight events
   (R-R11), a briefing before each battle with the foe's deck (R-R12), boss intros with the boss's portrait. Balance
   R-2: 7 of 18 stand-in runs get past act 1 and 2 win.
+- **Look (D25):** the interface no longer looks 8/16-bit: real type (Cinzel headings and buttons, Fira Sans text,
+  sentence case), smoked-glass panels in brass frames, brass buttons, rounded card frames with stat badges, a crystal gem
+  for each Crystal and painted, darkened battlefields behind the menu screens (`src/ui.ts`, ART-STYLE section 7). The
+  trained LoRA art is unchanged. **Not yet seen by the owner.**
 - **Screen (D21-D23):** the frame fills the window at any size and shape, sharp at in-between scales; battles spread across wide screens, other screens sit in the middle with a soft fill at the sides. Art is drawn in full detail by default; ART: PIXEL on the title menu (or P) brings back the snapped 16-bit art. **Phone:** a tap acts on release and a 400 ms hold inspects a card. Checked at 390 x 844.
 - **Art (D3, D14, D15, D20):** style LoRAs `mkw16_v1`-`v3` (v3 is the house LoRA, `lora/RUNS.md`); card art for all
   332 faces, 48 hero portraits (base and ascended), six emblems, seven battlefields; picks in `tools/art/picks.md`.

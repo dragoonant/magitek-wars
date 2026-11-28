@@ -9,11 +9,10 @@ import { def, face, hasCard } from '../engine/query';
 import { checkDeck } from '../engine/validate';
 import { FACTIONS } from '../data/factions';
 import { CARD_ART } from '../data/cardart';
-import { GLYPHS, drawText, drawTextCentred, textWidth } from '../font';
+import { canDraw, drawText, drawTextCentred, drawTextRight, fitText, textWidth, wrapPx } from '../font';
 import type { Gfx } from '../gfx';
-import type { Ink } from '../palette';
-import { wrap } from '../gallery-text';
-import { drawWindow } from '../title';
+import { PALETTE, type Ink } from '../palette';
+import { backdrop, button, clipRound, fillRound, frame, highlight, panel, rule } from '../ui';
 import { cardArt, emblem, isMissing } from '../match/art';
 import { HH, HW } from '../match/board';
 import { KEYWORD_HELP } from '../match/text';
@@ -31,12 +30,15 @@ type Mode =
   | { kind: 'load'; scroll: number }
   | { kind: 'confirm'; lines: string[]; yes: string; no: string; onYes: () => void };
 
-/** Upper case, with any character the house font lacks shown as '?' (visible, never a crash or a silent drop). */
+/** As typed, with any character that cannot be drawn shown as '?' (visible, never a crash or a silent drop). */
 function say(s: string): string {
-  return [...s.toUpperCase()].map((ch) => (ch in GLYPHS ? ch : '?')).join('');
+  return [...s].map((ch) => (canDraw(ch) ? ch : '?')).join('');
 }
 
-const fit = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n - 1)}.` : s);
+/** 'COST 3' -> 'Cost 3' for labels that come from ./edit in capitals. */
+const sentence = (s: string): string => (s ? s[0].toUpperCase() + s.slice(1).toLowerCase() : s);
+/** 'CINDRAL DOMINION' -> 'Cindral Dominion' for faction names stored in capitals. */
+const titled = (s: string): string => s.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
 
 // layout
 const LEFT_X = 4;
@@ -56,10 +58,9 @@ const RIGHT_W = HW - RIGHT_X - 4;
 const RIGHT_BOTTOM = 398;
 const LIST_Y = 76;
 const ROW_H = 9;
-const RULE_CHARS = 33;
 
 const TYPES: CardType[] = ['unit', 'hero', 'glyph'];
-const HINT = 'CLICK A CARD TO ADD A COPY. RIGHT-CLICK, OR CLICK A DECK ROW, TAKES ONE OUT.';
+const HINT = 'Click a card to add a copy. Right-click, or click a deck row, takes one out.';
 
 export class DeckBuilder {
   /** The deck being built, in deck order. */
@@ -132,7 +133,7 @@ export class DeckBuilder {
   private guard(what: string, then: () => void): void {
     if (!this.dirty) { then(); return; }
     this.mode = {
-      kind: 'confirm', lines: ['THIS DECK HAS UNSAVED CHANGES.', `${what} AND LOSE THEM?`], yes: what, no: 'KEEP EDITING',
+      kind: 'confirm', lines: ['This deck has unsaved changes.', `${sentence(what)} and lose them?`], yes: what, no: 'KEEP EDITING',
       onYes: () => { this.mode = { kind: 'edit' }; then(); },
     };
   }
@@ -172,9 +173,9 @@ export class DeckBuilder {
     };
     const clash = this.saved.some((d) => d.name === nm) && nm !== this.savedName;
     if (this.loadProblem) {
-      this.mode = { kind: 'confirm', lines: [this.loadProblem, 'SAVING WRITES THE READABLE DECKS ONLY.', 'THE REST WILL BE LOST. SAVE ANYWAY?'], yes: 'SAVE ANYWAY', no: 'CANCEL', onYes: doSave };
+      this.mode = { kind: 'confirm', lines: [this.loadProblem, 'Saving writes the readable decks only.', 'The rest will be lost. Save anyway?'], yes: 'SAVE ANYWAY', no: 'CANCEL', onYes: doSave };
     } else if (clash) {
-      this.mode = { kind: 'confirm', lines: [`A SAVED DECK IS ALREADY NAMED ${nm}.`, 'REPLACE IT WITH THIS DECK?'], yes: 'REPLACE IT', no: 'CANCEL', onYes: doSave };
+      this.mode = { kind: 'confirm', lines: [`A saved deck is already named ${nm}.`, 'Replace it with this deck?'], yes: 'REPLACE IT', no: 'CANCEL', onYes: doSave };
     } else doSave();
   }
 
@@ -200,7 +201,7 @@ export class DeckBuilder {
     const nm = this.savedName;
     if (!nm || !this.saved.some((d) => d.name === nm)) { this.tell('This deck is not saved, so there is nothing to delete. Use LOAD to open a saved deck first.', true); return; }
     this.mode = {
-      kind: 'confirm', lines: [`DELETE THE SAVED DECK ${nm}?`, 'THIS CANNOT BE UNDONE. THE CARDS STAY', 'IN THE EDITOR UNTIL YOU LEAVE.'], yes: 'DELETE IT', no: 'KEEP IT',
+      kind: 'confirm', lines: [`Delete the saved deck ${nm}?`, 'This cannot be undone. The cards stay in the editor until you leave.'], yes: 'DELETE IT', no: 'KEEP IT',
       onYes: () => {
         this.reload();
         const decks = removeDeck(this.saved, nm);
@@ -357,13 +358,12 @@ export class DeckBuilder {
     }
   }
 
-  // ---------- drawing ----------
+  // ---------- drawing (PLAN D25: painted backdrop, glass panels, brass buttons, rounded card tiles) ----------
 
   draw(g: Gfx, t: number): void {
     this.hots = [];
-    g.rect(0, 0, HW, HH, 'duskZenith');
-    g.dither25(0, 0, HW, HH, 'crystalDeep');
-    drawText(g, 'DECK BUILDER', LEFT_X + 2, 5, { color: 'brassGlint', scale: 2 });
+    backdrop(g, HW, HH, 'thrumhollow', 0.42);
+    drawText(g, 'DECK BUILDER', LEFT_X + 2, 5, { color: 'brassGlint', scale: 2, face: 'display', shadow: 'ink' });
     this.drawFilters(g);
     this.drawPool(g);
     this.drawDeck(g);
@@ -375,72 +375,110 @@ export class DeckBuilder {
     }
     // a window is open: only its controls answer
     this.hots = [];
-    g.dither50(0, 0, HW, HH, 'ink');
+    g.wash(0, 0, HW, HH, 'ink', 0.55);
     if (this.mode.kind === 'name') this.drawName(g, t, this.mode);
     else if (this.mode.kind === 'load') this.drawLoad(g, this.mode);
     else this.drawConfirm(g, this.mode);
   }
 
+  private hovering(x: number, y: number, w: number, h: number): boolean {
+    return this.mx >= x && this.my >= y && this.mx < x + w && this.my < y + h;
+  }
+
+  /** A small filter chip: lit brass when on, smoked iron when off. */
   private chip(g: Gfx, label: string, x: number, y: number, id: string, on: boolean, h = 12): number {
-    const w = textWidth(label) + 8;
-    g.rect(x, y, w, h, on ? 'brassLight' : 'ink');
-    g.rect(x + 1, y + 1, w - 2, h - 2, on ? 'brassDark' : 'ironNight');
-    drawText(g, label, x + 4, y + Math.floor((h - 7) / 2), { color: on ? 'brassGlint' : 'steam' });
+    const w = Math.ceil(textWidth(label, 0.95, 'bold')) + 10;
+    const hot = this.hovering(x, y, w, h);
+    if (on) {
+      fillRound(g, x, y, w, h, 'brassDark', 0.95, 3);
+      frame(g, x, y, w, h, 'brassLight', 3, hot);
+    } else {
+      fillRound(g, x, y, w, h, 'ironNight', 0.85, 3);
+      frame(g, x, y, w, h, hot ? 'brass' : 'ironDark', 3);
+    }
+    drawText(g, label, x + 5, y + (h - 7) / 2, { color: on ? 'brassGlint' : hot ? 'steamWhite' : 'steam', face: 'bold', scale: 0.95 });
     this.hots.push({ x, y, w, h, id });
     return w;
   }
 
   private btn(g: Gfx, label: string, x: number, y: number, id: string, tone: 'brass' | 'ember' = 'brass'): number {
-    const w = textWidth(label) + 14;
-    g.rect(x, y, w, 16, 'ink');
-    g.rect(x + 1, y + 1, w - 2, 14, tone === 'ember' ? 'emberDeep' : 'brassDark');
-    g.rect(x + 1, y + 1, w - 2, 1, tone === 'ember' ? 'emberBright' : 'brassLight');
-    drawText(g, label, x + 7, y + 5, { color: tone === 'ember' ? 'emberGlow' : 'brassGlint' });
+    const w = Math.ceil(textWidth(label, 1, 'display')) + 16;
+    const hot = this.hovering(x, y, w, 16);
+    button(g, label, x, y, { w, h: 16, state: tone === 'ember' ? 'danger' : hot ? 'hot' : 'on' });
     this.hots.push({ x, y, w, h: 16, id });
     return w;
   }
 
+  /** A round badge with a number, the battle screen's style: cost in crystal, power in brass, health in iron. */
+  private badge(g: Gfx, cx: number, cy: number, value: number | string, kind: 'cost' | 'power' | 'health', r = 6): void {
+    const ctx = g.ctx;
+    const ramp: Record<typeof kind, [Ink, Ink, Ink]> = {
+      cost: ['crystal', 'crystalDeep', 'crystalWhite'], power: ['brassLight', 'brassDark', 'brassGlint'], health: ['iron', 'ironNight', 'steam'],
+    };
+    const [a, b, edge] = ramp[kind];
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    ctx.shadowBlur = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    const gr = ctx.createRadialGradient(cx - 2, cy - 2, 0.5, cx, cy, r);
+    gr.addColorStop(0, PALETTE[a]);
+    gr.addColorStop(1, PALETTE[b]);
+    ctx.fillStyle = gr;
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = PALETTE[edge];
+    ctx.stroke();
+    ctx.restore();
+    drawTextCentred(g, String(value), cx, cy - 3.4 * (r / 6.5), { color: kind === 'power' ? 'ink' : 'steamWhite', face: 'bold', scale: r / 6.5, shadow: kind === 'power' ? undefined : 'ink' });
+  }
+
   private drawFilters(g: Gfx): void {
     let x = LEFT_X;
+    const tab = (id: string, w: number, on: boolean): boolean => {
+      const hot = this.hovering(x, TAB_Y, w, 18);
+      fillRound(g, x, TAB_Y, w, 18, on ? 'brassDark' : 'ironNight', on ? 0.95 : 0.85, 4);
+      frame(g, x, TAB_Y, w, 18, on ? 'brassLight' : hot ? 'brass' : 'ironDark', 4, on);
+      this.hots.push({ x, y: TAB_Y, w, h: 18, id });
+      return hot;
+    };
     const allOn = this.filter.faction === null;
-    g.rect(x, TAB_Y, 26, 18, allOn ? 'brassLight' : 'ink');
-    g.rect(x + 1, TAB_Y + 1, 24, 16, allOn ? 'brassDark' : 'ironNight');
-    drawText(g, 'ALL', x + 4, TAB_Y + 6, { color: allOn ? 'brassGlint' : 'steam' });
-    this.hots.push({ x, y: TAB_Y, w: 26, h: 18, id: 'fac:all' });
+    tab('fac:all', 26, allOn);
+    drawTextCentred(g, 'ALL', x + 13, TAB_Y + 5.5, { color: allOn ? 'brassGlint' : 'steam', face: 'display', scale: 0.9 });
     x += 28;
     for (const f of FACTIONS) {
       const on = this.filter.faction === f.engine;
-      g.rect(x, TAB_Y, 20, 18, on ? 'brassLight' : 'ink');
-      g.rect(x + 1, TAB_Y + 1, 18, 16, on ? 'brassDark' : 'ironNight');
+      tab(`fac:${f.engine}`, 20, on);
       const em = emblem(f.key);
       if (em) drawPic(g, em, x + 2, TAB_Y + 1, 16, 16);
       else drawText(g, f.key.slice(0, 2).toUpperCase(), x + 4, TAB_Y + 6, { color: 'steam' });
-      this.hots.push({ x, y: TAB_Y, w: 20, h: 18, id: `fac:${f.engine}` });
       x += 22;
     }
     const fac = FACTIONS.find((f) => f.engine === this.filter.faction);
-    drawText(g, fac ? fac.name : 'EVERY FACTION', x + 4, TAB_Y + 6, { color: 'brassLight' });
+    drawText(g, fac ? titled(fac.name) : 'Every faction', x + 4, TAB_Y + 5.5, { color: 'brassLight', face: 'bold', shadow: 'ink' });
 
-    drawText(g, 'COST', LEFT_X, COST_Y + 3, { color: 'ironLight' });
+    drawText(g, 'Cost', LEFT_X, COST_Y + 2.5, { color: 'ironLight' });
     x = LEFT_X + 30;
-    x += this.chip(g, 'ALL', x, COST_Y, 'cost:all', this.filter.cost === null) + 2;
+    x += this.chip(g, 'All', x, COST_Y, 'cost:all', this.filter.cost === null) + 2;
     for (let b = 0; b < COST_BUCKETS; b++) x += this.chip(g, costLabel(b), x, COST_Y, `cost:${b}`, this.filter.cost === b) + 2;
 
-    drawText(g, 'TYPE', LEFT_X, TYPE_Y + 3, { color: 'ironLight' });
+    drawText(g, 'Type', LEFT_X, TYPE_Y + 2.5, { color: 'ironLight' });
     x = LEFT_X + 30;
-    x += this.chip(g, 'ALL', x, TYPE_Y, 'type:all', this.filter.type === null) + 2;
-    for (const ty of TYPES) x += this.chip(g, TYPE_LABEL[ty], x, TYPE_Y, `type:${ty}`, this.filter.type === ty) + 2;
+    x += this.chip(g, 'All', x, TYPE_Y, 'type:all', this.filter.type === null) + 2;
+    for (const ty of TYPES) x += this.chip(g, sentence(TYPE_LABEL[ty]), x, TYPE_Y, `type:${ty}`, this.filter.type === ty) + 2;
     const n = poolCards(this.filter).length;
-    const lbl = `${n} CARD${n === 1 ? '' : 'S'}`;
-    drawText(g, lbl, RIGHT_X - 8 - textWidth(lbl), TYPE_Y + 3, { color: 'steam' });
+    const lbl = `${n} card${n === 1 ? '' : 's'}`;
+    drawText(g, lbl, RIGHT_X - 8 - textWidth(lbl), TYPE_Y + 2.5, { color: 'steam' });
   }
 
   private drawPool(g: Gfx): void {
     const pool = poolCards(this.filter);
     const rows = Math.ceil(pool.length / COLS);
     this.scroll = Math.max(0, Math.min(this.scroll, Math.max(0, rows - ROWS)));
-    g.rect(LEFT_X - 1, GRID_Y - 2, COLS * CELL_W + 9, ROWS * CELL_H + 2, 'ink');
-    if (!pool.length) drawTextCentred(g, 'NO CARD MATCHES THESE FILTERS', LEFT_X + (COLS * CELL_W) / 2, GRID_Y + 100, { color: 'ironLight' });
+    fillRound(g, LEFT_X - 2, GRID_Y - 3, COLS * CELL_W + 10, ROWS * CELL_H + 3, 'ink', 0.55, 4);
+    if (!pool.length) drawTextCentred(g, 'No card matches these filters', LEFT_X + (COLS * CELL_W) / 2, GRID_Y + 100, { color: 'ironLight' });
     for (let k = 0; k < ROWS * COLS; k++) {
       const c = pool[this.scroll * COLS + k];
       if (!c) break;
@@ -448,95 +486,105 @@ export class DeckBuilder {
       const y = GRID_Y + Math.floor(k / COLS) * CELL_H;
       const n = countOf(this.cards, c.id);
       const why = canAdd(this.cards, c.id);
-      const hover = this.mx >= x && this.my >= y && this.mx < x + 66 && this.my < y + CELL_H - 2;
-      g.rect(x, y, 66, 50, hover ? 'brassGlint' : n > 0 ? 'brassLight' : 'iron');
-      g.rect(x + 1, y + 1, 64, 48, c.type === 'glyph' ? 'duskHigh' : 'ironDark');
+      const hover = this.hovering(x, y, 66, CELL_H - 2);
+      const ctx = g.ctx;
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetY = 1.5;
+      fillRound(g, x, y, 66, 50, c.type === 'glyph' ? 'duskHigh' : 'ironDark', 1, 3.5);
+      ctx.restore();
+      const unclip = clipRound(g, x, y, 66, 50, 3.5);
       const art = cardArt(c.id);
-      if (art) drawPic(g, art, x + 1, y + 1, 64, 48);
-      else drawTextCentred(g, isMissing(c.id) || !CARD_ART[c.id]?.art ? 'NO ART' : '...', x + 33, y + 21, { color: 'iron' });
-      if (why && n === 0) g.dither50(x + 1, y + 1, 64, 48, 'ink');
-      g.rect(x + 1, y + 1, 12, 10, 'ink');
-      drawText(g, String(c.cost), x + 4, y + 2, { color: 'brassGlint' });
-      const tl = c.type === 'glyph' ? 'T' : c.type === 'hero' ? 'H' : 'U';
-      g.rect(x + 56, y + 1, 9, 10, 'ink');
-      drawText(g, tl, x + 58, y + 2, { color: c.type === 'hero' ? 'brassLight' : 'ironLight' });
+      if (art) drawPic(g, art, x, y, 66, 50);
+      else drawTextCentred(g, isMissing(c.id) || !CARD_ART[c.id]?.art ? 'No art' : '…', x + 33, y + 21, { color: 'iron' });
+      if (why && n === 0) g.wash(x, y, 66, 50, 'ink', 0.55);
+      unclip();
+      this.badge(g, x + 7.5, y + 7.5, c.cost, 'cost', 5.5);
+      if (c.type !== 'unit') {
+        const tag = c.type === 'glyph' ? 'tactic' : 'hero';
+        const tw = textWidth(tag, 0.75) + 6;
+        fillRound(g, x + 64 - tw, y + 2, tw, 9, 'ink', 0.75, 3);
+        drawText(g, tag, x + 67 - tw, y + 3.5, { color: c.type === 'hero' ? 'brassGlint' : 'crystalBright', scale: 0.75 });
+      }
       if (n > 0) {
         const s = `${n}/${LIMITS.copies}`;
-        g.rect(x + 64 - textWidth(s) - 3, y + 39, textWidth(s) + 4, 10, 'ink');
-        drawText(g, s, x + 64 - textWidth(s) - 1, y + 41, { color: n >= LIMITS.copies ? 'emberGlow' : 'crystalBright' });
+        const sw = textWidth(s, 0.9, 'bold') + 6;
+        fillRound(g, x + 64 - sw, y + 38, sw, 10, 'ink', 0.8, 3);
+        drawText(g, s, x + 67 - sw, y + 39.5, { color: n >= LIMITS.copies ? 'emberGlow' : 'crystalBright', face: 'bold', scale: 0.9 });
       }
-      drawText(g, fit(say(c.name), 11), x, y + 52, { color: n > 0 ? 'brassGlint' : 'steamWhite' });
+      frame(g, x, y, 66, 50, hover ? 'brassGlint' : n > 0 ? 'brassLight' : 'ironDark', 3.5, hover);
+      drawText(g, fitText(say(c.name), 68, 0.9, 'bold'), x, y + 52.5, { color: n > 0 ? 'brassGlint' : 'steamWhite', face: 'bold', scale: 0.9, shadow: 'ink' });
       this.hots.push({ x, y, w: 66, h: CELL_H - 2, id: `pool:${c.id}` });
     }
     // scroll bar and page buttons
     const barX = LEFT_X + COLS * CELL_W + 1;
     const barH = ROWS * CELL_H - 4;
-    g.rect(barX, GRID_Y, 4, barH, 'ironNight');
+    fillRound(g, barX, GRID_Y, 4, barH, 'ironNight', 0.9, 2);
     if (rows > ROWS) {
       const th = Math.max(8, Math.round((barH * ROWS) / rows));
       const ty = GRID_Y + Math.round(((barH - th) * this.scroll) / (rows - ROWS));
-      g.rect(barX, ty, 4, th, 'brassLight');
+      fillRound(g, barX, ty, 4, th, 'brassLight', 1, 2);
     }
     let x = LEFT_X;
-    x += this.chip(g, 'PREV', x, PAGE_Y, 'page:up', false) + 4;
-    x += this.chip(g, 'NEXT', x, PAGE_Y, 'page:down', false) + 6;
+    x += this.chip(g, 'Prev', x, PAGE_Y, 'page:up', false) + 4;
+    x += this.chip(g, 'Next', x, PAGE_Y, 'page:down', false) + 6;
     const last = Math.min(rows, this.scroll + ROWS);
-    drawText(g, rows ? `ROWS ${this.scroll + 1}-${last} OF ${rows}` : 'NO ROWS', x, PAGE_Y + 3, { color: 'ironLight' });
-    const mode = this.removeMode ? 'CLICK REMOVES' : 'CLICK ADDS';
-    const mw = textWidth(mode) + 8;
+    drawText(g, rows ? `Rows ${this.scroll + 1}–${last} of ${rows}` : 'No rows', x, PAGE_Y + 2.5, { color: 'ironLight' });
+    const mode = this.removeMode ? 'Click removes' : 'Click adds';
+    const mw = Math.ceil(textWidth(mode, 0.95, 'bold')) + 10;
     this.chip(g, mode, RIGHT_X - 8 - mw, PAGE_Y, 'btn:mode', this.removeMode);
   }
 
   private drawDeck(g: Gfx): void {
     const x = RIGHT_X;
-    g.rect(x - 2, 22, RIGHT_W + 4, RIGHT_BOTTOM - 20, 'ink');
-    g.rect(x - 1, 23, RIGHT_W + 2, RIGHT_BOTTOM - 22, 'ironNight');
+    panel(g, x - 3, 21, RIGHT_W + 6, RIGHT_BOTTOM - 18, { studs: false });
     const check = checkDeck(this.cards);
-    const title = this.savedName ? fit(say(this.savedName), 22) : 'NEW DECK';
-    drawText(g, title, x + 2, 26, { color: 'brassGlint' });
-    if (this.dirty) drawText(g, 'UNSAVED', x + RIGHT_W - 2 - textWidth('UNSAVED'), 26, { color: 'emberGlow' });
+    const title = this.savedName ? fitText(say(this.savedName), RIGHT_W - 60, 1, 'display') : 'NEW DECK';
+    drawText(g, title, x + 3, 26, { color: 'brassGlint', face: 'display' });
+    if (this.dirty) drawTextRight(g, 'unsaved', x + RIGHT_W - 3, 26, { color: 'emberGlow', face: 'bold' });
     const full = check.size === LIMITS.deck;
-    drawText(g, `${check.size}/${LIMITS.deck}`, x + 2, 36, { color: full ? 'crystalBright' : 'emberGlow', scale: 2 });
+    drawText(g, `${check.size}/${LIMITS.deck}`, x + 3, 36, { color: full ? 'crystalBright' : 'emberGlow', scale: 2, face: 'bold', shadow: 'ink' });
     const hc = check.heroCards;
-    drawText(g, `FACTIONS ${check.factions.length}/${LIMITS.factions}`, x + 70, 36, { color: check.factions.length > LIMITS.factions ? 'emberGlow' : 'steamWhite' });
+    drawText(g, `Factions ${check.factions.length}/${LIMITS.factions}`, x + 70, 36, { color: check.factions.length > LIMITS.factions ? 'emberGlow' : 'steamWhite' });
     check.factions.forEach((f, i) => {
       const key = FACTIONS.find((y) => y.engine === f)?.key;
       const em = key ? emblem(key) : null;
       if (em) drawPic(g, em, x + 160 + i * 12, 35, 10, 10);
     });
-    drawText(g, `HEROES ${hc}/${LIMITS.heroCards}`, x + 70, 46, { color: hc > LIMITS.heroCards ? 'emberGlow' : 'steamWhite' });
-    drawText(g, `MAX ${LIMITS.copies} EACH`, x + 140, 46, { color: 'steamWhite' });
+    drawText(g, `Heroes ${hc}/${LIMITS.heroCards}`, x + 70, 46, { color: hc > LIMITS.heroCards ? 'emberGlow' : 'steamWhite' });
+    drawText(g, `max ${LIMITS.copies} each`, x + 140, 46, { color: 'steamWhite' });
     // the curve: cards per cost bucket (the same buckets as the cost filter)
     const curve = Array<number>(COST_BUCKETS).fill(0);
     for (const id of this.cards) if (hasCard(id)) curve[bucketOf(def(id).cost)] += 1;
-    drawText(g, 'COST', x + 2, 56, { color: 'ironLight' });
-    drawText(g, 'CARDS', x + 2, 65, { color: 'ironLight' });
+    drawText(g, 'Cost', x + 3, 56, { color: 'ironLight' });
+    drawText(g, 'Cards', x + 3, 65, { color: 'ironLight' });
     for (let b = 0; b < COST_BUCKETS; b++) {
-      const bx = x + 38 + b * 21;
-      drawText(g, costLabel(b), bx, 56, { color: 'ironLight' });
-      drawText(g, String(curve[b]), bx, 65, { color: curve[b] ? 'steamWhite' : 'iron' });
+      const bx = x + 40 + b * 21;
+      drawTextCentred(g, costLabel(b), bx + 3, 56, { color: 'ironLight' });
+      drawTextCentred(g, String(curve[b]), bx + 3, 65, { color: curve[b] ? 'steamWhite' : 'iron', face: curve[b] ? 'bold' : 'body' });
     }
 
     // rules (R-G1): every line checkDeck reports, paged if they do not fit
     const ruleLines: { text: string; ink: Ink }[] = [];
-    if (check.ok) ruleLines.push({ text: 'LEGAL DECK: READY FOR BATTLE', ink: 'crystalBright' });
-    for (const e of check.errors) wrap(say(e), RULE_CHARS).forEach((l, i) => ruleLines.push({ text: (i ? '  ' : '') + l, ink: 'emberGlow' }));
+    if (check.ok) ruleLines.push({ text: 'Legal deck: ready for battle', ink: 'crystalBright' });
+    for (const e of check.errors) wrapPx(say(e), RIGHT_W - 12).forEach((l, i) => ruleLines.push({ text: (i ? '   ' : '') + l, ink: 'emberGlow' }));
     const maxRule = 14;
     const pages = Math.max(1, Math.ceil(ruleLines.length / maxRule));
     this.rulePage %= pages;
     const shownRules = ruleLines.slice(this.rulePage * maxRule, (this.rulePage + 1) * maxRule);
     const ruleTop = RIGHT_BOTTOM - 14 - shownRules.length * ROW_H;
-    g.rect(x, ruleTop - 3, RIGHT_W, 1, 'brassDark');
-    drawText(g, pages > 1 ? `DECK RULES R-G1, PAGE ${this.rulePage + 1}/${pages}: CLICK` : 'DECK RULES R-G1', x + 2, ruleTop, { color: 'ironLight' });
-    shownRules.forEach((l, i) => drawText(g, l.text, x + 2, ruleTop + 10 + i * ROW_H, { color: l.ink }));
+    rule(g, x, ruleTop - 3, RIGHT_W);
+    drawText(g, pages > 1 ? `Deck rules R-G1, page ${this.rulePage + 1}/${pages}: click` : 'Deck rules R-G1', x + 3, ruleTop, { color: 'ironLight' });
+    shownRules.forEach((l, i) => drawText(g, l.text, x + 3, ruleTop + 10 + i * ROW_H, { color: l.ink }));
     if (pages > 1) this.hots.push({ x, y: ruleTop - 2, w: RIGHT_W, h: RIGHT_BOTTOM - ruleTop, id: 'rules:next' });
 
     // the list, grouped by cost
     const lines: { text: string; ink: Ink; id?: string; n?: number }[] = [];
-    if (!this.cards.length) lines.push({ text: 'THE DECK IS EMPTY', ink: 'ironLight' });
+    if (!this.cards.length) lines.push({ text: 'The deck is empty', ink: 'ironLight' });
     for (const grp of groupDeck(this.cards)) {
-      lines.push({ text: `${grp.label}  (${grp.total})`, ink: 'brassLight' });
-      for (const r of grp.rows) lines.push({ text: fit(say(r.name), 26), ink: r.known ? 'steamWhite' : 'emberGlow', id: r.id, n: r.n });
+      lines.push({ text: `${sentence(grp.label)}  (${grp.total})`, ink: 'brassLight' });
+      for (const r of grp.rows) lines.push({ text: fitText(say(r.name), RIGHT_W - 30), ink: r.known ? 'steamWhite' : 'emberGlow', id: r.id, n: r.n });
     }
     const listBottom = ruleTop - 6;
     const fitRows = Math.max(1, Math.floor((listBottom - LIST_Y) / ROW_H) - 1);
@@ -546,83 +594,94 @@ export class DeckBuilder {
     shown.forEach((l, i) => {
       const y = LIST_Y + i * ROW_H;
       if (l.id) {
-        const hover = this.mx >= x && this.mx < x + RIGHT_W && this.my >= y - 1 && this.my < y + ROW_H - 1;
-        if (hover) g.rect(x, y - 1, RIGHT_W, ROW_H, 'brassDark');
+        if (this.hovering(x, y - 1, RIGHT_W, ROW_H)) highlight(g, x, y - 1.5, RIGHT_W, ROW_H, 'brass');
         const tl = hasCard(l.id) ? def(l.id).type : null;
-        drawText(g, `${l.n}`, x + 4, y, { color: l.n! >= LIMITS.copies ? 'emberGlow' : 'crystalBright' });
-        drawText(g, tl === 'glyph' ? 'T' : tl === 'hero' ? 'H' : tl ? 'U' : '?', x + 14, y, { color: 'ironLight' });
-        drawText(g, l.text, x + 24, y, { color: l.ink });
+        drawText(g, `${l.n}`, x + 5, y, { color: l.n! >= LIMITS.copies ? 'emberGlow' : 'crystalBright', face: 'bold' });
+        drawText(g, tl === 'glyph' ? 'T' : tl === 'hero' ? 'H' : tl ? 'U' : '?', x + 15, y, { color: tl === 'hero' ? 'brassLight' : 'ironLight' });
+        drawText(g, l.text, x + 25, y, { color: l.ink });
         this.hots.push({ x, y: y - 1, w: RIGHT_W, h: ROW_H, id: `deck:${l.id}` });
-      } else drawText(g, l.text, x + 2, y, { color: l.ink });
+      } else drawText(g, l.text, x + 3, y, { color: l.ink, face: 'bold' });
     });
     if (lines.length > fitRows) {
       const y = LIST_Y + fitRows * ROW_H;
       let bx = x + 2;
-      bx += this.chip(g, 'UP', bx, y - 1, 'list:up', false, 10) + 2;
-      bx += this.chip(g, 'DOWN', bx, y - 1, 'list:down', false, 10) + 4;
-      drawText(g, `LINES ${this.listScroll + 1}-${this.listScroll + shown.length} OF ${lines.length}`, bx, y, { color: 'ironLight' });
+      bx += this.chip(g, 'Up', bx, y - 1, 'list:up', false, 10) + 2;
+      bx += this.chip(g, 'Down', bx, y - 1, 'list:down', false, 10) + 4;
+      drawText(g, `Lines ${this.listScroll + 1}–${this.listScroll + shown.length} of ${lines.length}`, bx, y, { color: 'ironLight' });
     }
   }
 
   private drawFooter(g: Gfx): void {
     const text = this.note ? say(this.note) : HINT;
-    wrap(text, 84).slice(0, 2).forEach((l, i) => drawText(g, l, LEFT_X, MSG_Y + i * 9, { color: this.note && this.noteBad ? 'emberGlow' : this.note ? 'brassGlint' : 'ironLight' }));
+    wrapPx(text, HW - 2 * LEFT_X).slice(0, 2).forEach((l, i) => drawText(g, l, LEFT_X, MSG_Y + i * 10, { color: this.note && this.noteBad ? 'emberGlow' : this.note ? 'brassGlint' : 'steam', shadow: 'ink' }));
     let x = LEFT_X;
     for (const [id, label] of [['new', 'NEW'], ['save', 'SAVE'], ['load', 'LOAD'], ['delete', 'DELETE'], ['fill', 'FILL']] as const) {
       x += this.btn(g, label, x, BTN_Y, `btn:${id}`, id === 'delete' ? 'ember' : 'brass') + 6;
     }
     const fillTo = fillFactions(this.cards, this.filter.faction);
-    const facs = fillTo.factions.map((f) => FACTIONS.find((y) => y.engine === f)!.key.toUpperCase()).join(' + ');
-    drawText(g, fillTo.problem ? 'FILL: PICK A FACTION' : `FILL FROM ${facs}`, x, BTN_Y + 5, { color: 'ironLight' });
-    this.btn(g, 'BACK', HW - 4 - (textWidth('BACK') + 14), BTN_Y, 'btn:back');
+    const facs = fillTo.factions.map((f) => titled(FACTIONS.find((y) => y.engine === f)!.name)).join(' + ');
+    const backW = Math.ceil(textWidth('BACK', 1, 'display')) + 16;
+    drawText(g, fitText(fillTo.problem ? 'Fill: pick a faction' : `Fill from ${facs}`, HW - 4 - backW - 8 - x), x, BTN_Y + 4.5, { color: 'steam', shadow: 'ink' });
+    this.btn(g, 'BACK', HW - 4 - backW, BTN_Y, 'btn:back');
   }
 
   private drawDetail(g: Gfx, cardId: string, h: Hot): void {
     if (!hasCard(cardId)) {
       const w = 250, x = h.x + h.w / 2 < HW / 2 ? HW - w - 4 : 4;
-      drawWindow(g, x, 40, w, 60);
-      wrap(say(`Unknown card ${cardId}. The data has no card with this id; take it out to make the deck legal.`), 39).slice(0, 4)
-        .forEach((l, i) => drawText(g, l, x + 8, 50 + i * 9, { color: 'emberGlow' }));
+      panel(g, x, 40, w, 64);
+      wrapPx(say(`Unknown card ${cardId}. The data has no card with this id; take it out to make the deck legal.`), w - 18).slice(0, 4)
+        .forEach((l, i) => drawText(g, l, x + 9, 50 + i * 10, { color: 'emberGlow' }));
       return;
     }
     const d = def(cardId);
     const f = face(null, 0, cardId);
-    const w = 250, hgt = 250;
+    const w = 260, hgt = 262;
     const x = h.x + h.w / 2 < HW / 2 ? HW - w - 4 : 4;
-    const y = 40;
-    drawWindow(g, x, y, w, hgt);
+    const y = 36;
+    panel(g, x, y, w, hgt);
     const art = cardArt(cardId, false, true);
-    if (art) drawPic(g, art, x + 8, y + 8);
-    else drawTextCentred(g, isMissing(cardId, false, true) || !CARD_ART[cardId]?.art ? 'NO ART' : '...', x + 72, y + 50, { color: 'iron' });
-    const nm = wrap(say(f.name), 17);
-    nm.forEach((l, i) => drawText(g, l, x + 140, y + 10 + i * 9, { color: 'brassGlint' }));
-    let yy = y + 14 + nm.length * 9;
-    drawText(g, d.type === 'glyph' ? `TACTIC ${say(d.speed ?? '')}` : d.type === 'hero' ? 'HERO' : 'UNIT', x + 140, yy, { color: 'steam' });
-    yy += 11;
-    drawText(g, `COST ${d.cost}`, x + 140, yy, { color: 'steamWhite' });
+    if (art) {
+      const unclip = clipRound(g, x + 8, y + 8, 128, 96, 3);
+      drawPic(g, art, x + 8, y + 8);
+      unclip();
+      frame(g, x + 8, y + 8, 128, 96, 'brassDark', 3);
+    } else drawTextCentred(g, isMissing(cardId, false, true) || !CARD_ART[cardId]?.art ? 'No art' : '…', x + 72, y + 50, { color: 'iron' });
+    const tx = x + 144, tw = w - 152;
+    const nm = wrapPx(say(f.name), tw, 1.15, 'bold');
+    nm.forEach((l, i) => drawText(g, l, tx, y + 10 + i * 11, { color: 'brassGlint', face: 'bold', scale: 1.15 }));
+    let yy = y + 14 + nm.length * 11;
+    drawText(g, d.type === 'glyph' ? `Tactic, ${say(d.speed ?? '')}` : d.type === 'hero' ? 'Hero' : 'Unit', tx, yy, { color: 'steam' });
+    yy += 14;
+    this.badge(g, tx + 6, yy + 3, d.cost, 'cost');
+    drawText(g, 'cost', tx + 15, yy, { color: 'ironLight', scale: 0.9 });
     if (d.type !== 'glyph') {
-      drawText(g, `POWER ${f.power}`, x + 140, yy + 10, { color: 'steamWhite' });
-      drawText(g, `HEALTH ${f.health}`, x + 140, yy + 20, { color: 'steamWhite' });
+      this.badge(g, tx + 6, yy + 19, f.power, 'power');
+      drawText(g, 'power', tx + 15, yy + 16, { color: 'ironLight', scale: 0.9 });
+      this.badge(g, tx + 6, yy + 35, f.health, 'health');
+      drawText(g, 'health', tx + 15, yy + 32, { color: 'ironLight', scale: 0.9 });
+      yy += 32;
     }
+    yy += 14;
     const fac = FACTIONS.find((z) => z.engine === d.faction);
-    const facName = wrap(fac ? fac.name : say(d.faction), 17);
-    facName.forEach((l, i) => drawText(g, l, x + 140, yy + 32 + i * 9, { color: 'ironLight' }));
+    const facName = wrapPx(fac ? titled(fac.name) : say(d.faction), tw);
+    facName.forEach((l, i) => drawText(g, l, tx, yy + i * 10, { color: 'ironLight' }));
     const n = countOf(this.cards, cardId);
-    drawText(g, `IN DECK ${n}/${LIMITS.copies}`, x + 140, yy + 34 + facName.length * 9, { color: n ? 'crystalBright' : 'ironLight' });
+    drawText(g, `In deck ${n}/${LIMITS.copies}`, tx, yy + 2 + facName.length * 10, { color: n ? 'crystalBright' : 'ironLight', face: 'bold' });
     const why = canAdd(this.cards, cardId);
-    const whyLines = why ? wrap(say(`Cannot add: ${why}`), 39) : [];
-    const limit = y + hgt - 14 - whyLines.length * 9;
-    whyLines.forEach((l, i) => drawText(g, l, x + 8, limit + 4 + i * 9, { color: 'emberGlow' }));
-    let ty = y + 110;
-    const room = (): boolean => ty <= limit - 9;
-    const put = (s: string, ink: Ink): void => {
-      for (const l of wrap(say(s), 39)) { if (!room()) return; drawText(g, l, x + 8, ty, { color: ink }); ty += 9; }
+    const whyLines = why ? wrapPx(say(`Cannot add: ${why}`), w - 18) : [];
+    const limit = y + hgt - 14 - whyLines.length * 10;
+    whyLines.forEach((l, i) => drawText(g, l, x + 9, limit + 4 + i * 10, { color: 'emberGlow' }));
+    let ty = y + 114;
+    rule(g, x + 8, ty - 5, w - 16);
+    const room = (): boolean => ty <= limit - 10;
+    const put = (s: string, ink: Ink, scale = 1): void => {
+      for (const l of wrapPx(say(s), w - 18, scale)) { if (!room()) return; drawText(g, l, x + 9, ty, { color: ink, scale }); ty += 10.5 * scale; }
     };
     put(f.text, 'steamWhite');
-    for (const k of f.keywords) put(`${KEYWORD_HELP[k].name}: ${KEYWORD_HELP[k].text}`, 'crystalBright');
-    if (d.level) put(`Ascends: ${d.level.text} (${d.level.n})`, 'brassLight');
+    for (const k of f.keywords) { ty += 2; put(`${KEYWORD_HELP[k].name}: ${KEYWORD_HELP[k].text}`, 'crystalBright', 0.95); }
+    if (d.level) { ty += 2; put(`Ascends: ${d.level.text} (${d.level.n})`, 'brassLight'); }
     if (d.ascended) {
-      ty += 2;
+      ty += 3;
       put(`Ascended: ${d.ascended.name ?? d.name}${d.ascended.power !== undefined ? ` ${d.ascended.power}|${d.ascended.health ?? f.health}` : ''}`, 'brassGlint');
       put(d.ascended.text, 'steam');
     }
@@ -630,19 +689,19 @@ export class DeckBuilder {
 
   private drawName(g: Gfx, t: number, m: Extract<Mode, { kind: 'name' }>): void {
     const w = 360, h = 150, x = (HW - w) / 2, y = 130;
-    drawWindow(g, x, y, w, h);
-    drawText(g, 'SAVE THIS DECK', x + 12, y + 12, { color: 'brassGlint' });
-    drawText(g, 'TYPE A NAME (A-Z, 0-9, SPACE; BACKSPACE ERASES)', x + 12, y + 24, { color: 'ironLight' });
-    drawText(g, 'OR PRESS NEXT NAME (OR TAB) FOR ONE.', x + 12, y + 33, { color: 'ironLight' });
-    g.rect(x + 12, y + 46, w - 24, 18, 'ink');
-    g.rect(x + 13, y + 47, w - 26, 16, 'ironNight');
-    drawText(g, m.name, x + 18, y + 52, { color: 'steamWhite' });
-    if ((t >> 4) % 2 === 0) g.rect(x + 18 + textWidth(m.name) + (m.name ? 2 : 0), y + 51, 5, 8, 'brassLight');
-    drawText(g, `${m.name.length}/${NAME_MAX}`, x + w - 18 - textWidth(`${m.name.length}/${NAME_MAX}`), y + 52, { color: 'iron' });
+    panel(g, x, y, w, h);
+    drawText(g, 'SAVE THIS DECK', x + 14, y + 11, { color: 'brassGlint', face: 'display', scale: 1.3 });
+    drawText(g, 'Type a name (A–Z, 0–9, space; Backspace erases),', x + 14, y + 26, { color: 'steam' });
+    drawText(g, 'or press NEXT NAME (or Tab) for one.', x + 14, y + 36, { color: 'steam' });
+    fillRound(g, x + 12, y + 48, w - 24, 18, 'ink', 0.9, 3);
+    frame(g, x + 12, y + 48, w - 24, 18, 'brass', 3);
+    drawText(g, m.name, x + 18, y + 53.5, { color: 'steamWhite', face: 'bold' });
+    if ((t >> 4) % 2 === 0) fillRound(g, x + 18 + textWidth(m.name, 1, 'bold') + (m.name ? 2 : 0), y + 52, 1.5, 10, 'brassLight', 1, 0.5);
+    drawTextRight(g, `${m.name.length}/${NAME_MAX}`, x + w - 18, y + 53.5, { color: 'ironLight' });
     const st = deckStatus(this.cards);
-    const lines = st.legal ? ['THIS DECK IS LEGAL.'] : wrap(say(`This deck is illegal and will be saved marked ILLEGAL: ${st.reason}`), 54);
-    lines.slice(0, 3).forEach((l, i) => drawText(g, l, x + 12, y + 72 + i * 9, { color: st.legal ? 'crystalBright' : 'emberGlow' }));
-    let bx = x + 12;
+    const lines = st.legal ? ['This deck is legal.'] : wrapPx(say(`This deck is illegal and will be saved marked ILLEGAL: ${st.reason}`), w - 28);
+    lines.slice(0, 3).forEach((l, i) => drawText(g, l, x + 14, y + 73 + i * 10, { color: st.legal ? 'crystalBright' : 'emberGlow' }));
+    let bx = x + 14;
     const by = y + h - 28;
     bx += this.btn(g, 'NEXT NAME', bx, by, 'name:next') + 6;
     bx += this.btn(g, 'CLEAR', bx, by, 'name:clear') + 6;
@@ -652,46 +711,48 @@ export class DeckBuilder {
 
   private drawLoad(g: Gfx, m: Extract<Mode, { kind: 'load' }>): void {
     const w = 460, h = 380, x = (HW - w) / 2, y = 30;
-    drawWindow(g, x, y, w, h);
-    drawText(g, 'LOAD A SAVED DECK', x + 12, y + 12, { color: 'brassGlint' });
-    let ly = y + 24;
+    panel(g, x, y, w, h);
+    drawText(g, 'LOAD A SAVED DECK', x + 14, y + 11, { color: 'brassGlint', face: 'display', scale: 1.3 });
+    let ly = y + 28;
     if (this.loadProblem) {
-      for (const l of wrap(say(this.loadProblem), 70)) { drawText(g, l, x + 12, ly, { color: 'emberGlow' }); ly += 9; }
+      for (const l of wrapPx(say(this.loadProblem), w - 28)) { drawText(g, l, x + 14, ly, { color: 'emberGlow' }); ly += 10; }
     }
-    if (!this.saved.length) drawText(g, 'NO SAVED DECKS YET. BUILD ONE AND PRESS SAVE.', x + 12, ly + 6, { color: 'ironLight' });
-    const ROW = 20;
+    if (!this.saved.length) drawText(g, 'No saved decks yet. Build one and press SAVE.', x + 14, ly + 6, { color: 'ironLight' });
+    const ROW = 22;
     const fitRows = Math.floor((y + h - 34 - ly) / ROW);
     m.scroll = Math.min(m.scroll, Math.max(0, this.saved.length - fitRows));
     this.saved.slice(m.scroll, m.scroll + fitRows).forEach((d, k) => {
       const i = m.scroll + k;
       const ry = ly + k * ROW;
-      const hover = this.mx >= x + 10 && this.mx < x + w - 10 && this.my >= ry && this.my < ry + ROW - 2;
-      g.rect(x + 10, ry, w - 20, ROW - 2, hover ? 'brassDark' : 'ironNight');
+      const hover = this.hovering(x + 10, ry, w - 20, ROW - 2);
+      if (hover) highlight(g, x + 10, ry, w - 20, ROW - 2, 'brass');
+      else fillRound(g, x + 10, ry, w - 20, ROW - 2, 'ironNight', 0.75, 3);
       const st = deckStatus(d.cards);
-      drawText(g, fit(say(d.name), 40), x + 14, ry + 2, { color: 'steamWhite' });
-      const meta = `${d.cards.length}/${LIMITS.deck}  ${st.label}`;
-      drawText(g, meta, x + w - 14 - textWidth(meta), ry + 2, { color: st.legal ? 'crystalBright' : 'emberGlow' });
-      if (!st.legal) drawText(g, fit(say(st.reason), 72), x + 14, ry + 10, { color: 'emberGlow' });
-      else drawText(g, say(checkDeck(d.cards).factions.map((f) => FACTIONS.find((z) => z.engine === f)!.name).join(' AND ')), x + 14, ry + 10, { color: 'ironLight' });
+      const meta = `${d.cards.length}/${LIMITS.deck}  ${sentence(st.label)}`;
+      drawTextRight(g, meta, x + w - 16, ry + 2.5, { color: st.legal ? 'crystalBright' : 'emberGlow', face: 'bold' });
+      drawText(g, fitText(say(d.name), w - 40 - textWidth(meta, 1, 'bold'), 1, 'bold'), x + 15, ry + 2.5, { color: 'steamWhite', face: 'bold' });
+      const sub = !st.legal ? say(st.reason) : say(checkDeck(d.cards).factions.map((f) => titled(FACTIONS.find((z) => z.engine === f)!.name)).join(' and '));
+      drawText(g, fitText(sub, w - 32, 0.9), x + 15, ry + 12, { color: st.legal ? 'ironLight' : 'emberGlow', scale: 0.9 });
       this.hots.push({ x: x + 10, y: ry, w: w - 20, h: ROW - 2, id: `load:${i}` });
     });
     const by = y + h - 26;
-    let bx = x + 12;
+    let bx = x + 14;
     if (this.saved.length > fitRows) {
       bx += this.btn(g, 'UP', bx, by, 'load:up') + 6;
       bx += this.btn(g, 'DOWN', bx, by, 'load:down') + 6;
-      drawText(g, `${m.scroll + 1}-${Math.min(this.saved.length, m.scroll + fitRows)} OF ${this.saved.length}`, bx, by + 5, { color: 'ironLight' });
+      drawText(g, `${m.scroll + 1}–${Math.min(this.saved.length, m.scroll + fitRows)} of ${this.saved.length}`, bx, by + 4.5, { color: 'ironLight' });
     }
-    this.btn(g, 'CANCEL', x + w - 12 - (textWidth('CANCEL') + 14), by, 'load:cancel');
+    this.btn(g, 'CANCEL', x + w - 14 - (Math.ceil(textWidth('CANCEL', 1, 'display')) + 16), by, 'load:cancel');
   }
 
   private drawConfirm(g: Gfx, m: Extract<Mode, { kind: 'confirm' }>): void {
-    const lines = m.lines.flatMap((l) => wrap(say(l), 50));
-    const w = 330, h = 50 + lines.length * 10, x = (HW - w) / 2, y = 160;
-    drawWindow(g, x, y, w, h);
-    lines.forEach((l, i) => drawText(g, l, x + 14, y + 12 + i * 10, { color: 'steamWhite' }));
-    const by = y + h - 26;
-    const yw = this.btn(g, m.yes, x + 14, by, 'confirm:yes', 'ember');
-    this.btn(g, m.no, x + 14 + yw + 8, by, 'confirm:no');
+    const w = 340;
+    const lines = m.lines.flatMap((l) => wrapPx(say(l), w - 30));
+    const h = 52 + lines.length * 10.5, x = (HW - w) / 2, y = 160;
+    panel(g, x, y, w, h);
+    lines.forEach((l, i) => drawText(g, l, x + 15, y + 13 + i * 10.5, { color: 'steamWhite' }));
+    const by = y + h - 27;
+    const yw = this.btn(g, m.yes, x + 15, by, 'confirm:yes', 'ember');
+    this.btn(g, m.no, x + 15 + yw + 8, by, 'confirm:no');
   }
 }
