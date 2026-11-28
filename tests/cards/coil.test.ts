@@ -38,10 +38,10 @@ describe('coil heroes', () => {
     expect(st(s, unit(s, 1, 'zz-ogre'))).toMatchObject({ power: 5, health: 5 });
   });
 
-  it('coil-aruvi: ascends on the 3rd big summon; +2|+2 to every ally, Pierce to allies with 5+ power (aura power counts)', () => {
+  it('coil-aruvi: ascends on the 2nd big summon; +2|+2 to every ally, Pierce to allies with 5+ power (aura power counts)', () => {
     const s = board({ hand: [['zz-ogre'], []], line: [['coil-aruvi', 'zz-grunt'], ['zz-grunt']] });
     s.players[0].heroes = ['coil-aruvi'];
-    s.players[0].seen.bigSummoned = 2;
+    s.players[0].seen.bigSummoned = 1;
     play(s, 'zz-ogre');
     expect(s.players[0].ascended).toContain('coil-aruvi');
     expect(st(s, unit(s, 0, 'zz-ogre'))).toMatchObject({ power: 8, health: 8 }); // 5 +1|+1 +2|+2
@@ -72,7 +72,7 @@ describe('coil heroes', () => {
     expect(unit(s, 0, 'coil-aruvi').dmg).toBe(0);
   });
 
-  it('coil-brakk: base face has Pierce but no Mend and no Strike growth; dealing 10 damage ascends it mid-attack', () => {
+  it('coil-brakk: base face has Pierce but no Mend and no Strike growth; dealing 6 damage ascends it mid-attack', () => {
     const s = board({ line: [['coil-brakk'], ['zz-filler']] });
     const b = unit(s, 0, 'coil-brakk');
     expect(st(s, b)).toMatchObject({ power: 6, health: 6 });
@@ -81,7 +81,7 @@ describe('coil heroes', () => {
     resolveCombat(s);
     expect(s.players[1].spire).toBe(15); // 6 - 1 health = 5 through
     expect(st(s, b)).toMatchObject({ power: 6, health: 6 });
-    expect(s.players[0].ascended).not.toContain('coil-brakk'); // 6 damage dealt: not yet 10
+    // heroes are not registered on this board, so the base face stays for the checks below
     nextRound(s);
     b.dmg = 3;
     nextRound(s);
@@ -89,9 +89,10 @@ describe('coil heroes', () => {
 
     const t = board({ line: [['coil-brakk'], ['zz-wall']] });
     t.players[0].heroes = ['coil-brakk'];
-    unit(t, 0, 'coil-brakk').seen.damageDealt = 4;
+    unit(t, 0, 'coil-brakk').seen.damageDealt = 0;
+    expect(t.players[0].ascended).not.toContain('coil-brakk');
     attack(t, [unit(t, 0, 'coil-brakk')]);
-    resolveCombat(t);
+    resolveCombat(t); // 6 unblocked damage to the Spire
     expect(t.players[0].ascended).toContain('coil-brakk');
   });
 
@@ -99,7 +100,7 @@ describe('coil heroes', () => {
     const s = board({ hand: [['coil-lash-out'], []], line: [['coil-brakk'], ['zz-grunt']] });
     s.players[0].heroes = ['coil-brakk'];
     const b = unit(s, 0, 'coil-brakk');
-    b.seen.damageDealt = 9;
+    b.seen.damageDealt = 5;
     play(s, 'coil-lash-out', [b.iid, unit(s, 1, 'zz-grunt').iid]);
     pass(s); pass(s);
     expect(s.players[0].ascended).toContain('coil-brakk');
@@ -482,10 +483,10 @@ describe('coil heroes (First Light)', () => {
     expect(s.players[0].ascended).not.toContain('coil-halcy');
   });
 
-  it('coil-halcy: ascends on the 7th token; Ascend summons two Saplings and gives every Sapling +2|+2 (plus the +1|+1 aura)', () => {
+  it('coil-halcy: ascends on the 5th token; Ascend summons two Saplings and gives every Sapling +2|+2 (plus the +1|+1 aura)', () => {
     const s = board({ hand: [['coil-halcy'], []], line: [['zz-grunt'], ['zz-grunt']] });
-    s.players[0].seen.tokensSummoned = 6;
-    play(s, 'coil-halcy'); // Deploy Sapling = 7th token
+    s.players[0].seen.tokensSummoned = 4;
+    play(s, 'coil-halcy'); // Deploy Sapling = 5th token
     expect(s.players[0].ascended).toContain('coil-halcy');
     expect(saplings(s).length).toBe(3);
     for (const p of saplings(s)) expect(st(s, p)).toMatchObject({ power: 3, health: 4 }); // 0|1 +2|+2 +1|+1
@@ -519,10 +520,10 @@ describe('coil heroes (First Light)', () => {
     expect(st(s, n).keywords).not.toContain('pierce');
   });
 
-  it('coil-nyra: ascends on the 6th enemy destroyed; Ascend summons two Pack Wolves and gives every ally +1|+1', () => {
+  it('coil-nyra: ascends on the 5th enemy destroyed; Ascend summons two Pack Wolves and gives every ally +1|+1', () => {
     const s = board({ hand: [['zz-zap'], []], line: [['coil-nyra', 'zz-grunt'], ['zz-filler', 'zz-grunt']] });
     s.players[0].heroes = ['coil-nyra'];
-    s.players[0].seen.enemiesDied = 5;
+    s.players[0].seen.enemiesDied = 4;
     play(s, 'zz-zap', [unit(s, 1, 'zz-filler').iid]);
     expect(s.players[0].ascended).toContain('coil-nyra');
     const wolves = s.players[0].line.filter((u) => u.card === 'coil-packwolf');

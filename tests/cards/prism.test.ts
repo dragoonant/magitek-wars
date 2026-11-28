@@ -36,10 +36,10 @@ describe('prism heroes', () => {
     expect(y.dmg).toBe(2); // 1 + (2 - 1 Plated)
   });
 
-  it('prism-ysolde: ascends on 6 ally survivals; herself Ward, other allies Ward and +1|+1, Plated, Dusk repair', () => {
+  it('prism-ysolde: ascends on 2 ally survivals; herself Ward, other allies Ward and +1|+1, Plated, Dusk repair', () => {
     const s = board({ hand: BOLTS, line: [['prism-ysolde', 'zz-grunt'], ['zz-grunt']] });
     s.players[0].heroes = ['prism-ysolde'];
-    s.players[0].seen.allySurvivals = 6;
+    s.players[0].seen.allySurvivals = 2;
     pass(s); pass(s);
     expect(s.players[0].ascended).toContain('prism-ysolde');
     const y = unit(s, 0, 'prism-ysolde'), g = unit(s, 0, 'zz-grunt');
@@ -97,15 +97,16 @@ describe('prism heroes', () => {
     expect(unit(s, 1, 'zz-ogre').dmg).toBe(4);
   });
 
-  it('prism-oren: the third survival ascends and repairs the Spire by 4', () => {
-    const s = board({ hand: BOLTS, line: [['prism-oren'], []] });
+  it('prism-oren: the third survival by any of your units ascends her and repairs the Spire by 4', () => {
+    const s = board({ hand: BOLTS, line: [['prism-oren', 'zz-wall'], []] });
     s.players[0].heroes = ['prism-oren'];
     s.players[0].spire = 10;
     const o = unit(s, 0, 'prism-oren');
-    bolt(s, o.iid); bolt(s, o.iid);
+    const w = unit(s, 0, 'zz-wall');
+    bolt(s, w.iid); bolt(s, o.iid);
     expect(s.players[0].ascended).not.toContain('prism-oren');
     expect(s.players[0].spire).toBe(10);
-    bolt(s, o.iid);
+    bolt(s, w.iid);
     expect(s.players[0].ascended).toContain('prism-oren');
     expect(s.players[0].spire).toBe(14);
   });
@@ -472,11 +473,11 @@ describe('prism heroes (First Light additions)', () => {
     expect(st(s, unit(s, 0, 'prism-tamsin')).keywords).not.toContain('plated');
   });
 
-  it('prism-tamsin: the 15th buff ascends her; Ascend fills the Line with 1|1 Tier Recruits; Plated 3|5 face', () => {
+  it('prism-tamsin: the 10th buff ascends her; Ascend fills the Line with 1|1 Tier Recruits; Plated 3|5 face', () => {
     const s = board({ line: [['prism-tamsin', 'zz-grunt'], ['zz-grunt']] });
     s.players[0].heroes = ['prism-tamsin'];
-    s.players[0].seen.buffsGiven = 13;
-    pass(s); pass(s); // Dusk buffs two allies: 15
+    s.players[0].seen.buffsGiven = 8;
+    pass(s); pass(s); // Dusk buffs two allies: 10
     expect(s.players[0].ascended).toContain('prism-tamsin');
     const line = s.players[0].line;
     expect(line.length).toBe(6);
@@ -500,12 +501,12 @@ describe('prism heroes (First Light additions)', () => {
     expect(st(s, unit(s, 0, 'zz-grunt'))).toMatchObject({ power: 3, health: 3 });
   });
 
-  it('prism-orrin: Deploy deals 1 to the enemy, 3 in all to an Aerial one (a kill he counts); Spotter blocks Aerial', () => {
+  it('prism-orrin: Deploy deals 1 to the enemy, 3 in all to an Aerial one (an enemy destroyed counts); Spotter blocks Aerial', () => {
     const s = board({ hand: [['prism-orrin'], []], line: [[], ['zz-aerial', 'zz-ogre']] });
     play(s, 'prism-orrin', [unit(s, 1, 'zz-aerial').iid]);
     expect(s.players[1].line.map((u) => u.card)).toEqual(['zz-ogre']);
     const o = unit(s, 0, 'prism-orrin');
-    expect(o.seen.kills).toBe(1);
+    expect(s.players[0].seen.enemiesDied).toBe(1);
     expect(st(s, o)).toMatchObject({ power: 2, health: 4 }); // the base face does not grow
 
     const t = board({ hand: [['prism-orrin'], []], line: [[], ['zz-ogre']] });
@@ -519,11 +520,11 @@ describe('prism heroes (First Light additions)', () => {
     expect(unit(u, 0, 'zz-aerial').dmg).toBe(2);
   });
 
-  it('prism-orrin: his third kill ascends him; Ascend deals 2 to every enemy and 2 more to Aerial ones, and he grows', () => {
+  it('prism-orrin: the 5th enemy unit destroyed ascends him; Ascend deals 2 to every enemy and 2 more to Aerial ones, and he grows', () => {
     const s = board({ line: [['prism-orrin'], ['zz-grunt', 'zz-aerial', 'zz-wall']] });
     s.players[0].heroes = ['prism-orrin'];
     const o = unit(s, 0, 'prism-orrin');
-    o.seen.kills = 2;
+    s.players[0].seen.enemiesDied = 4;
     attack(s, [o], [[unit(s, 1, 'zz-grunt'), o]]);
     resolveCombat(s);
     expect(s.players[0].ascended).toContain('prism-orrin');

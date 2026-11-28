@@ -7,7 +7,7 @@ export const coil: CardDef[] = [
     keywords: ['mend'], tribe: 'warden',
     text: 'Mend. When you summon another ally with 5+ power, it gets +1|+1.',
     abilities: [{ on: 'allySummoned', ops: [{ op: 'buff', to: { from: 'trigger', filter: { minPower: 5 } }, power: 1, health: 1 }] }],
-    level: { who: 'you', stat: 'bigSummoned', n: 3, text: "You've summoned 3+ units with 5+ power" },
+    level: { who: 'you', stat: 'bigSummoned', n: 2, text: "You've summoned 2+ units with 5+ power" },
     ascended: {
       name: 'Ulla, Voice of the Root', power: 4, health: 6, keywords: ['mend'],
       text: 'Mend. Allies with 5+ power have Pierce. Ascend: give every ally +2|+2.',
@@ -19,7 +19,7 @@ export const coil: CardDef[] = [
     id: 'coil-brakk', name: 'Hoarhorn, the Old Bull', faction: 'coil', type: 'hero', cost: 6, power: 6, health: 6,
     keywords: ['pierce'], tribe: 'beast',
     text: 'Pierce.',
-    level: { who: 'self', stat: 'damageDealt', n: 10, text: "I've dealt 10+ damage" },
+    level: { who: 'self', stat: 'damageDealt', n: 6, text: "I've dealt 6+ damage" },
     ascended: {
       name: 'Hoarhorn Unbowed', power: 8, health: 8, keywords: ['pierce', 'mend'],
       text: 'Pierce, Mend. Strike: I get +1|+1. Ascend: you get one extra attack: you may attack again this round, banked until used.',
@@ -174,7 +174,7 @@ export const coil: CardDef[] = [
       { on: 'deploy', ops: [{ op: 'summon', card: 'coil-sapling' }] },
       { on: 'dusk', ops: [{ op: 'summon', card: 'coil-sapling' }] },
     ],
-    level: { who: 'you', stat: 'tokensSummoned', n: 7, text: "You've summoned 7+ tokens" },
+    level: { who: 'you', stat: 'tokensSummoned', n: 5, text: "You've summoned 5+ tokens" },
     ascended: {
       name: 'Oda of the Seedbeds', power: 2, health: 5,
       text: 'Dusk: summon a Glass Sapling. Your Glass Saplings have +1|+1. Ascend: summon two Glass Saplings, then give every allied Glass Sapling +2|+2.',
@@ -196,7 +196,7 @@ export const coil: CardDef[] = [
     tribe: 'warden',
     text: 'When an enemy unit is destroyed, I get +1|+0.',
     abilities: [{ on: 'enemyDied', ops: [{ op: 'buff', to: 'self', power: 1 }] }],
-    level: { who: 'you', stat: 'enemiesDied', n: 6, text: '6+ enemy units have been destroyed' },
+    level: { who: 'you', stat: 'enemiesDied', n: 5, text: '5+ enemy units have been destroyed' },
     ascended: {
       name: 'Sefa, Pack-Mother', power: 5, health: 5, keywords: ['pierce'],
       text: 'Pierce. When an enemy unit is destroyed, every ally gets +1|+0 this round. Ascend: summon two Reed-Hounds, then give every ally +1|+1.',

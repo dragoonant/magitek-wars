@@ -21,7 +21,7 @@ export const under: CardDef[] = [
     id: 'under-vex', name: 'Doctor Hollis Grane, Drawer', faction: 'under', type: 'hero', cost: 5, power: 4, health: 5,
     keywords: ['siphon'], tribe: 'syndicate',
     text: 'Siphon.',
-    level: { who: 'you', stat: 'spireHealed', n: 8, text: "You've repaired your Crystal by 8+" },
+    level: { who: 'you', stat: 'spireHealed', n: 4, text: "You've repaired your Crystal by 4+" },
     ascended: {
       name: 'Grane, Who Never Cools', power: 5, health: 6, keywords: ['siphon'],
       text: 'Siphon. Dusk: drain 2 from the enemy Crystal. Ascend: drain 3 from every enemy unit.',
@@ -171,7 +171,7 @@ export const under: CardDef[] = [
     keywords: ['dread'], tribe: 'syndicate',
     text: 'Dread. Assault: deal 1 damage to the weakest enemy.',
     abilities: [{ on: 'assault', ops: [{ op: 'damage', to: 'weakestEnemy', n: 1 }] }],
-    level: { who: 'self', stat: 'kills', n: 3, text: "I've destroyed 3+ units" },
+    level: { who: 'you', stat: 'enemiesDied', n: 6, text: '6+ enemy units have been destroyed' },
     ascended: {
       name: 'Graff, the Last Knock', power: 4, health: 5, keywords: ['dread'],
       text: 'Dread. Assault: deal 2 damage to the weakest enemy. Ascend: destroy every damaged enemy unit.',

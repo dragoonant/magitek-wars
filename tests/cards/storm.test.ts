@@ -395,8 +395,8 @@ describe('storm cards', () => {
   it('storm-jax: Ascend lets you attack again even if the owner has not attacked yet (R-B1)', () => {
     const s = board({ hand: [['zz-bolt'], []], line: [['storm-jax', 'zz-grunt'], []] });
     s.players[0].heroes = ['storm-jax'];
-    s.players[0].seen.spireDamage = 7;
-    play(s, 'zz-bolt', ['spire1']);
+    s.players[0].seen.spireDamage = 4;
+    play(s, 'zz-bolt', ['spire1']); // 6th point of Crystal damage
     pass(s);
     expect(s.players[0].ascended).toContain('storm-jax');
     expect(s.players[0].extraAttacks).toBe(1);
@@ -413,10 +413,10 @@ describe('storm cards', () => {
     expect(s.players[0].seen.buffsGiven).toBe(1);
   });
 
-  it('storm-odile: ascends on the 16th buff; Ascend gives Aerial allies +2|+2; ascended Dawn gives +1|+1', () => {
+  it('storm-odile: ascends on the 10th buff; Ascend gives Aerial allies +2|+2; ascended Dawn gives +1|+1', () => {
     const s = board({ hand: [['storm-tailwind', 'storm-tailwind'], []], line: [['storm-odile', 'zz-aerial', 'zz-grunt'], []] });
     s.players[0].heroes = ['storm-odile'];
-    s.players[0].seen.buffsGiven = 14;
+    s.players[0].seen.buffsGiven = 8;
     const a = unit(s, 0, 'zz-aerial');
     const o = unit(s, 0, 'storm-odile');
     play(s, 'storm-tailwind', [a.iid]);
@@ -444,10 +444,10 @@ describe('storm cards', () => {
     expect(t.players[1].spire).toBe(20 - 4 - 3 - 3);
   });
 
-  it('storm-ness: ascends on the 16th attacker; Ascend buffs the attack and grants another; ascended Assault gives +2|+0', () => {
+  it('storm-ness: ascends on the 6th attacker; Ascend buffs the attack and grants another; ascended Assault gives +2|+0', () => {
     const s = board({ line: [['storm-ness', 'zz-grunt'], []] });
     s.players[0].heroes = ['storm-ness'];
-    s.players[0].seen.attackersDeclared = 14;
+    s.players[0].seen.attackersDeclared = 4;
     const n = unit(s, 0, 'storm-ness');
     const g = unit(s, 0, 'zz-grunt');
     attack(s, [n, g]);

@@ -7,8 +7,11 @@ campaign run, a deck builder and the card gallery, with music and sound.
 - Public repo `dragoonant/magitek-wars`; push to `main` runs typecheck, tests and build, then deploys to Pages.
   Licence: all rights reserved (PLAN D19).
 - **Engine (PLAN D4):** Annals of Scrivenearth's engine, AI and card data (300 cards, 24 heroes, 6 factions), copied at
-  8b4ebac, plus one setup field for runs (`startSpire`, R-X3). `npm run gate` passes: 495 tests, the card audit (332
+  8b4ebac, plus one setup field for runs (`startSpire`, R-X3). `npm run gate` passes: 498 tests, the card audit (332
   faces), the mutation pass, the AI bench and the build.
+- **Heroes (D29):** every hero's level condition is measured with `npm run herosim`: a hero that reaches the Line
+  ascends in 51-96% of its games, around round 6-8, on a counter its own nation feeds (before: 11 of 24 under half, Otto
+  Brandt 10%, Maudrey Hale 8%). Four premades changed to feed their heroes (BALANCE B-6). **Not yet played by the owner.**
 - **Re-skin (D12, D16, D24):** every card and hero has its Magitek Wars name and text; the Spire is printed as the
   Crystal (each nation's heart crystal) and a glyph as a tactic; the magic substance is crystal, not "gloam"
   (`docs/RESKIN.md`, audit-checked). Card ids and the spec's internal words are unchanged.
@@ -39,7 +42,7 @@ campaign run, a deck builder and the card gallery, with music and sound.
   `feat/flux-studio-lora` of `dragoonant/local-ai-studio` (not merged).
 
 ## Waiting on the owner
-- Listen to the music and effects; play-test the battles, the campaign's difficulty (R-2) and the deck builder.
+- Listen to the music and effects; play-test the battles, the campaign's difficulty (R-2), the deck builder, and whether heroes now ascend often enough (D29).
 - Q2 interface concept and Q5 re-skin map (`PLAN.md`), kept as built for now.
 - ElevenLabs: its CLI sign-in needs the owner's approval in the browser before it can replace the local sound.
 - Flux Studio: merge `feat/flux-studio-lora` (fast-forward) and restart the studio.

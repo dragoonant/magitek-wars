@@ -7,7 +7,7 @@ export const prism: CardDef[] = [
     keywords: ['plated'], tribe: 'warden',
     text: 'Plated. Dusk: repair every ally by 1.',
     abilities: [{ on: 'dusk', ops: [{ op: 'heal', to: 'allies', n: 1 }] }],
-    level: { who: 'you', stat: 'allySurvivals', n: 6, text: 'Your units have survived damage 6+ times' },
+    level: { who: 'you', stat: 'allySurvivals', n: 2, text: 'Your units have survived damage 2+ times' },
     ascended: {
       name: 'Venn, Master of the Works', power: 3, health: 5, keywords: ['plated'],
       text: 'Plated. Other allies have +1|+1. Dusk: repair every ally by 1. Ascend: give every ally Ward.',
@@ -23,7 +23,7 @@ export const prism: CardDef[] = [
     keywords: ['spotter'], tribe: 'warden',
     text: 'Spotter. When I survive damage, I get +1|+0.',
     abilities: [{ on: 'survive', ops: [{ op: 'buff', to: 'self', power: 1 }] }],
-    level: { who: 'self', stat: 'survivals', n: 3, text: "I've survived damage 3+ times" },
+    level: { who: 'you', stat: 'allySurvivals', n: 3, text: 'Your units have survived damage 3+ times' },
     ascended: {
       name: 'Maudrey Hale, the Unbowed', power: 5, health: 8, keywords: ['spotter', 'plated'],
       text: 'Spotter, Plated. When I survive damage, I get +1|+0 and deal 2 to the strongest enemy (highest power). Ascend: repair your Crystal by 4.',
@@ -161,7 +161,7 @@ export const prism: CardDef[] = [
     tribe: 'warden',
     text: 'Dusk: give every ally with 2 or less power +0|+1.',
     abilities: [{ on: 'dusk', ops: [{ op: 'buff', to: { from: 'allies', filter: { maxPower: 2 } }, health: 1 }] }],
-    level: { who: 'you', stat: 'buffsGiven', n: 15, text: "You've given allies a stat buff 15+ times" },
+    level: { who: 'you', stat: 'buffsGiven', n: 10, text: "You've given allies a stat buff 10+ times" },
     ascended: {
       name: 'Ilse Corrow, the Iron Tide', power: 3, health: 5, keywords: ['plated'],
       text: 'Plated. Dusk: give every ally with 2 or less power +1|+1. Ascend: summon 1|1 Conscripts until you have 6 units.',
@@ -179,7 +179,7 @@ export const prism: CardDef[] = [
       on: 'deploy', targets: [{ what: 'unit', side: 'enemy' }],
       ops: [{ op: 'damage', to: 'target0', n: 1 }, { op: 'damage', to: { from: 'target0', filter: { kw: 'aerial' } }, n: 2 }],
     }],
-    level: { who: 'self', stat: 'kills', n: 3, text: "I've destroyed 3+ enemy units" },
+    level: { who: 'you', stat: 'enemiesDied', n: 5, text: '5+ enemy units have been destroyed' },
     ascended: {
       name: 'Senna Kale, Rimefall', power: 4, health: 6, keywords: ['spotter'],
       text: 'Spotter. Deploy: deal 1 to an enemy unit, then 2 more to it if it is Aerial. When an enemy unit is destroyed, I get +1|+0. Ascend: deal 2 to every enemy unit, then 2 more to every enemy Aerial unit.',

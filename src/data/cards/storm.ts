@@ -7,7 +7,7 @@ export const storm: CardDef[] = [
     id: 'storm-jax', name: 'Wren Ashby', faction: 'storm', type: 'hero', cost: 2, power: 3, health: 2,
     keywords: ['vanguard'], tribe: 'courier',
     text: 'Vanguard.',
-    level: { who: 'you', stat: 'spireDamage', n: 8, text: "You've dealt 8+ damage to the enemy Crystal" },
+    level: { who: 'you', stat: 'spireDamage', n: 6, text: "You've dealt 6+ damage to the enemy Crystal" },
     ascended: {
       name: 'Wren, Ghost of the Line', power: 4, health: 3, keywords: ['vanguard', 'aerial'],
       text: 'Vanguard, Aerial. When I strike the enemy Crystal, I get +1|+0. Ascend: you may attack again this round.',
@@ -22,7 +22,7 @@ export const storm: CardDef[] = [
     keywords: ['aerial'], tribe: 'courier',
     text: 'Aerial. Assault: attacking allies get +1|+0 this round.',
     abilities: [{ on: 'assault', ops: [{ op: 'buff', to: 'attackers', power: 1, dur: 'round' }] }],
-    level: { who: 'you', stat: 'attackersDeclared', n: 10, text: "You've declared 10+ attackers" },
+    level: { who: 'you', stat: 'attackersDeclared', n: 7, text: "You've declared 7+ attackers" },
     ascended: {
       name: 'Ada Rusk, Canopy of Night', power: 5, health: 6, keywords: ['aerial'],
       text: 'Aerial. Assault: attacking allies get +2|+0 and Vanguard this round. Ascend: summon 2 Patch Gliders.',
@@ -162,7 +162,7 @@ export const storm: CardDef[] = [
     keywords: ['aerial'], tribe: 'courier',
     text: 'Aerial. Dawn: other Aerial allies get +1|+0 this round.',
     abilities: [{ on: 'dawn', ops: [{ op: 'buff', to: { from: 'otherAllies', filter: { kw: 'aerial' } }, power: 1, dur: 'round' }] }],
-    level: { who: 'you', stat: 'buffsGiven', n: 16, text: "You've buffed allies 16+ times" },
+    level: { who: 'you', stat: 'buffsGiven', n: 10, text: "You've buffed allies 10+ times" },
     ascended: {
       name: 'Hettie, Mother of the Lofts', power: 3, health: 5, keywords: ['aerial'],
       text: 'Aerial. Dawn: other Aerial allies get +1|+1 this round. Ascend: Aerial allies get +2|+2.',
@@ -177,7 +177,7 @@ export const storm: CardDef[] = [
     keywords: ['vanguard'], tribe: 'courier',
     text: 'Vanguard. Assault: if you have declared 3 or more attackers this round, attacking allies get +1|+0 this round.',
     abilities: [{ on: 'assault', cond: { c: 'seenRound', stat: 'attackersDeclared', gte: 3 }, ops: [{ op: 'buff', to: 'attackers', power: 1, dur: 'round' }] }],
-    level: { who: 'you', stat: 'attackersDeclared', n: 16, text: "You've declared 16+ attackers" },
+    level: { who: 'you', stat: 'attackersDeclared', n: 6, text: "You've declared 6+ attackers" },
     ascended: {
       name: 'Otto Brandt, the Whole Union', power: 4, health: 5, keywords: ['vanguard'],
       text: 'Vanguard. Assault: if you have declared 3 or more attackers this round, attacking allies get +2|+0 this round. Ascend: attacking allies get +1|+0 this round, and you may attack again this round.',
