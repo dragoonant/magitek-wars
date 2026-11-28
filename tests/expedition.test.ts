@@ -39,6 +39,17 @@ describe('spec 21: the hero campaign', () => {
     }
   });
 
+  it('R-E13 every hero has its own innate, signature and mastery Orders, never offered on the map', () => {
+    const ids = HEROES.flatMap((h) => [h.innateOrder, h.signatureOrder, h.masteryOrder]);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const h of HEROES) {
+      expect(order(h.innateOrder).rarity, h.id).toBe('innate');
+      expect(order(h.signatureOrder).rarity, h.id).toBe('signature');
+      expect(order(h.masteryOrder).rarity, h.id).toBe('signature');
+    }
+    for (const id of ids) expect(OFFERABLE).not.toContain(id);
+  });
+
   it('R-E1 a run replays from its seed', () => {
     const a = newRun('coil-aruvi', 'thrumhollow', 42);
     const b = newRun('coil-aruvi', 'thrumhollow', 42);
@@ -88,7 +99,7 @@ describe('spec 21: the hero campaign', () => {
     const s = createGame(r.battle!.setup);
     expect(s.players[0].spire).toBe(13);
     expect(s.players[1].spire).toBe(stop(r, r.at!).foe!.crystal);
-    expect(s.players[0].orders!.map((o) => o.id)).toEqual(['riveted-plates']);
+    expect(s.players[0].orders!.map((o) => o.id)).toEqual([hero('storm-jax').innateOrder, 'riveted-plates']);
     expect(face(s, 0, 'storm-tickettaker').health).toBe(def('storm-tickettaker').health! + 2);
     expect(face(s, 1, 'storm-tickettaker').health).toBe(def('storm-tickettaker').health!);
     // the run-only War Chest never reaches the engine; it pays out after a win instead
@@ -177,7 +188,7 @@ describe('spec 21: the hero campaign', () => {
     for (const id of r.pick!.options) expect(OFFERABLE).toContain(id);
     const pick = r.pick!.options[0];
     choosePick(r, pick);
-    expect(r.orders).toEqual([pick]);
+    expect(r.orders).toEqual([hero('tide-maren').innateOrder, pick]);
     // never offered again
     for (let i = 0; i < 20; i++) {
       r.phase = 'map'; r.at = 'b';
@@ -300,14 +311,14 @@ describe('spec 21: the hero campaign', () => {
     const h = hero('prism-tamsin');
     const r1 = newRun(h.id, 'thrumhollow', 3, 1);
     expect(r1.scrip).toBe(0);
-    expect(r1.orders).toEqual([]);
+    expect(r1.orders).toEqual([h.innateOrder]); // R-E13 rank 1: every run starts with the hero's innate Order
     expect(r1.fittings).toEqual({});
     const r8 = newRun(h.id, 'thrumhollow', 3, 8);
     expect(r8.scrip).toBe(15);
-    expect(r8.orders[0]).toBe(h.signatureOrder);
+    expect(r8.orders.slice(0, 2)).toEqual([h.innateOrder, h.signatureOrder]);
     expect(r8.orders).toContain(h.masteryOrder);
-    expect(r8.orders.length).toBe(3);
-    expect(order(r8.orders[1]).rarity).toBe('common');
+    expect(r8.orders.length).toBe(4);
+    expect(order(r8.orders[2]).rarity).toBe('common');
     expect(r8.fittings[h.id]).toBe(h.signatureFitting);
     r8.phase = 'rest';
     r8.crystal = 5;

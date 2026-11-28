@@ -132,6 +132,7 @@ export function newRun(heroId: string, expeditionId: string, seed: number, rank 
     at: null, visited: [], phase: 'map', battle: null, offer: null, shop: null, pick: null, fitWith: null, event: null,
     xp: 0, xpBanked: 0, wins: 0, log: [],
   };
+  r.orders.push(h.innateOrder);
   if (rank >= 2) r.scrip += RANK_SCRIP;
   if (rank >= 3) r.orders.push(h.signatureOrder);
   if (rank >= 5) r.fittings[h.id] = h.signatureFitting;

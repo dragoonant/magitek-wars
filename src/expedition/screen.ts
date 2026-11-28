@@ -456,9 +456,9 @@ export class ExpeditionScreen {
       }
       y += 2;
     }
-    const sig = order(h.signatureOrder), mst = order(h.masteryOrder), sf = fitting(h.signatureFitting);
+    const inn = order(h.innateOrder), sig = order(h.signatureOrder), mst = order(h.masteryOrder), sf = fitting(h.signatureFitting);
     y += 4;
-    for (const l of [`${sig.name}: ${sig.text}`, `${sf.name}: ${sf.text} on ${nm.split(' ').slice(-1)[0]}.`, `${mst.name}: ${mst.text}`]) {
+    for (const l of [`${inn.name}: ${inn.text}`, `${sig.name}: ${sig.text}`, `${sf.name}: ${sf.text} on ${nm.split(' ').slice(-1)[0]}.`, `${mst.name}: ${mst.text}`]) {
       for (const w of wrapPx(l, 182, 0.85)) { if (y < 432) drawText(g, w, 14, y, { color: 'steam', scale: 0.85 }); y += 9; }
     }
     // expeditions

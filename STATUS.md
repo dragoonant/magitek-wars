@@ -42,7 +42,7 @@ roguelike campaign, Hero Expeditions in the shape of Path of Champions, a deck b
   second hero joins). Rewards are card bundles (hero, faction, wild). Each hero keeps a **rank** between runs (XP,
   ranks 1-8: starting scrip, a signature Order, better rests, a signature Fitting, an extra Order, better field
   repairs, a mastery Order). Bosses and elites carry their own Orders, shown in the briefing; in battle each side's
-  Orders sit on its bar (hover or hold to read). Its own save slot. Balance R-3.
+  Orders sit on its bar (hover or hold to read). Every hero starts each run with an innate Order. Its own save slot. Balance R-4: on fresh seeds one-star 53% at rank 1, two-star 60% at rank 3, three-star 58% at rank 5.
 - **Look (D25):** the interface no longer looks 8/16-bit: real type (Cinzel headings and buttons, Fira Sans text,
   sentence case), smoked-glass panels in brass frames, brass buttons, rounded card frames with stat badges, a crystal gem
   for each Crystal and painted, darkened battlefields behind the menu screens (`src/ui.ts`, ART-STYLE section 7). The
@@ -64,7 +64,7 @@ roguelike campaign, Hero Expeditions in the shape of Path of Champions, a deck b
 - Verdict on LoRA v3 (`lora/runs/v3-compare.webp`).
 
 ## Next
-1. Expeditions: owner play-test of D33; Captain Dasha Quill (Gale Exchange) is far the hardest hero (R-3); more
+1. Expeditions: owner play-test of D33 and R-4; Marshal Ilse Corrow (one-star) and Captain Dasha Quill (two-star) are the weakest heroes, Speaker Ulla the strongest; more
    expeditions and hero-specific level-up powers once the owner has played the first three. Campaign: act 1 elites
    (24 cards, Veteran) are still its main wall (R-2).
 2. Art: a prompt pass for cards that drifted to modern-war looks, now with v3.
