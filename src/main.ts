@@ -293,7 +293,11 @@ window.addEventListener('keydown', (e) => {
   else title.key(e.code);
   route();
 });
+/** The battle screen in play (a quick battle, or a campaign battle): it takes raw pointer events for drag and hold. */
+const liveMatch = (): Match | null => (screen === 'match' ? match : screen === 'run' ? run?.match ?? null : null);
 canvas.addEventListener('pointermove', (e) => {
+  const m = liveMatch();
+  if (m) { m.pointerMove(...logical(e), e.pointerType === 'touch'); return; }
   if (screen === 'title') title.pointerMove(...logical(e));
   else if (screen === 'match') match?.pointerMove(...logical(e));
   else if (screen === 'run') run?.pointerMove(...logical(e));
@@ -302,15 +306,27 @@ canvas.addEventListener('pointermove', (e) => {
 // Touch: a tap acts on pointer-up; a press held 400 ms inspects instead (the hover detail), and does not act.
 let touchHold: { x: number; y: number; timer: number; held: boolean } | null = null;
 canvas.addEventListener('pointerup', (e) => {
+  const m = liveMatch();
+  if (m) { m.pointerUp(...logical(e)); route(); return; }
   if (e.pointerType !== 'touch' || !touchHold) return;
   clearTimeout(touchHold.timer);
   const t0 = touchHold;
   touchHold = null;
   if (!t0.held) press(t0.x, t0.y, 0);
 });
+canvas.addEventListener('pointercancel', () => liveMatch()?.pointerCancel());
+canvas.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') liveMatch()?.pointerLeave(); });
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   const [x, y] = logical(e);
+  const m = liveMatch();
+  if (m) {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    canvas.setPointerCapture(e.pointerId);
+    m.pointerDown(x, y, e.pointerType === 'touch');
+    route();
+    return;
+  }
   if (e.pointerType === 'touch') {
     const hold = { x, y, held: false, timer: 0 };
     hold.timer = window.setTimeout(() => {
@@ -335,9 +351,10 @@ function press(x: number, y: number, button: number): void {
 }
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('wheel', (e) => {
-  if (screen === 'match' && match) {
+  const lm = liveMatch();
+  if (lm) {
     e.preventDefault();
-    match.wheel(e.deltaY, ...logical(e as unknown as PointerEvent));
+    lm.wheel(e.deltaY, ...logical(e as unknown as PointerEvent));
     return;
   }
   if (screen !== 'decks' || !builder) return;
