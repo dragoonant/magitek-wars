@@ -32,9 +32,15 @@ export function setHW(w: number): void {
 }
 
 const SLOT = { w: 82, h: 104 };
-const FOE_LINE_Y = 24;
-const MID_Y = 130;
+/** The foe's hand as card backs, with its Deck and Scrap piles at the right. */
+const FOE_HAND_Y = 24;
+const FOE_LINE_Y = 44;
+const MID_Y = 150;
 const MY_LINE_Y = 210;
+/** How far an attacker or blocker steps out of its Line toward the other side. */
+const LUNGE = 8;
+/** My Deck and Scrap piles sit either side of the hand. */
+const PILE = { w: 44, h: 62 };
 const MY_BAR_Y = 316;
 const HAND_Y = 342;
 const CARD = { h: 104 };
@@ -46,14 +52,20 @@ function slotGeo(): { w: number; dx: number; x0: number } {
   const w = Math.min(110, Math.floor(dx) - 2);
   return { w, dx, x0: 4 + (dx - w - 2) / 2 };
 }
-/** Hand cards: ten across the width, 49 to 66 wide (66 shows the whole 64-wide art). */
-function cardGeo(): { w: number; dx: number; x0: number } {
-  const dx = Math.max(50, Math.min(72, (HW - 12) / 10));
-  const w = Math.min(66, Math.floor(dx) - 1);
-  return { w, dx, x0: 6 };
+/**
+ * Hand cards, centred between the two piles. Cards are 58 wide at 512 and 66 (the whole 64-wide art) on wider
+ * screens; a big hand overlaps them rather than shrinking them.
+ */
+function cardGeo(n: number): { w: number; dx: number; x0: number } {
+  const w = HW >= 640 ? 66 : 58;
+  const left = 6 + PILE.w + 10, right = HW - 6 - PILE.w - 10;
+  const avail = right - left;
+  const dx = n > 1 ? Math.min(w + 6, (avail - w) / (n - 1)) : 0;
+  const total = w + Math.max(0, n - 1) * dx;
+  return { w, dx, x0: Math.round(HW / 2 - total / 2) };
 }
-/** The log takes the right part of the middle strip; at 512 it starts at x 300. */
-const logX = (): number => Math.round((HW * 300) / BASE_W);
+/** The log drawer: it slides in from the right over the board. */
+const drawerW = (): number => Math.round(Math.min(340, Math.max(250, HW * 0.4)));
 
 interface Hot { x: number; y: number; w: number; h: number; id: string; kind: 'hand' | 'unit' | 'spire' | 'stack' | 'button' | 'hero' }
 interface Button { id: string; label: string; enabled: boolean }
@@ -80,9 +92,15 @@ export class Match {
   private note = '';
   private aiAt = 0;
   private menu = false;
-  /** Full-screen viewers: the whole log, or a player's Scrap (open information). */
-  private panel: { kind: 'log' } | { kind: 'scrap'; seat: Seat } | null = null;
+  /** Full-screen viewers: a player's Scrap (open information) or a Deck (mine: what is left, sorted; the foe's: a count). */
+  private panel: { kind: 'scrap'; seat: Seat } | { kind: 'deck'; seat: Seat } | null = null;
   private scroll = 0;
+  /** The log drawer: open or not, how far it has slid in (0 to 1), and its scroll. */
+  private drawer = false;
+  private drawerT = 0;
+  private drawerScroll = 0;
+  /** Where each unit is drawn now; it eases toward its slot, so attackers and blockers visibly move. */
+  private at = new Map<string, [number, number]>();
   /** Where each unit was last drawn, so effects can rise from it (even after it is gone). */
   private pos = new Map<string, [number, number]>();
   private fx: { x: number; y: number; text: string; ink: Ink; born: number; flash?: boolean }[] = [];
@@ -237,8 +255,13 @@ export class Match {
   private press(id: string): void {
     const acts = this.acts();
     if (id === 'menu') { this.menu = !this.menu; return; }
-    if (id === 'log') { this.panel = this.panel?.kind === 'log' ? null : { kind: 'log' }; this.scroll = 0; return; }
+    if (id === 'log') { this.drawer = !this.drawer; this.drawerScroll = 0; return; }
+    if (id === 'drawer-bg') return;
+    if (id === 'drawer-up') { this.drawerScroll += 10; return; }
+    if (id === 'drawer-down') { this.drawerScroll = Math.max(0, this.drawerScroll - 10); return; }
     if (id === 'scrap0' || id === 'scrap1') { this.panel = { kind: 'scrap', seat: id === 'scrap0' ? 0 : 1 }; this.scroll = 0; return; }
+    if (id === 'deck0' || id === 'deck1') { this.panel = { kind: 'deck', seat: id === 'deck0' ? 0 : 1 }; this.scroll = 0; return; }
+    if (id === 'panel-bg') return;
     if (id === 'panel-close') { this.panel = null; return; }
     if (id === 'panel-up') { this.scroll += 10; return; }
     if (id === 'panel-down') { this.scroll = Math.max(0, this.scroll - 10); return; }
@@ -354,20 +377,32 @@ export class Match {
       return;
     }
     if (h.kind === 'button') this.press(h.id);
-    else if (this.menu) return;
+    else if (this.menu || this.panel) return;
     else if (h.kind === 'hand') this.clickHand(h.id);
     else if (h.kind === 'unit' || h.kind === 'spire' || h.kind === 'stack') this.clickObject(h.id);
   }
 
+  /** Mouse wheel: scrolls the log drawer or an open viewer. */
+  wheel(dy: number, x: number, _y: number): void {
+    const step = Math.sign(dy) * Math.max(1, Math.round(Math.abs(dy) / 30));
+    if (this.panel) this.scroll = Math.max(0, this.scroll - step);
+    else if (this.drawer && x >= HW - drawerW()) this.drawerScroll = Math.max(0, this.drawerScroll - step);
+  }
+
   key(code: string): void {
     if (this.panel) {
-      if (code === 'Escape' || code === 'KeyL') this.panel = null;
+      if (code === 'Escape') this.panel = null;
       else if (code === 'ArrowUp' || code === 'PageUp') this.scroll += code === 'PageUp' ? 20 : 2;
       else if (code === 'ArrowDown' || code === 'PageDown') this.scroll = Math.max(0, this.scroll - (code === 'PageDown' ? 20 : 2));
       return;
     }
-    if (code === 'KeyL') { this.panel = { kind: 'log' }; this.scroll = 0; return; }
+    if (code === 'KeyL') { this.drawer = !this.drawer; this.drawerScroll = 0; return; }
+    if (this.drawer && (code === 'PageUp' || code === 'PageDown')) {
+      this.drawerScroll = Math.max(0, this.drawerScroll + (code === 'PageUp' ? 20 : -20));
+      return;
+    }
     if (code === 'Escape') {
+      if (this.drawer) { this.drawer = false; return; }
       if (this.armed || this.picked) { this.armed = null; this.picked = null; }
       else this.menu = !this.menu;
       return;
@@ -391,16 +426,21 @@ export class Match {
     g.wash(0, 0, HW, HH, 'ink', 0.42);
 
     this.drawBar(g, v, 1, 0);
-    this.drawLine(g, v, 1, FOE_LINE_Y, t);
+    this.drawFoeHand(g, v);
     this.drawMiddle(g, v, t);
+    this.drawLine(g, v, 1, FOE_LINE_Y, t);
     this.drawLine(g, v, 0, MY_LINE_Y, t);
     this.drawBar(g, v, 0, MY_BAR_Y);
     this.drawCombat(g, v, t);
+    this.drawPiles(g, v);
     this.drawHand(g, v, t);
     this.spawnFx(v, t);
     this.drawFx(g, t);
     if (v.phase === 'over') this.drawOver(g, v);
     this.drawButtons(g);
+    this.drawerT += ((this.drawer ? 1 : 0) - this.drawerT) * 0.3;
+    if (Math.abs(this.drawerT - (this.drawer ? 1 : 0)) < 0.01) this.drawerT = this.drawer ? 1 : 0;
+    if (this.drawerT > 0) this.drawDrawer(g, v);
     if (this.panel) this.drawPanel(g, v);
     else if (this.hover && !this.menu && v.phase !== 'over') this.drawDetail(g, v, this.hover);
     if (this.menu) this.drawMenu(g);
@@ -518,8 +558,8 @@ export class Match {
       ix += textWidth(k, 0.9) + 3;
       drawText(g, val, ix, y + 2.5, { color: k === 'Charge' ? 'crystalBright' : 'steamWhite', face: 'bold', scale: 0.9 });
       ix += textWidth(val, 0.9, 'bold') + 10;
-      // Scrap opens the Scrap viewer for this player
-      if (k === 'Scrap') this.hots.push({ x: start - 2, y: y + 1, w: ix - start - 6, h: 9, id: `scrap${seat}`, kind: 'button' });
+      // Deck and Scrap open their viewers for this player
+      if (k === 'Scrap' || k === 'Deck') this.hots.push({ x: start - 2, y: y + 1, w: ix - start - 6, h: 9, id: `${k.toLowerCase()}${seat}`, kind: 'button' });
     }
     // hero progress, open information (R-H3)
     let hx = 128;
@@ -608,72 +648,216 @@ export class Match {
     return '';
   }
 
+  /**
+   * Which column each unit of a Line is drawn in. Outside combat a unit sits in its own slot. In combat attackers
+   * keep their column and step forward; each blocker moves to the column of the attacker it blocks and steps forward
+   * to meet it; the other defenders fill the free columns in order. Display only: the engine's Line is unchanged.
+   */
+  private columns(v: GameState, seat: Seat): Map<string, { col: number; out: boolean }> {
+    const line = v.players[seat].line;
+    const out = new Map<string, { col: number; out: boolean }>();
+    const c = v.combat;
+    if (!c || c.pairs.length === 0) {
+      line.forEach((u, i) => out.set(u.iid, { col: i, out: false }));
+      return out;
+    }
+    if (c.attacker === seat) {
+      const att = new Set(c.pairs.map((p) => p.att));
+      line.forEach((u, i) => out.set(u.iid, { col: i, out: att.has(u.iid) }));
+      return out;
+    }
+    const foeLine = v.players[c.attacker].line;
+    const taken = new Set<number>();
+    for (const p of c.pairs) {
+      if (!p.blk || !line.some((u) => u.iid === p.blk)) continue;
+      const col = foeLine.findIndex((u) => u.iid === p.att);
+      if (col < 0 || taken.has(col)) continue;
+      out.set(p.blk, { col, out: true });
+      taken.add(col);
+    }
+    let next = 0;
+    for (const u of line) {
+      if (out.has(u.iid)) continue;
+      while (taken.has(next)) next++;
+      out.set(u.iid, { col: next, out: false });
+      taken.add(next);
+    }
+    return out;
+  }
+
   private drawLine(g: Gfx, v: GameState, seat: Seat, y: number, t: number): void {
     const line = v.players[seat].line;
     const sg = slotGeo();
+    const cols = this.columns(v, seat);
+    const used = new Set([...cols.values()].map((c) => c.col));
     for (let i = 0; i < LIMITS.line; i++) {
+      if (used.has(i)) continue;
       const x = Math.round(sg.x0 + i * sg.dx);
-      const u = line[i];
-      if (u) this.unitTile(g, v, u, x, y, t, this.roleOf(v, u));
-      else {
-        fillRound(g, x, y, sg.w, SLOT.h, 'ink', 0.35, 4);
-        g.ctx.save();
-        g.ctx.setLineDash([3, 3]);
-        frame(g, x + 1, y + 1, sg.w - 2, SLOT.h - 2, seat === 0 ? 'brassShadow' : 'emberNight', 4);
-        g.ctx.restore();
-      }
+      fillRound(g, x, y, sg.w, SLOT.h, 'ink', 0.35, 4);
+      g.ctx.save();
+      g.ctx.setLineDash([3, 3]);
+      frame(g, x + 1, y + 1, sg.w - 2, SLOT.h - 2, seat === 0 ? 'brassShadow' : 'emberNight', 4);
+      g.ctx.restore();
+    }
+    // units that stepped out are drawn last, over their neighbours
+    const order = [...line].sort((a, b) => Number(cols.get(a.iid)!.out) - Number(cols.get(b.iid)!.out));
+    for (const u of order) {
+      const c = cols.get(u.iid)!;
+      const tx = sg.x0 + c.col * sg.dx;
+      const ty = y + (c.out ? (seat === 0 ? -LUNGE : LUNGE) : 0);
+      const cur = this.at.get(u.iid) ?? [tx, ty];
+      const nx = Math.abs(tx - cur[0]) < 0.5 ? tx : cur[0] + (tx - cur[0]) * 0.25;
+      const ny = Math.abs(ty - cur[1]) < 0.5 ? ty : cur[1] + (ty - cur[1]) * 0.25;
+      this.at.set(u.iid, [nx, ny]);
+      this.unitTile(g, v, u, Math.round(nx), Math.round(ny), t, this.roleOf(v, u));
     }
   }
 
+  /** The strip between the Lines: the prompt, then the stack (or the round) on the left and the buttons on the right. */
   private drawMiddle(g: Gfx, v: GameState, t: number): void {
     const ctx = g.ctx;
-    const top = MID_Y - 4, h = MY_LINE_Y - MID_Y + 2;
+    const top = MID_Y - 2, h = MY_LINE_Y - MID_Y + 2;
     const gr = ctx.createLinearGradient(0, top, 0, top + h);
-    gr.addColorStop(0, rgba('ink', 0.55));
-    gr.addColorStop(0.5, rgba('duskZenith', 0.78));
-    gr.addColorStop(1, rgba('ink', 0.55));
+    gr.addColorStop(0, rgba('ink', 0.5));
+    gr.addColorStop(0.5, rgba('duskZenith', 0.75));
+    gr.addColorStop(1, rgba('ink', 0.5));
     ctx.fillStyle = gr;
-    ctx.fillRect(0, top + 2, HW, h - 4);
-    const lx = logX();
+    ctx.fillRect(0, top, HW, h);
     const pr = this.note || this.prompt();
-    const lines = wrapPx(pr, lx - 14, 1, 'bold');
-    lines.slice(0, 2).forEach((l, i) => drawText(g, l, 8, MID_Y + i * 10, { color: this.note ? 'emberGlow' : 'brassGlint', face: 'bold', shadow: 'ink' }));
-    // stack, newest on top
-    let sy = MID_Y + 22;
-    drawText(g, v.stack.length ? 'Stack (newest first)' : `Round ${v.round}`, 8, sy, { color: 'ironLight', face: v.stack.length ? 'body' : 'display' });
-    sy += 11;
-    const next = this.nextChoices();
-    for (const it of [...v.stack].reverse().slice(0, 5)) {
-      const label = `${it.owner === 0 ? 'You' : 'Foe'}: ${this.name(it.card, it.owner)}`;
-      const on = next.has(it.sid);
-      if (on) highlight(g, 4, sy - 2, lx - 12, 10.5, 'brass');
-      else fillRound(g, 4, sy - 2, lx - 12, 10.5, 'ironNight', 0.75, 2);
-      drawText(g, fitText(label, lx - 20), 8, sy, { color: on ? 'brassGlint' : 'steamWhite' });
-      this.hots.push({ x: 4, y: sy - 1, w: lx - 10, h: 10, id: it.sid, kind: 'stack' });
-      sy += 11;
+    const lines = wrapPx(pr, HW - 16, 1, 'bold').slice(0, 2);
+    const py = lines.length > 1 ? MID_Y + 8 : MID_Y + 12;
+    lines.forEach((l, i) => drawTextCentred(g, l, HW / 2, py + i * 10, { color: this.note ? 'emberGlow' : 'brassGlint', face: 'bold', shadow: 'ink' }));
+    // the stack as a row of chips, newest first; the round when it is empty
+    const rowY = MID_Y + 30;
+    const btnW = this.buttons().reduce((a, b) => a + textWidth(b.label, 1, 'display') + 28, 0);
+    const maxX = HW - 8 - btnW - 6;
+    let sx = 8;
+    if (v.stack.length === 0) {
+      drawText(g, `Round ${v.round}`, sx, rowY + 3, { color: 'ironLight', face: 'display' });
+    } else {
+      drawText(g, 'Stack:', sx, rowY + 3.5, { color: 'ironLight' });
+      sx += textWidth('Stack:', 1) + 5;
+      const next = this.nextChoices();
+      const items = [...v.stack].reverse();
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        const label = `${it.owner === 0 ? 'You' : 'Foe'}: ${this.name(it.card, it.owner)}`;
+        const w = Math.min(textWidth(label, 1) + 10, 150);
+        const rest = items.length - i - 1;
+        if (sx + w > maxX - (rest ? 26 : 0)) {
+          drawText(g, `+${items.length - i}`, sx, rowY + 3.5, { color: 'steam', face: 'bold' });
+          break;
+        }
+        const on = next.has(it.sid);
+        if (on) highlight(g, sx, rowY, w, 14, 'brass');
+        else fillRound(g, sx, rowY, w, 14, it.owner === 0 ? 'ironNight' : 'emberNight', 0.85, 3);
+        frame(g, sx, rowY, w, 14, on ? 'brassGlint' : it.owner === 0 ? 'brassDark' : 'emberDeep', 3);
+        drawText(g, fitText(label, w - 10), sx + 5, rowY + 3.5, { color: on ? 'brassGlint' : 'steamWhite' });
+        this.hots.push({ x: sx, y: rowY, w, h: 14, id: it.sid, kind: 'stack' });
+        sx += w + 4;
+      }
     }
-    // log: the latest lines
-    const log = v.log.slice(-60);
-    const out: string[] = [];
-    for (const e of log) out.push(...wrapPx(lineText(e, (id) => face(this.s, e.seat ?? 0, id).name), HW - lx - 12));
-    const shown = out.slice(-7);
-    ctx.fillStyle = rgba('brass', 0.6);
-    ctx.fillRect(lx, MID_Y - 2, 1, 78);
-    shown.forEach((l, i) => drawText(g, l, lx + 6, MID_Y + i * 10, { color: i === shown.length - 1 ? 'steamWhite' : 'steam', alpha: i === shown.length - 1 ? 1 : 0.55 + (0.4 * i) / shown.length }));
     void t;
+  }
+
+  /** The foe's hand as small card backs, centred, so its size can be seen at a glance; its piles sit at the right. */
+  private drawFoeHand(g: Gfx, v: GameState): void {
+    const p = v.players[1];
+    const n = p.hand.length;
+    const bw = 12, bh = 16;
+    const dx = n > 1 ? Math.min(bw + 3, 200 / (n - 1)) : 0;
+    const total = n ? bw + (n - 1) * dx : 0;
+    let x = HW / 2 - total / 2;
+    const y = FOE_HAND_Y + 1;
+    for (let i = 0; i < n; i++) {
+      this.cardBack(g, x, y, bw, bh);
+      x += dx;
+    }
+    if (n === 0) drawTextCentred(g, 'no cards in hand', HW / 2, y + 4, { color: 'ironLight', scale: 0.85 });
+    else drawText(g, String(n), HW / 2 + total / 2 + 5, y + 3.5, { color: 'emberGlow', face: 'bold' });
+    // the foe's Deck and Scrap, small, at the right
+    let rx = HW - 6;
+    for (const [id, label, count] of [['scrap1', 'Scrap', p.scrap.length], ['deck1', 'Deck', p.deck.length]] as const) {
+      const w = textWidth(`${label} ${count}`, 0.9, 'bold') + 24;
+      rx -= w;
+      const hot = this.hover?.id === id;
+      fillRound(g, rx, y - 1, w, bh + 2, hot ? 'emberNight' : 'ink', 0.8, 3);
+      frame(g, rx, y - 1, w, bh + 2, hot ? 'emberGlow' : 'emberDeep', 3);
+      if (label === 'Deck') this.cardBack(g, rx + 3, y + 1, 9, 12);
+      else this.cardFace(g, rx + 3, y + 1, 9, 12);
+      drawText(g, `${label} ${count}`, rx + 16, y + 4, { color: 'steamWhite', face: 'bold', scale: 0.9 });
+      this.hots.push({ x: rx, y: y - 1, w, h: bh + 2, id, kind: 'button' });
+      rx -= 6;
+    }
+  }
+
+  /** A face-down card: iron with an ember border and a small crystal in the middle. */
+  private cardBack(g: Gfx, x: number, y: number, w: number, h: number): void {
+    const ctx = g.ctx;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    ctx.shadowBlur = 2;
+    fillRound(g, x, y, w, h, 'emberNight', 0.97, 2);
+    ctx.restore();
+    frame(g, x, y, w, h, 'emberDeep', 2);
+    frame(g, x + 1.5, y + 1.5, w - 3, h - 3, 'brassShadow', 1.5);
+    this.gem(g, x + w / 2, y + h / 2, Math.min(w, h) * 0.28, false);
+  }
+
+  /** A face-up pile marker (the Scrap): a pale card with lines of text. */
+  private cardFace(g: Gfx, x: number, y: number, w: number, h: number): void {
+    fillRound(g, x, y, w, h, 'iron', 0.95, 2);
+    frame(g, x, y, w, h, 'ironNight', 2);
+    for (let i = 0; i < 3; i++) g.rect(x + 2, y + 3 + i * (h / 4), w - 4, 1, 'ironNight');
+  }
+
+  /** My Deck (left of the hand) and Scrap (right of it), each a little stack with its count; click to look inside. */
+  private drawPiles(g: Gfx, v: GameState): void {
+    const p = v.players[0];
+    const y = HAND_Y + (CARD.h - PILE.h) / 2 - 4;
+    const piles: [string, string, number, number, boolean][] = [
+      ['deck0', 'DECK', p.deck.length, 6, true],
+      ['scrap0', 'SCRAP', p.scrap.length, HW - 6 - PILE.w, false],
+    ];
+    for (const [id, label, count, x, back] of piles) {
+      const hot = this.hover?.id === id;
+      const layers = Math.min(3, count);
+      for (let i = layers - 1; i >= 0; i--) {
+        const ox = x + i * 2, oy = y - i * 2;
+        if (back) this.cardBack(g, ox, oy, PILE.w - 4, PILE.h - 4);
+        else this.cardFace(g, ox, oy, PILE.w - 4, PILE.h - 4);
+      }
+      if (count === 0) {
+        fillRound(g, x, y, PILE.w - 4, PILE.h - 4, 'ink', 0.45, 3);
+        g.ctx.save();
+        g.ctx.setLineDash([3, 3]);
+        frame(g, x + 0.5, y + 0.5, PILE.w - 5, PILE.h - 5, 'brassDark', 3);
+        g.ctx.restore();
+      }
+      if (hot) frame(g, x - 2, y - 6, PILE.w + 2, PILE.h + 6, 'brassGlint', 4, true);
+      const cx = x + (PILE.w - 4) / 2;
+      fillRound(g, cx - 13, y + PILE.h / 2 - 12, 26, 15, 'ink', 0.8, 4);
+      drawTextCentred(g, String(count), cx, y + PILE.h / 2 - 10, { color: 'steamWhite', face: 'bold', scale: 1.2 });
+      drawTextCentred(g, label, cx, y + PILE.h + 2, { color: hot ? 'brassGlint' : 'ironLight', face: 'display', scale: 0.85, shadow: 'ink' });
+      this.hots.push({ x: x - 2, y: y - 6, w: PILE.w + 2, h: PILE.h + 18, id, kind: 'button' });
+    }
   }
 
   private drawHand(g: Gfx, v: GameState, _t: number): void {
     const p = v.players[0];
     const acts = this.acts();
-    const cg = cardGeo();
+    const cg = cardGeo(p.hand.length);
     const cw = cg.w;
     const ctx = g.ctx;
-    for (let i = 0; i < p.hand.length; i++) {
+    // the card under the pointer (or the armed one) is drawn last, lifted, so an overlapped hand can still be read
+    const top = p.hand.findIndex((h) => h.iid === (this.armed?.iid ?? (this.hover?.kind === 'hand' ? this.hover.id : '')));
+    const order = p.hand.map((_, i) => i);
+    if (top >= 0) { order.splice(top, 1); order.push(top); }
+    for (const i of order) {
       const h = p.hand[i];
       const x = Math.round(cg.x0 + i * cg.dx);
       const armed = this.armed?.iid === h.iid;
-      const y = HAND_Y - (armed ? 6 : 0);
+      const y = HAND_Y - (armed ? 6 : i === top ? 4 : 0);
       const d = def(h.card);
       const f = face(v, 0, h.card);
       const playable = acts.some((a) => (a.type === 'play' || a.type === 'channel') && a.iid === h.iid);
@@ -719,7 +903,7 @@ export class Match {
       frame(g, x, y, cw, CARD.h, edge, 4, armed);
       this.hots.push({ x, y, w: cw, h: CARD.h, id: h.iid, kind: 'hand' });
     }
-    if (p.hand.length === 0) drawText(g, 'Your hand is empty', 8, HAND_Y + 40, { color: 'ironLight' });
+    if (p.hand.length === 0) drawTextCentred(g, 'Your hand is empty', HW / 2, HAND_Y + 40, { color: 'ironLight' });
   }
 
   private drawButtons(g: Gfx): void {
@@ -731,7 +915,7 @@ export class Match {
     for (const b of [...btns].reverse()) {
       const w = bw(b);
       x -= w;
-      const y = over ? 226 : MID_Y + 57;
+      const y = over ? 226 : MID_Y + 29;
       button(g, b.label, x, y, { w, h: 17, state: b.enabled ? (this.hover?.id === b.id ? 'hot' : 'on') : 'off' });
       if (b.enabled) this.hots.push({ x, y, w, h: 17, id: b.id, kind: 'button' });
       x -= 8;
@@ -891,17 +1075,26 @@ export class Match {
     const x = 16, y = 30, w = HW - 32, h = HH - 60;
     panel(g, x, y, w, h, { tone: 'dark' });
     const p = this.panel!;
+    this.hots.push({ x: 0, y: 0, w: HW, h: HH, id: 'panel-bg', kind: 'button' });
     let lines: { text: string; ink: Ink }[];
-    if (p.kind === 'log') {
-      lines = v.log.flatMap((e) => wrapPx(lineText(e, (id) => face(this.s, e.seat ?? 0, id).name), w - 24)
-        .map((text): { text: string; ink: Ink } => ({ text, ink: e.k === 'round' ? 'brassLight' : 'steamWhite' })));
+    if (p.kind === 'deck' && p.seat === 1) {
+      lines = [{ text: `${v.players[1].deck.length} cards. What is in the foe's deck is hidden.`, ink: 'steam' }];
+    } else if (p.kind === 'deck') {
+      // what is left in my deck, from the full state: contents only, sorted by cost then name, so the order stays hidden
+      const counts = new Map<string, number>();
+      for (const id of this.s.players[0].deck) counts.set(id, (counts.get(id) ?? 0) + 1);
+      const ids = [...counts.keys()].sort((a, b) => def(a).cost - def(b).cost || face(v, 0, a).name.localeCompare(face(v, 0, b).name));
+      lines = ids.map((id): { text: string; ink: Ink } => ({ text: `${counts.get(id)} x ${face(v, 0, id).name} (${def(id).type === 'glyph' ? 'tactic' : def(id).type}, cost ${def(id).cost})`, ink: 'steamWhite' }));
+      if (lines.length === 0) lines = [{ text: 'Your deck is empty.', ink: 'iron' }];
     } else {
       const scrap = v.players[p.seat].scrap;
       lines = scrap.map((id, i): { text: string; ink: Ink } => ({ text: `${i + 1}. ${face(v, p.seat, id).name} (${def(id).type === 'glyph' ? 'tactic' : def(id).type}, cost ${def(id).cost})`, ink: 'steamWhite' }));
       if (lines.length === 0) lines = [{ text: 'Nothing in the Scrap yet.', ink: 'iron' }];
     }
-    const title = p.kind === 'log' ? 'BATTLE LOG' : `${p.seat === 0 ? 'YOUR' : "THE FOE'S"} SCRAP (${v.players[p.seat].scrap.length})`;
+    const whose = p.seat === 0 ? 'YOUR' : "THE FOE'S";
+    const title = p.kind === 'deck' ? `${whose} DECK (${v.players[p.seat].deck.length} LEFT)` : `${whose} SCRAP (${v.players[p.seat].scrap.length})`;
     drawText(g, title, x + 12, y + 9, { color: 'brassGlint', face: 'display', scale: 1.4 });
+    if (p.kind === 'deck' && p.seat === 0) drawText(g, 'sorted by cost; the draw order stays hidden', x + w - 12 - textWidth('sorted by cost; the draw order stays hidden', 0.9), y + 12, { color: 'ironLight', scale: 0.9 });
     rule(g, x + 10, y + 24, w - 20);
     const rows = Math.floor((h - 50) / 10);
     this.scroll = Math.min(this.scroll, Math.max(0, lines.length - rows));
@@ -916,6 +1109,42 @@ export class Match {
     btn('NEWER', x + 16 + ow, 'panel-down');
     btn('CLOSE', x + w - 10 - (textWidth('CLOSE', 1, 'display') + 16), 'panel-close');
     drawText(g, `${start + 1}–${Math.min(lines.length, start + rows)} of ${lines.length}`, x + 150, y + h - 17, { color: 'ironLight' });
+  }
+
+  /** The log drawer: every card played and every effect, newest at the bottom, sliding in from the right. */
+  private drawDrawer(g: Gfx, v: GameState): void {
+    const w = drawerW();
+    const ease = 1 - (1 - this.drawerT) ** 3;
+    const x = Math.round(HW - w * ease), y = FOE_HAND_Y, h = HH - y - 4;
+    g.wash(0, 0, x, HH, 'ink', 0.25 * ease);
+    panel(g, x, y, w + 6, h, { tone: 'dark' });
+    this.hots.push({ x, y, w, h, id: 'drawer-bg', kind: 'button' });
+    drawText(g, 'BATTLE LOG', x + 12, y + 9, { color: 'brassGlint', face: 'display', scale: 1.3 });
+    const cw = textWidth('CLOSE', 1, 'display') + 16;
+    button(g, 'CLOSE', x + w - 10 - cw, y + 6, { h: 15, state: this.hover?.id === 'log' ? 'hot' : 'on' });
+    this.hots.push({ x: x + w - 10 - cw, y: y + 6, w: cw, h: 15, id: 'log', kind: 'button' });
+    rule(g, x + 10, y + 26, w - 20);
+    const lines = v.log.flatMap((e) => wrapPx(lineText(e, (id) => face(this.s, e.seat ?? 0, id).name), w - 26)
+      .map((text, i): { text: string; ink: Ink; head: boolean } => ({ text, head: i === 0 && e.k === 'round', ink: e.k === 'round' ? 'brassLight' : e.seat === 1 ? 'steam' : 'steamWhite' })));
+    const rows = Math.floor((h - 58) / 10);
+    this.drawerScroll = Math.min(this.drawerScroll, Math.max(0, lines.length - rows));
+    const start = Math.max(0, lines.length - rows - this.drawerScroll);
+    lines.slice(start, start + rows).forEach((l, i) => {
+      const ly = y + 31 + i * 10;
+      if (l.head && i > 0) rule(g, x + 10, ly - 2, w - 20, 'brassShadow');
+      drawText(g, l.text, x + 12, ly, { color: l.ink, face: l.head ? 'bold' : 'body' });
+    });
+    if (lines.length === 0) drawText(g, 'Nothing has happened yet.', x + 12, y + 31, { color: 'iron' });
+    const by = y + h - 21;
+    const btn = (label: string, bx: number, id: string, on: boolean) => {
+      const bw = button(g, label, bx, by, { h: 15, state: on ? (this.hover?.id === id ? 'hot' : 'on') : 'off' });
+      if (on) this.hots.push({ x: bx, y: by, w: bw, h: 15, id, kind: 'button' });
+      return bw;
+    };
+    const ow = btn('OLDER', x + 10, 'drawer-up', start > 0);
+    btn('NEWER', x + 16 + ow, 'drawer-down', this.drawerScroll > 0);
+    const range = lines.length ? `${start + 1}-${Math.min(lines.length, start + rows)} of ${lines.length}` : '';
+    drawText(g, range, x + w - 12 - textWidth(range, 0.9), by + 4, { color: 'ironLight', scale: 0.9 });
   }
 
   private drawOver(g: Gfx, v: GameState): void {

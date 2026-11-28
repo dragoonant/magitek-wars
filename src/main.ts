@@ -335,6 +335,11 @@ function press(x: number, y: number, button: number): void {
 }
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('wheel', (e) => {
+  if (screen === 'match' && match) {
+    e.preventDefault();
+    match.wheel(e.deltaY, ...logical(e as unknown as PointerEvent));
+    return;
+  }
   if (screen !== 'decks' || !builder) return;
   e.preventDefault();
   builder.wheel(e.deltaY, ...logical(e as unknown as PointerEvent));
